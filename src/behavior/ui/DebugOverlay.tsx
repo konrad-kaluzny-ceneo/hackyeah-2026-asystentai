@@ -137,4 +137,3 @@ function formatTime(iso: string): string {
   if (Number.isNaN(t)) return iso;
   return new Date(t).toLocaleTimeString("pl-PL", { hour12: false });
 }
-

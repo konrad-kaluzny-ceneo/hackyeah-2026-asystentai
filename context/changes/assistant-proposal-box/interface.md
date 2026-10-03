@@ -1,6 +1,6 @@
 # Kontrakt: propozycja asystenta z MetaEvents
 
-Wspólna umowa dla serverowego przepływu Jev i boxa S-05. UI woła route po zapisaniu pierwszego MetaEventu z poprawnie wysłanego batcha, a potem przy każdym nowym MetaEvent, dopóki nie ma widocznej propozycji. Serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents i sam decyduje, czy rozpoznana sytuacja ma wystarczającą pewność.
+Wspólna umowa dla serverowego przepływu Jev/OpenAI i boxa S-05. UI wysyła snapshot od pierwszego unikalnego MetaEventu z poprawnie wysłanego batcha, a potem po każdym nowym evencie, dopóki propozycja nie zostanie pokazana albo asystent nie zostanie wyciszony. Serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents. Pewny, niehedgowany wynik `DECISION_FATIGUE` z niepustym draftem może zwrócić tekst Jev bez drugiego wywołania modelu; pozostałe poprawne wyniki przechodzą do OpenAI, które zwraca wyłącznie `title` i `message`.
 
 **Kontrakty w kodzie:** `src/lib/assistant-proposal-api.ts` zawiera request/response UI; `src/behavior/meta-event-schema.ts` jest współdzielonym, ścisłym schematem MetaEvent. `/api/meta-events` zachowuje dotychczasowy format batcha.
 
@@ -10,10 +10,10 @@ Wspólna umowa dla serverowego przepływu Jev i boxa S-05. UI woła route po zap
 | --- | --- | --- |
 | `src/behavior/meta-event-schema.ts` | wspólny | Ścisły schemat zdarzenia i allowlista metryk; używany po stronie klienta i serwera |
 | `src/lib/assistant-proposal-api.ts` | S-04 / S-05 | Wspólny request MetaEvents-only oraz parser odpowiedzi |
-| `src/app/api/assistant-proposal/route.ts` | S-04 | Walidacja, limity, Jev, bramka pewności i lokalny stub |
-| `src/server/assistant-proposal/*` | S-04 | Klient Jev, prompt z minimalnym podsumowaniem i stub przyszłego OpenAI |
-| `src/components/assistant/assistant-proposal-coordinator.tsx` | S-05 | Persistent coordinator: próg 1 MetaEvent, retry po nowych zdarzeniach, Jev request i mute gate |
-| `src/lib/assistant-proposal-state.ts` | S-05 | Wspólny stan jednego server proposal i widocznego local recovery |
+| `src/app/api/assistant-proposal/route.ts` | S-04 | Walidacja, limity, Jev i kompozycja odpowiedzi |
+| `src/server/assistant-proposal/*` | S-04 | Klient Jev/OpenAI i prompt z minimalnym podsumowaniem |
+| `src/components/assistant/assistant-proposal-coordinator.tsx` | S-05 | Root coordinator: próg 1 MetaEvent, kolejkowanie requestów, mute gate i abort/requeue |
+| `src/lib/assistant-proposal-state.ts` | S-05 | Wspólny stan jednej propozycji serwerowej i widocznego local recovery |
 | `src/components/assistant/assistant-inline.tsx` | S-05 | Render propozycji, lokalne empty-search recovery i mute boxa |
 | `src/behavior/assistant-meta-event-history.ts` | S-05 | Ostatnie 10 MetaEvents z poprawnie wysłanych batchy |
 
@@ -70,16 +70,16 @@ Przykład:
 
 Body zawiera wyłącznie MetaEvents; nie zawiera `CatalogState` ani `CatalogEvent[]`. Zdarzenia przechodzą ścisłą walidację, w tym flag prywatności i allowlisty metryk. Historia klienta jest ograniczona do 10 unikalnych eventów po poprawnym POST do `/api/meta-events`.
 
-Przy pierwszym unikalnym MetaEvent w historii klient root coordinator wysyła request, także gdy kupujący jest na stronie produktu i box listingu nie jest zamontowany. Każdy kolejny unikalny MetaEvent uruchamia nową klasyfikację, jeśli nie ma widocznej propozycji i asystent nie jest wyciszony. Body zawiera ostatnie maksymalnie 10 zdarzeń. Serwer nie przekazuje Jev pełnego obiektu MetaEvent ani osobnego stanu katalogu. Prompt jest zbudowany z nazw eventów, względnego czasu, typu strony, typu subjectu i metryk z allowlisty. Pomija identyfikatory sesji/eventu, ścieżki, absolutne znaczniki czasu, surowe eventy i `quality.strength`; nie dołącza osobnych `CatalogState` ani `CatalogEvent[]`.
+Root coordinator obsługuje próg i kolejkę także podczas nawigacji poza listingiem; po powrocie box odczytuje propozycję ze wspólnego stanu. Serwer nie przekazuje Jev pełnego obiektu MetaEvent ani osobnego stanu katalogu. Prompt jest zbudowany z nazw eventów, względnego czasu, typu strony, typu subjectu i metryk z allowlisty. Pomija identyfikatory sesji/eventu, ścieżki, absolutne znaczniki czasu, surowe eventy i `quality.strength`; nie dołącza osobnych `CatalogState` ani `CatalogEvent[]`.
 
 ## Request gate i zachowanie serwera
 
-- S-05 nie używa lokalnego `DecisionEngine` do decyzji o fatigue ani innym stanie. Przy co najmniej 1 MetaEvent woła route od razu, a potem ponawia przy każdym nowym MetaEvent, dopóki żadna propozycja nie jest widoczna i asystent nie jest wyciszony.
-- `search_friction` pozostaje lokalne; jeśli jego propozycja jest widoczna, druga propozycja nie jest pobierana ani wyświetlana.
+- S-05 woła route od pierwszego unikalnego eventu z poprawnie wysłanego batcha, a następnie dla każdego nowego eventu, dopóki nie ma widocznej propozycji; `search_friction` pozostaje lokalne.
 - Jev jest wywoływany dopiero po walidacji requestu.
-- Rozpoznane wartości `situation` to `DECISION_FATIGUE`, `PRODUCT_HESITATION`, `NO_PROGRESS_STALL`, `UI_FRICTION` i `SMOOTH_EXPLORATION`.
-- Każda rozpoznana sytuacja z `proposal.confidence > 0.75` wywołuje ten sam deterministyczny lokalny stub. Przy pewności równej `0.75` lub niższej, nieznanej sytuacji, pustym/nieprawidłowym body, błędzie walidacji Jev, timeout, rate limit albo błędzie stubu route zwraca `hide`.
-- Stub zwraca stały tekst demonstracyjny i nie wykonuje żądania sieciowego. Prawdziwy klient OpenAI pozostaje przyszłym zadaniem.
+- Skrót Jev wymaga `DECISION_FATIGUE`, `proposal.confidence >= 0.75`, `hedging_required === false` i niepustego `message_draft`; zwraca `show` z tytułem ustalonym przez aplikację i draftem Jev jako wiadomością.
+- Pozostałe poprawne wyniki Jev przechodzą do OpenAI. OpenAI dostaje wyłącznie zwalidowany wynik Jev i zwraca krótki `title` oraz `message`.
+- Nieprawidłowe body, błąd walidacji Jev, timeout, rate limit albo błąd OpenAI skutkują `{ status: "hide" }`.
+- Akcja serwerowej propozycji (`narrow-choice`) i etykieta linku są ustalane lokalnie przez UI; model nie wybiera akcji, filtrów ani payloadu.
 
 ## Response (HTTP 200)
 
@@ -87,34 +87,53 @@ Przy pierwszym unikalnym MetaEvent w historii klient root coordinator wysyła re
 type AssistantProposalResponse =
   | {
       status: "show";
-      kind: "jev_proposal";
-      situation: "DECISION_FATIGUE" | "PRODUCT_HESITATION" | "NO_PROGRESS_STALL" | "UI_FRICTION" | "SMOOTH_EXPLORATION";
       title: string;
       message: string;
-      action: "narrow-choice";
-      actionLabel: string;
     }
   | { status: "hide" };
 ```
 
-Przykład `show` ze stubu:
+### Przykład `show`
 
 ```json
 {
   "status": "show",
-  "kind": "jev_proposal",
-  "situation": "PRODUCT_HESITATION",
-  "title": "Mogę podpowiedzieć następny krok",
-  "message": "To demonstracyjna podpowiedź na podstawie ostatnich sygnałów z przeglądania.",
-  "action": "narrow-choice",
-  "actionLabel": "Przejdź do filtrów"
+  "title": "Pomóc zawęzić wybór?",
+  "message": "Wskaż parametr, który jest dla Ciebie najważniejszy."
 }
 ```
 
-Przykład `hide`:
+### Przykład `show` (OpenAI)
+
+OpenAI zwraca wyłącznie tekst propozycji:
 
 ```json
-{ "status": "hide" }
+{
+  "status": "show",
+  "title": "Zawęźmy wybór",
+  "message": "Wybierz jeden parametr, aby łatwiej porównać dostępne modele."
+}
 ```
 
-`search_friction` nie używa tego endpointu. Box zachowuje jedno widoczne zalecenie i istniejące 15-minutowe wyciszenie. Wyświetlenie dowolnej propozycji zatrzymuje dalsze requesty klasyfikacji.
+### Przykład `hide`
+
+```json
+{
+  "status": "hide"
+}
+```
+
+Reguły:
+
+- `status: "hide"` — brak boxa dla tego wywołania (nieprawidłowe body, błąd/timeout Jev, rate limit lub błąd OpenAI).
+- Skrót Jev i odpowiedź OpenAI mają ten sam kształt `show`: `title` + `message`.
+- Akcja `narrow-choice` i etykieta „Przejdź do filtrów” są ustawiane przez aplikację, nie przez model.
+- Wywołanie OpenAI ma osobny timeout 5 s; SDK nie ponawia requestu automatycznie.
+
+## Semantyka `hide` vs pusty wynik
+
+- `search_friction` **nie** używa tego endpointu — UI bierze copy z `DecisionEngine` (S-03).
+
+## Wersjonowanie
+
+Zmiana kształtu JSON → ten plik + `assistant-proposal-api.ts` + oba plany change. UI i route importują wyłącznie moduł współdzielony.

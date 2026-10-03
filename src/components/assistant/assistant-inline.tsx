@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+
 import {
   CATALOG_SESSION_CHANGED,
   muteAssistantFor,
@@ -46,13 +47,17 @@ export function AssistantInline({
     let muteTimer: number | undefined;
     const refreshProposal = () => {
       if (muteTimer !== undefined) window.clearTimeout(muteTimer);
+
       const mutedUntil = readAssistantMutedUntil();
       if (mutedUntil > Date.now()) {
         setMuted(true);
         setLocalProposal(null);
         setAssistantServerProposal(null);
         setAssistantSearchRecoveryVisible(false);
-        muteTimer = window.setTimeout(refreshProposal, mutedUntil - Date.now());
+        muteTimer = window.setTimeout(
+          refreshProposal,
+          mutedUntil - Date.now(),
+        );
         return;
       }
 
@@ -61,8 +66,6 @@ export function AssistantInline({
         state.resultCount === 0 &&
         (state.query.trim().length > 0 ||
           Object.values(state.filters).some((value) => value.trim().length > 0));
-      // This call can only return local search_friction in the gated case;
-      // the component never evaluates DecisionEngine's fatigue branch.
       const localRecovery = hasActiveEmptySearch
         ? DecisionEngine(readCatalogEvents(), state, catalog)
         : null;
@@ -91,11 +94,18 @@ export function AssistantInline({
 
   if (muted || !proposal) return null;
 
+  const recommendsFilters = proposal.action === "narrow-choice";
+
   return (
     <aside
       aria-labelledby="assistant-proposal-title"
       data-element-id="assistant-proposal"
-      className="relative my-6 rounded-xl border border-sky-200 bg-sky-50 p-5 pr-12 text-slate-900 shadow-sm"
+      data-assistant-popover={recommendsFilters ? "filters" : undefined}
+      className={
+        recommendsFilters
+          ? "fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-sky-200 bg-white p-5 pr-12 text-slate-900 shadow-2xl ring-1 ring-slate-900/5"
+          : "relative my-6 rounded-xl border border-sky-200 bg-sky-50 p-5 pr-12 text-slate-900 shadow-sm"
+      }
       role="status"
     >
       <button
@@ -114,7 +124,7 @@ export function AssistantInline({
         {proposal.title}
       </h2>
       <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
-      {proposal.kind === "search_friction" ? (
+      {proposal.action === "clear-search-and-filters" ? (
         <button
           type="button"
           onClick={onClearSearchAndFilters}

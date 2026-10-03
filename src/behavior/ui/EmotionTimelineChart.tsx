@@ -13,6 +13,8 @@ import { getSessionId } from "../collector/session";
 
 const CHART_WIDTH = 900;
 const CHART_HEIGHT = 240;
+const PLOT_LEFT = 56;
+const PLOT_RIGHT = CHART_WIDTH - 10;
 const PLOT_TOP = 28;
 const PLOT_BOTTOM = 204;
 const POLL_INTERVAL_MS = 1_000;
@@ -22,7 +24,9 @@ export function chartX(
   windowStartSecond: number,
 ): number {
   return (
-    ((second - windowStartSecond) / INTENT_TIMELINE_WINDOW_SECONDS) * CHART_WIDTH
+    PLOT_LEFT +
+    ((second - windowStartSecond) / INTENT_TIMELINE_WINDOW_SECONDS) *
+      (PLOT_RIGHT - PLOT_LEFT)
   );
 }
 
@@ -113,11 +117,22 @@ export function EmotionTimelineChart() {
             role="img"
           >
           <rect x="0" y={PLOT_TOP} width={CHART_WIDTH} height={PLOT_BOTTOM - PLOT_TOP} fill="transparent" />
+          <text
+            x={PLOT_LEFT / 2}
+            y={(PLOT_TOP + PLOT_BOTTOM) / 2}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            transform={`rotate(-90 ${PLOT_LEFT / 2} ${(PLOT_TOP + PLOT_BOTTOM) / 2})`}
+            fontSize="10"
+            className="fill-zinc-500"
+          >
+            Suma prawdopodobieństw
+          </text>
           {[0, stackedMax / 2, stackedMax].map((value) => (
             <line
               key={value}
-              x1="0"
-              x2={CHART_WIDTH}
+              x1={PLOT_LEFT}
+              x2={PLOT_RIGHT}
               y1={chartY(value, stackedMax)}
               y2={chartY(value, stackedMax)}
               stroke="currentColor"
@@ -194,7 +209,7 @@ export function EmotionTimelineChart() {
               </g>
             );
           })}
-          <text x="0" y="228" fontSize="10" className="fill-zinc-500">
+          <text x={PLOT_LEFT} y="228" fontSize="10" className="fill-zinc-500">
             {formatAxisSecond(timeline.windowStartSecond)}
           </text>
           {visibleDuration > 0 && (
@@ -209,7 +224,7 @@ export function EmotionTimelineChart() {
                 {formatAxisSecond(midpointSecond)}
               </text>
               <text
-                x={chartX(timeline.windowEndSecond, timeline.windowStartSecond)}
+                x={PLOT_RIGHT}
                 y="228"
                 textAnchor="end"
                 fontSize="10"

@@ -1,16 +1,16 @@
-# Odpowiedź z Jev i lokalnego stubu — Implementation Plan
+# Odpowiedź z Jev i OpenAI — Implementation Plan
 
 ## Overview
 
-Serwer przyjmuje ograniczone MetaEvents, buduje z nich minimalne podsumowanie i prosi Jev (Typesafe) o klasyfikację. Każda znana sytuacja z `proposal.confidence > 0.75` uruchamia stały, lokalny stub odpowiedzi; niższa pewność, nieznana sytuacja, błędy, limity i timeout zwracają `{ status: "hide" }`. Prawdziwe wywołanie OpenAI pozostaje przyszłym zadaniem. **S-05** wywołuje ten route po osiągnięciu progu MetaEvents.
+Serwer przyjmuje ograniczone MetaEvents, buduje z nich minimalne podsumowanie i prosi Jev (Typesafe) o klasyfikację. Pewny, niehedgowany wynik `DECISION_FATIGUE` z niepustym draftem może zwrócić skrót Jev; pozostałe poprawne wyniki przechodzą do OpenAI, które zwraca `{ title, message }`. Akcja przejścia do filtrów pozostaje lokalna w UI. Błędy modeli, limity i timeouty skutkują `{ status: "hide" }`. **S-05** podłącza box do tego kontraktu.
 
 Kontrakt (przykłady JSON, kody HTTP, podział plików): [`context/changes/assistant-proposal-box/interface.md`](../assistant-proposal-box/interface.md).
 
 ## Current State Analysis
 
-Box na listingu nadal ma lokalną ścieżkę pustych wyników, ale decyzja fatigue nie jest już warunkiem requestu do S-04. S-05 wysyła bounded MetaEvents od pierwszego zdarzenia; Jev klasyfikuje sytuację po stronie serwera.
+Box na listingu woła `DecisionEngine` i rysuje stałe zdania — to zostaje do S-05. Pusty wynik i decision fatigue są rozpoznawane po stronie klienta.
 
-Pipeline `data_processor/` nie jest runtime. Aplikacja nie ma klienta LLM. Jedyny route POST produktowy to meta eventy.
+Pipeline `data_processor/` nie jest runtime. Klient Jev i klient OpenAI działają wyłącznie po stronie serwera.
 
 Klient Jev działa po stronie serwera. S-05 dostarcza zatwierdzone MetaEvents; route przekazuje Jev wyłącznie ich zminimalizowane podsumowanie.
 
@@ -23,7 +23,7 @@ Klient Jev działa po stronie serwera. S-05 dostarcza zatwierdzone MetaEvents; r
 
 ## Desired End State
 
-`POST /api/assistant-proposal` przyjmuje `{ metaEvents }` (1–10 ścisłych zdarzeń, body do 64 KiB) i zwraca JSON zgodny z `interface.md`. Jev klasyfikuje minimalne podsumowanie; każda z pięciu sytuacji znanych promptowi z pewnością `> 0.75` → lokalny, stały stub → `show`; niższa pewność albo nieznana sytuacja → `hide`. Rate limit Jev: 30/min IP, 10/min proces. Jev: abort 3 s. Prawdziwy klient OpenAI jest odroczony.
+`POST /api/assistant-proposal` przyjmuje `{ metaEvents }` (1–10 ścisłych zdarzeń, body do 64 KiB) i zwraca JSON zgodny z `interface.md`: `{ status: "show", title, message }` albo `{ status: "hide" }`. Jev klasyfikuje minimalne podsumowanie; pewny, niehedgowany `DECISION_FATIGUE` z confidence `>= 0.75` i niepustym draftem zwraca skrót, a pozostałe poprawne wyjścia przechodzą przez OpenAI. Rate limit: 30/min/IP i 10/min/proces. Jev ma timeout 3 s, OpenAI osobny timeout 5 s bez retry.
 
 Weryfikacja: testy route + ręczne `curl`/Postman z fixture; pełne demo w przeglądarce po S-05.
 
@@ -38,22 +38,22 @@ Weryfikacja: testy route + ręczne `curl`/Postman z fixture; pełne demo w przeg
 
 ## Implementation Approach
 
-Request zawiera od 1 do 10 ścisłych MetaEvents (maks. 64 KiB), bez osobnych `CatalogState` i `CatalogEvent[]`. Serwer składa prompt wyłącznie z nazw zdarzeń, względnego czasu, typu strony, typu subjectu i metryk z allowlisty; pomija identyfikatory sesji/eventu i ścieżki. Route: limity → walidacja → Jev (3 s) → Zod → `routeJevOutput` → deterministyczny lokalny stub albo `hide` → mapowanie na `AssistantProposalResponse`. Typy request/response w `src/lib/assistant-proposal-api.ts`; wspólny schemat MetaEvent w `src/behavior/meta-event-schema.ts`.
+Request zawiera od 1 do 10 ścisłych MetaEvents (maks. 64 KiB), bez osobnych `CatalogState` i `CatalogEvent[]`. Serwer składa prompt wyłącznie z nazw zdarzeń, względnego czasu, typu strony, typu subjectu i metryk z allowlisty; pomija identyfikatory sesji/eventu i ścieżki. Route: limity → walidacja → Jev (3 s) → Zod → skrót Jev albo OpenAI (5 s, bez retry) → `{ status, title, message }` albo `hide`. Typy request/response w `src/lib/assistant-proposal-api.ts`; wspólny schemat MetaEvent w `src/behavior/meta-event-schema.ts`.
 
 ## Critical Implementation Details
 
 - **Serwer:** puste/nieprawidłowe body, body ponad 64 KiB, przekroczenie limitu, błąd Jev albo abort 3 s → `{ status: "hide" }` i brak dalszego wywołania.
-- **Bramka Jev:** każda znana wartość `situation` oraz `proposal.confidence > 0.75` wywołuje stub. Nieznana sytuacja ani pewność `<= 0.75` daje `hide`; `hedging_required` i `message_draft` nie zastępują tej granicy.
-- **Stub:** zwraca stałe `title` + `message`; route ustawia `action: "narrow-choice"` i `actionLabel`. Stub nie wykonuje sieciowego wywołania ani nie wymaga klucza.
-- **OpenAI:** prawdziwy klient i `OPENAI_API_KEY` są poza bieżącym zakresem; stub jest miejscem przyszłej podmiany.
+- **Bramka Jev:** skrót wymaga `DECISION_FATIGUE`, confidence `>= 0.75`, `hedging_required === false` i niepustego `message_draft`; zwraca `show` z tytułem aplikacji i draftem jako wiadomością.
+- **OpenAI:** dostaje wyłącznie zwalidowane wyjście Jev i zwraca niepuste `{ title, message }`; nie decyduje o akcji ani filtrach.
+- **UI:** akcja `narrow-choice` i etykieta linku są lokalne; UI używa tytułu i wiadomości z odpowiedzi API.
 - **Spend:** licznik rośnie przy przyjęciu żądania, przed wołaniem Jev.
-- **UI (S-05):** brak loadera; konsument woła endpoint od pierwszego MetaEvent i ponawia przy każdym nowym zdarzeniu, gdy nie ma widocznej propozycji.
+- **UI (S-05):** brak loadera; root coordinator woła endpoint po poprawnie wysłanym MetaEvencie, z zachowaniem mute i single-proposal gates.
 
 ## Phase 1: Bramka Jev
 
 ### Overview
 
-Route, limit, Jev, schemat i ścisła bramka confidence dla wszystkich znanych sytuacji → `show` ze stubu | `hide`. Bez sieciowego OpenAI.
+Route, limit, Jev, schemat i bramka skrótu → `show` ze skrótu | OpenAI | `hide`.
 
 ### Changes Required:
 
@@ -75,7 +75,7 @@ Route, limit, Jev, schemat i ścisła bramka confidence dla wszystkich znanych s
 
 **File**: `src/server/assistant-proposal/route-decision.ts`
 
-**Contract**: `routeJevOutput` → `generate_proposal` dla dowolnej znanej sytuacji Jev przy confidence `> 0.75`; nieznana sytuacja lub niższa pewność → `hide`.
+**Contract**: Pewny, niehedgowany `DECISION_FATIGUE` z niepustym szkicem Jev → `shortcut`; pozostałe poprawne wyniki → `needs_openai`.
 
 #### 4. Klient Jev
 
@@ -87,7 +87,7 @@ Route, limit, Jev, schemat i ścisła bramka confidence dla wszystkich znanych s
 
 **File**: `src/app/api/assistant-proposal/route.ts`
 
-**Contract**: `POST` — walidacja `{ metaEvents }`, body limit 64 KiB, limit IP/proces (`InMemoryRateLimiter`), Jev i stub tylko dla znanej sytuacji oraz confidence `> 0.75`. Invalid input, nieznana sytuacja, błędy i niższa pewność → `{ status: "hide" }`. Odpowiedź 200: union z `interface.md`.
+**Contract**: `POST` — walidacja `{ metaEvents }`, body limit 64 KiB, limity IP/proces, Jev, skrót lub OpenAI. Nieprawidłowe wejście i błędy providerów → `{ status: "hide" }`. Odpowiedź 200: union z `interface.md`.
 
 ### Kryteria sukcesu
 
@@ -99,52 +99,52 @@ Route, limit, Jev, schemat i ścisła bramka confidence dla wszystkich znanych s
 
 #### Manual Verification:
 
-- Jev dla fatigue i dla znanej nie-fatigue z pewnością `> 0.75` → lokalny stub i `show`.
-- `0.75` lub mniej / nieznana sytuacja → `hide`.
-- Zły JSON / abort 3 s → `hide`.
+- Pewny, niehedgowany Jev fatigue → skrót `show`; niepewny wynik → OpenAI.
+- Błąd Jev/OpenAI oraz timeouty → bezpieczne `hide` poza developmentem.
+- Zły JSON / abort Jev 3 s → `hide`.
 
 **Implementation Note**: Po fazie 1 — pauza na manual, potem faza 2.
 
 ---
 
-## Phase 2: Stub propozycji i domknięcie kontraktu
+## Phase 2: OpenAI i domknięcie kontraktu
 
 ### Overview
 
-Wysoka pewność w dowolnej znanej sytuacji Jev uruchamia lokalny stub. Route zwraca pełny kształt `show`; prawdziwe OpenAI pozostaje poza zakresem tej wersji.
+Niepewne lub inne poprawne wyniki Jev przechodzą do OpenAI. Route zwraca minimalny kontrakt `status` + `title` + `message`.
 
 ### Changes Required:
 
-#### 1. Lokalny stub propozycji
+#### 1. Klient OpenAI
 
-**File**: `src/server/assistant-proposal/openai-stub.ts`
+**File**: `src/server/assistant-proposal/openai-client.ts`
 
-**Contract**: Asynchroniczna deterministyczna funkcja przyjmuje zwalidowane wyjście Jev i zwraca stałe `{ title, message }`; bez sieci i klucza OpenAI.
+**Contract**: Strukturalna odpowiedź zwraca wyłącznie niepuste `title` i `message`; request ma osobny timeout 5 s, `maxRetries: 0` i sygnał anulowania żądania klienta.
 
 #### 2. Złożenie odpowiedzi
 
 **File**: `src/server/assistant-proposal/compose.ts`
 
-**Contract**: Jev → schema → confidence gate → stub `show` lub `hide`.
+**Contract**: Jev → schema → skrót albo OpenAI → walidacja `{ title, message }` → `show` albo `hide`.
 
 #### 3. Route
 
 **File**: `src/app/api/assistant-proposal/route.ts`
 
-**Contract**: Przy znanej sytuacji z pewnością `> 0.75` woła stub; nieznana sytuacja, niższa pewność lub błędy stubu zwracają `hide`. Mapowanie zawsze na typy z `assistant-proposal-api.ts`.
+**Contract**: Route przyjmuje tylko zwalidowane MetaEvents, nakłada limity body/rate, buduje prompt prywatnościowy i przekazuje request do `composeProposal`.
 
 ### Kryteria sukcesu
 
 #### Automated Verification:
 
-- `npm test` — znana sytuacja z confidence `> 0.75` woła stub; `0.75` i niższe albo nieznana sytuacja zwracają `hide`.
+- `npm test` — skrót Jev i ścieżka OpenAI zwracają `{ status: "show", title, message }`.
 - Test integracyjny route z mock klientami.
 - `npm run typecheck`.
 
 #### Manual Verification:
 
-- `0.76` w znanej fatigue i nie-fatigue sytuacji → `show` ze stałą propozycją; `0.75` lub nieznana sytuacja → `hide`.
-- Błąd stubu → `hide`; żadne żądanie OpenAI nie jest wykonywane.
+- Pewny skrót Jev → `show`; niepewna klasyfikacja → OpenAI.
+- Błąd Jev/OpenAI oraz timeouty → bezpieczne `hide` poza developmentem.
 
 **Implementation Note**: Po fazie 2 S-04 jest gotowe; Michał może startować S-05 względem `interface.md`.
 
@@ -154,20 +154,20 @@ Wysoka pewność w dowolnej znanej sytuacji Jev uruchamia lokalny stub. Route zw
 
 ### Unit Tests:
 
-- Granica confidence / lista znanych sytuacji i odrzucenie wartości nieznanej.
-- Jev fail / timeout → `hide`, bez wywołania stubu.
+- Granica confidence / inna sytuacja.
+- Jev fail / timeout → `hide`, bez wywołania OpenAI.
 - Rate limit 31 IP / 11 proces.
-- Stub fail / niepoprawna propozycja → `hide`.
+- OpenAI fail / timeout oraz odrzucanie pustego `title` lub `message`.
 - Response JSON vs Zod w `assistant-proposal-api.ts`.
 
 ### Integration Tests:
 
-- Route z mock Jev/stub — MetaEvents-only fixture → `show` | `hide`.
+- Route z mock Jev/OpenAI — MetaEvents-only fixture → `show` | `hide`.
 
 ### Manual Testing Steps (serwer):
 
 1. POST z body `{ metaEvents: [...] }` zgodnym ze schematem.
-2. Mock Jev `0.76` → sprawdzić stałe `show`; `0.75` → `hide`.
+2. Pewny, niehedgowany Jev fatigue ze szkicem → skrót; inny poprawny wynik → OpenAI.
 3. Sprawdzić, że prompt Jev nie zawiera identyfikatorów ani ścieżek.
 4. Nieprawidłowe/puste body lub więcej niż 10 zdarzeń → `hide` bez wołania Jev.
 5. 31 szybkich POST z jednego IP → `hide`.
@@ -176,11 +176,11 @@ Pełny flow w przeglądarce — checklist w `assistant-proposal-box/plan.md`.
 
 ## Performance Considerations
 
-Jev 3 s → `hide`. Stub nie dodaje zewnętrznego opóźnienia. Rate limit jak wcześniej.
+Jev ma timeout 3 s, OpenAI osobny timeout 5 s bez automatycznych retry. Rate limits pozostają bez zmian.
 
 ## Migration Notes
 
-Request zmienia się z `CatalogState` + `CatalogEvent[]` na `{ metaEvents }`. UI nadal potrzebuje S-05 Phase 3 do wywoływania route. Gałąź `search_friction` pozostaje lokalna; prawdziwy klient OpenAI jest odroczony.
+Request używa `{ metaEvents }`; UI wywołuje route wyłącznie dla fatigue. Gałąź `search_friction` pozostaje lokalna. Prezentacyjne copy zostaje po stronie UI.
 
 ## References
 
@@ -208,15 +208,15 @@ Request zmienia się z `CatalogState` + `CatalogEvent[]` na `{ metaEvents }`. UI
 - [ ] 1.5 Confidence `0.75` lub niższe → `hide`
 - [ ] 1.6 JSON / timeout → `hide`
 
-### Phase 2: Stub + kontrakt
+### Phase 2: OpenAI + kontrakt
 
 #### Automated
 
-- [ ] 2.1 `npm test` — confidence gate i lokalny stub
-- [ ] 2.2 Test integracyjny route
-- [ ] 2.3 `npm run typecheck`
+- [x] 2.1 `npm test` — gałąź OpenAI
+- [x] 2.2 Test integracyjny route
+- [x] 2.3 `npm run typecheck`
 
 #### Manual
 
-- [ ] 2.4 `0.76` → `show`, `0.75` → `hide`
-- [ ] 2.5 Błąd stubu → `hide`, bez OpenAI
+- [ ] 2.4 Pewny Jev → skrót; pozostałe poprawne wyjścia → OpenAI
+- [ ] 2.5 Błąd OpenAI → `hide`

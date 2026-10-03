@@ -28,7 +28,7 @@ Czasem ostatecznie dokonujemy losowego wyboru, tylko żeby zakończyć wysiłek 
 
 Solution:
 ```
-Im łatwiejszy mamy wybór, tym życie jest prostsze i szczęśliwsze. Nie tylko nasze, ale również sklepu, który uzyska klienta zadowolonego z zakupu. 
+Im łatwiejszy mamy wybór, tym życie jest prostsze i szczęśliwsze. Nie tylko nasze, ale również sklepu, który uzyska klienta zadowolonego z zakupu.
 
 A klient zadowolony, to klient powracający na kolejne zakupy.
 
