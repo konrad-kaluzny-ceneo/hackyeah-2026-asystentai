@@ -220,7 +220,7 @@ describe("assistant proposal coordinator and listing UI", () => {
       '[data-element-id="assistant-action"]',
     );
     expect(filtersLink?.tagName).toBe("A");
-    expect(filtersLink?.getAttribute("href")).toBe("#filters");
+    expect(filtersLink?.getAttribute("href")).toBe("/katalog#filters");
   });
 
   it("does not call the server while muted", async () => {
@@ -283,22 +283,45 @@ describe("assistant proposal coordinator and listing UI", () => {
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
   });
 
-  it("serializes event snapshots and continues after a hide response", async () => {
-    fetchMock
-      .mockResolvedValueOnce(response({ status: "hide" }))
-      .mockResolvedValueOnce(response(SHOW_PROPOSAL));
+  it("coalesces an event burst into one request and keeps the popup pending", async () => {
+    let resolveResponse: ((value: Response) => void) | undefined;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
     await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL + 1);
     await flushRequestTasks();
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as { metaEvents: unknown[] };
-    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as { metaEvents: unknown[] };
-    expect(firstBody.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
-    expect(secondBody.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL + 1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-ai-request-state="pending"]')).not.toBeNull();
+
+    await recordEvents(2);
+    await flushRequestTasks();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-ai-request-state="pending"]')).not.toBeNull();
+
+    await act(async () => resolveResponse?.(response({ status: "hide" })));
+    await flushRequestTasks();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-ai-request-state="pending"]')).toBeNull();
   });
 
   it("dismissal clears the shared proposal without blocking later requests", async () => {
+    fetchMock
+      .mockResolvedValueOnce(response(SHOW_PROPOSAL))
+      .mockResolvedValueOnce(
+        response({
+          ...SHOW_PROPOSAL,
+          action: "sort-by-price",
+          actionLabel: "Sortuj po cenie",
+          data: { target: "catalog", filterKeys: [], sort: "price_asc" },
+        }),
+      );
     await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     await flushRequestTasks();

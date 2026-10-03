@@ -34,6 +34,7 @@ function jevOutput(
       confidence,
       hedging_required: options.hedgingRequired ?? false,
       message_draft: options.messageDraft ?? "Zawęź wybór według ważnego parametru.",
+      action_payload: { filterKeys: ["capacityLiters"] },
     },
   };
 }
@@ -46,7 +47,7 @@ const validEvent = makeMetaEvent("rage_click", {
     pageViewId: "pageview-hidden-token",
   },
   page: { type: "catalog", pathname: "/secret/catalog/path" },
-  subject: { type: "category", categoryId: "c1" },
+  subject: { type: "category", categoryId: "lodowki" },
   metrics: { clickCount: 3, windowMs: 1000, elementId: "product-card" },
 });
 
@@ -77,7 +78,11 @@ describe("POST /api/assistant-proposal", () => {
       message: "Zawęź wybór według ważnego parametru.",
       action: "narrow-choice",
       actionLabel: "Przejdź do filtrów",
-      data: { target: "filters", filterKeys: [] },
+      data: {
+        target: "filters",
+        filterKeys: ["capacityLiters"],
+        categorySlug: "lodowki",
+      },
     });
     expect(parseAssistantProposalResponse(json)).toEqual(json);
     expect(jevSpy).toHaveBeenCalledOnce();
@@ -107,6 +112,7 @@ describe("POST /api/assistant-proposal", () => {
           target: "filters",
           filterKeys: [],
           productSlug: null,
+          categorySlug: null,
           sort: null,
         },
       });
@@ -123,7 +129,11 @@ describe("POST /api/assistant-proposal", () => {
       message: "Wskaż najważniejszy parametr, aby łatwiej wybrać.",
       action: "narrow-choice",
       actionLabel: "Przejdź do filtrów",
-      data: { target: "filters", filterKeys: [] },
+      data: {
+        target: "filters",
+        filterKeys: ["capacityLiters"],
+        categorySlug: "lodowki",
+      },
     });
     expect(parseAssistantProposalResponse(json)).toEqual(json);
     expect(openaiSpy).toHaveBeenCalledWith(
@@ -166,6 +176,7 @@ describe("POST /api/assistant-proposal", () => {
         target: "filters",
         filterKeys: [],
         productSlug: null,
+        categorySlug: null,
         sort: null,
       },
     });

@@ -28,6 +28,7 @@ const StrongerReplySchema = z.object({
       target: z.enum(["filters", "catalog", "product"]),
       filterKeys: z.array(z.string()),
       productSlug: z.string().min(1).nullable(),
+      categorySlug: z.string().min(1).nullable(),
       sort: z.enum(ASSISTANT_PROPOSAL_SORTS).nullable(),
     })
     .strict(),
@@ -67,6 +68,8 @@ Dostępne wartości action i wymagania:
 - sort-by-price: sortowanie listy; data.target="catalog", data.sort z action_payload.
 - explain-choice: tylko treść, bez nawigacji; data.target="catalog".
 - none: nie pokazuj przycisku; data.target="catalog".
+
+W data.categorySlug wpisz kategorię z kontekstu zdarzeń, jeśli jest znana. Jeśli nie jest potrzebna, zwróć null. Pola productSlug, categorySlug i sort muszą być obecne; użyj null, gdy nie dotyczą wybranej akcji.
 
 Zwróć naturalny tytuł (max ${MAX_ASSISTANT_PROPOSAL_TITLE_LENGTH} znaków), jedno zdanie wiadomości (max ${MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH} znaków) oraz krótką etykietę przycisku (max ${MAX_ASSISTANT_PROPOSAL_ACTION_LABEL_LENGTH} znaków). Nie wymyślaj faktów spoza wyniku Jev.
 Zwróć wyłącznie obiekt JSON z polami title, message, action, actionLabel, data.`,

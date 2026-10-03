@@ -29,6 +29,7 @@ export const AssistantProposalActionDataSchema = z
     target: z.enum(["filters", "catalog", "product"]),
     filterKeys: z.array(z.string()).default([]),
     productSlug: z.string().min(1).optional(),
+    categorySlug: z.string().min(1).optional(),
     sort: z.enum(ASSISTANT_PROPOSAL_SORTS).optional(),
   })
   .strict();

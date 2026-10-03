@@ -10,7 +10,10 @@ import {
 
 type CategoryPageProps = {
   params: Promise<{ categorySlug: string }>;
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    sort?: string | string[];
+  }>;
 };
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
@@ -43,10 +46,17 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
       className="flex-1 bg-[#f7f8f6]"
     >
       <CatalogListing
+        key={`${queryParams.q ?? ""}-${queryParams.sort ?? ""}`}
         category={category}
         products={products ?? []}
         initialQuery={(Array.isArray(queryParams.q) ? queryParams.q[0] : queryParams.q)?.trim() ?? ""}
+        initialSort={parseSortParam(queryParams.sort)}
       />
     </main>
   );
+}
+
+function parseSortParam(value: string | string[] | undefined): "price_asc" | "price_desc" | null {
+  const sort = Array.isArray(value) ? value[0] : value;
+  return sort === "price_asc" || sort === "price_desc" ? sort : null;
 }

@@ -2,6 +2,27 @@ import type { AssistantAction, AssistantActionData } from "@/lib/catalog-types";
 import type { JevProposal } from "./schema";
 import { getProductBySlug } from "@/lib/catalog-repository";
 
+const CATEGORY_FILTERS: Record<string, readonly string[]> = {
+  lodowki: ["capacityLiters", "heightCm"],
+  pralki: ["loadKg", "spinRpm"],
+  zmywarki: ["widthCm", "placeSettings"],
+};
+
+type ActionMetaEvent = { subject?: { categoryId?: string } | null };
+
+function categorySlugFromEvents(
+  events: readonly ActionMetaEvent[],
+): string | undefined {
+  const counts = new Map<string, number>();
+  for (const event of events) {
+    const categorySlug = event.subject?.categoryId;
+    if (!categorySlug || !(categorySlug in CATEGORY_FILTERS)) continue;
+    counts.set(categorySlug, (counts.get(categorySlug) ?? 0) + 1);
+  }
+
+  return [...counts.entries()].sort((first, second) => second[1] - first[1])[0]?.[0];
+}
+
 /**
  * Registry of assistant action skills.
  *
@@ -87,7 +108,12 @@ export function getSkillDefinition(actionType: string | undefined) {
 /** Maps a validated Jev proposal to the UI action + data the contract carries. */
 export async function mapJevActionToProposalAction(
   proposal: JevProposal,
-): Promise<{ action: AssistantAction; data: AssistantActionData } | null> {
+  metaEvents: readonly ActionMetaEvent[] = [],
+): Promise<{
+  action: AssistantAction;
+  actionLabel: string;
+  data: AssistantActionData;
+} | null> {
   const skill = getSkillDefinition(proposal.action_type);
   if (!skill) return null;
 
@@ -98,11 +124,23 @@ export async function mapJevActionToProposalAction(
     target: "catalog",
     filterKeys: [],
   };
+  const categorySlug = categorySlugFromEvents(metaEvents);
+  if (categorySlug) data.categorySlug = categorySlug;
 
   switch (skill.action) {
     case "narrow-choice": {
       data.target = "filters";
-      data.filterKeys = payload.filterKeys ?? [];
+      const requestedKeys = payload.filterKeys ?? [];
+      const validKeys = new Set([
+        "price",
+        "brand",
+        ...(categorySlug ? CATEGORY_FILTERS[categorySlug] : []),
+      ]);
+      data.filterKeys = requestedKeys.filter((key) => validKeys.has(key));
+      if (data.filterKeys.length === 0 && categorySlug) {
+        data.filterKeys = [CATEGORY_FILTERS[categorySlug][0]!];
+      }
+      if (data.filterKeys.length === 0) return null;
       break;
     }
     case "clear-search-and-filters": {
@@ -121,6 +159,7 @@ export async function mapJevActionToProposalAction(
     case "sort-by-price": {
       const sort = payload.sort;
       if (sort !== "price_asc" && sort !== "price_desc") return null;
+      if (!categorySlug) return null;
       data.target = "catalog";
       data.sort = sort;
       break;
@@ -131,5 +170,5 @@ export async function mapJevActionToProposalAction(
     }
   }
 
-  return { action: skill.action, data };
+  return { action: skill.action, actionLabel: skill.label, data };
 }

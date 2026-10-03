@@ -85,6 +85,71 @@ export function clearAssistantProposalUiState(): void {
   notifyListeners();
 }
 
+const SHOWN_PROPOSALS_STORAGE_KEY = "assistant:shown-proposals";
+const LAST_PROPOSAL_STORAGE_KEY = "assistant:last-proposal";
+const PROPOSAL_COOLDOWN_MS = 90_000;
+const MAX_SHOWN_PROPOSALS = 30;
+
+type LastProposal = {
+  action: AssistantProposal["action"];
+  key: string;
+  shownAt: number;
+};
+
+function readSessionJson<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const value = window.sessionStorage.getItem(key);
+    return value === null ? fallback : (JSON.parse(value) as T);
+  } catch {
+    return fallback;
+  }
+}
+
+function proposalKey(proposal: Pick<AssistantProposal, "action" | "data">): string {
+  return JSON.stringify({
+    action: proposal.action,
+    categorySlug: proposal.data.categorySlug ?? null,
+    filterKeys: [...proposal.data.filterKeys].sort(),
+    productSlug: proposal.data.productSlug ?? null,
+    sort: proposal.data.sort ?? null,
+  });
+}
+
+export function shouldSuppressAssistantProposal(
+  proposal: Pick<AssistantProposal, "action" | "data">,
+): boolean {
+  const key = proposalKey(proposal);
+  const shown = readSessionJson<string[]>(SHOWN_PROPOSALS_STORAGE_KEY, []);
+  if (shown.includes(key)) return true;
+
+  const last = readSessionJson<LastProposal | null>(LAST_PROPOSAL_STORAGE_KEY, null);
+  return (
+    last !== null &&
+    last.action === proposal.action &&
+    Date.now() - last.shownAt < PROPOSAL_COOLDOWN_MS
+  );
+}
+
+export function recordAssistantProposalShown(
+  proposal: Pick<AssistantProposal, "action" | "data">,
+): void {
+  if (typeof window === "undefined") return;
+  const key = proposalKey(proposal);
+  const shown = readSessionJson<string[]>(SHOWN_PROPOSALS_STORAGE_KEY, []).filter(
+    (item) => item !== key,
+  );
+  shown.push(key);
+  window.sessionStorage.setItem(
+    SHOWN_PROPOSALS_STORAGE_KEY,
+    JSON.stringify(shown.slice(-MAX_SHOWN_PROPOSALS)),
+  );
+  window.sessionStorage.setItem(
+    LAST_PROPOSAL_STORAGE_KEY,
+    JSON.stringify({ action: proposal.action, key, shownAt: Date.now() } satisfies LastProposal),
+  );
+}
+
 function notifyListeners(): void {
   for (const listener of listeners) listener();
 }

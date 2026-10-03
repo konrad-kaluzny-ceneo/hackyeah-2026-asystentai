@@ -12,6 +12,7 @@ export type AssistantActionData = {
   target: "filters" | "catalog" | "product";
   filterKeys: string[];
   productSlug?: string;
+  categorySlug?: string;
   sort?: "price_asc" | "price_desc";
 };
 

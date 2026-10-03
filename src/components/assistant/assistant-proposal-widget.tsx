@@ -10,6 +10,7 @@ import {
 import {
   dispatchAssistantCatalogAction,
   getAssistantProposalUiState,
+  recordAssistantProposalShown,
   setAssistantServerProposal,
   subscribeAssistantProposalUiState,
 } from "@/lib/assistant-proposal-state";
@@ -21,17 +22,29 @@ const EMPTY_PROPOSAL_UI_STATE = {
   requestInFlight: false,
 } as const;
 
-function ProposalAction({ proposal }: { proposal: AssistantProposal }) {
+function catalogHref(proposal: AssistantProposal): string {
+  return proposal.data.categorySlug
+    ? `/katalog/${proposal.data.categorySlug}`
+    : "/katalog";
+}
+
+function ProposalAction({
+  proposal,
+  onActionExecuted,
+}: {
+  proposal: AssistantProposal;
+  onActionExecuted: () => void;
+}) {
   if (proposal.action === "clear-search-and-filters") {
     return (
-      <button
-        type="button"
+      <Link
+        href={catalogHref(proposal)}
         data-element-id="assistant-action"
-        onClick={() => dispatchAssistantCatalogAction({ type: "clear-search-and-filters" })}
+        onClick={onActionExecuted}
         className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
       >
         {proposal.actionLabel}
-      </button>
+      </Link>
     );
   }
 
@@ -40,6 +53,7 @@ function ProposalAction({ proposal }: { proposal: AssistantProposal }) {
       <Link
         href={`/produkt/${proposal.data.productSlug}`}
         data-element-id="assistant-action"
+        onClick={onActionExecuted}
         className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
       >
         {proposal.actionLabel}
@@ -49,27 +63,29 @@ function ProposalAction({ proposal }: { proposal: AssistantProposal }) {
 
   if (proposal.action === "sort-by-price" && proposal.data.sort) {
     return (
-      <button
-        type="button"
+      <Link
+        href={`${catalogHref(proposal)}?sort=${proposal.data.sort}`}
         data-element-id="assistant-action"
-        onClick={() => dispatchAssistantCatalogAction({ type: "sort-by-price", sort: proposal.data.sort! })}
+        onClick={onActionExecuted}
         className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
       >
         {proposal.actionLabel}
-      </button>
+      </Link>
     );
   }
 
   if (proposal.action === "narrow-choice") {
-    const hash =
-      proposal.data.filterKeys.length > 0
-        ? `#filters`
-        : "#filters";
     return (
       <a
-        href={hash}
+        href={`${catalogHref(proposal)}#filters`}
         data-element-id="assistant-action"
-        onClick={() => dispatchAssistantCatalogAction({ type: "highlight-filters", filterKeys: proposal.data.filterKeys })}
+        onClick={() => {
+          onActionExecuted();
+          dispatchAssistantCatalogAction({
+            type: "highlight-filters",
+            filterKeys: proposal.data.filterKeys,
+          });
+        }}
         className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
       >
         {proposal.actionLabel}
@@ -78,15 +94,7 @@ function ProposalAction({ proposal }: { proposal: AssistantProposal }) {
   }
 
   if (proposal.action === "explain-choice") {
-    return (
-      <a
-        href="#filters"
-        data-element-id="assistant-action"
-        className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
-      >
-        {proposal.actionLabel}
-      </a>
-    );
+    return null;
   }
 
   return null;
@@ -126,8 +134,14 @@ export function AssistantProposalWidget() {
   if (muted || (!proposalUiState.requestInFlight && proposal === null)) return null;
 
   const dismiss = () => {
+    if (proposal) recordAssistantProposalShown(proposal);
     setAssistantServerProposal(null);
     setMuted(false);
+  };
+
+  const executeAction = () => {
+    if (proposal) recordAssistantProposalShown(proposal);
+    setAssistantServerProposal(null);
   };
 
   return (
@@ -171,7 +185,7 @@ export function AssistantProposalWidget() {
             {proposal.title}
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
-          <ProposalAction proposal={proposal} />
+          <ProposalAction proposal={proposal} onActionExecuted={executeAction} />
         </>
       ) : null}
     </aside>

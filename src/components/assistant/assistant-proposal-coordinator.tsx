@@ -19,9 +19,11 @@ import {
 } from "@/lib/assistant-events";
 import {
   getAssistantProposalUiState,
+  recordAssistantProposalShown,
   setAssistantRequestInFlight,
   setAssistantSearchRecoveryVisible,
   setAssistantServerProposal,
+  shouldSuppressAssistantProposal,
   subscribeAssistantProposalUiState,
 } from "@/lib/assistant-proposal-state";
 
@@ -110,59 +112,64 @@ export function AssistantProposalCoordinator() {
     workerActiveRef.current = true;
 
     try {
-      while (mountedRef.current
-        // && requestAllowedRef.current
-      ) {
-        const trigger = takeAssistantProposalTrigger();
-        if (trigger === null) return;
+      if (!mountedRef.current || !requestAllowedRef.current) return;
 
-        const controller = new AbortController();
-        activeTriggerRef.current = trigger;
-        activeControllerRef.current = controller;
-        setAssistantRequestInFlight(true);
-        try {
-          recordAssistantProposalRequest();
-          const response = await fetch("/api/assistant-proposal", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ metaEvents: trigger.metaEvents }),
-            signal: controller.signal,
-          });
-          if (!response.ok || !mountedRef.current) continue;
+      let trigger = takeAssistantProposalTrigger();
+      if (trigger === null) return;
+      let nextTrigger = takeAssistantProposalTrigger();
+      while (nextTrigger !== null) {
+        trigger = nextTrigger;
+        nextTrigger = takeAssistantProposalTrigger();
+      }
 
-          const body: unknown = await response.json();
-          const parsed = safeParseAssistantProposalResponse(body);
-          if (
-            !requestAllowedRef.current ||
-            !parsed.success ||
-            parsed.data.status !== "show"
-          ) {
-            continue;
-          }
+      const controller = new AbortController();
+      activeTriggerRef.current = trigger;
+      activeControllerRef.current = controller;
+      setAssistantRequestInFlight(true);
+      try {
+        recordAssistantProposalRequest();
+        const response = await fetch("/api/assistant-proposal", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ metaEvents: trigger.metaEvents }),
+          signal: controller.signal,
+        });
+        if (!response.ok || !mountedRef.current) return;
 
-          requestAllowedRef.current = false;
-          clearAssistantProposalTriggers();
-          const proposal: AssistantProposal = {
-            id: `jev-proposal:${trigger.eventId}`,
-            kind: "jev_proposal",
-            title: parsed.data.title,
-            message: parsed.data.message,
-            actionLabel: parsed.data.actionLabel,
-            action: parsed.data.action,
-            data: parsed.data.data,
-            createdAt:
-              trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
-          };
-          setAssistantServerProposal(proposal);
+        const body: unknown = await response.json();
+        const parsed = safeParseAssistantProposalResponse(body);
+        if (
+          !requestAllowedRef.current ||
+          !parsed.success ||
+          parsed.data.status !== "show"
+        ) {
           return;
-        } catch {
-          // Network failures and aborted requests leave the proposal hidden.
-        } finally {
-          setAssistantRequestInFlight(false);
-          if (activeControllerRef.current === controller) {
-            activeControllerRef.current = null;
-            activeTriggerRef.current = null;
-          }
+        }
+
+        requestAllowedRef.current = false;
+        clearAssistantProposalTriggers();
+        const proposal: AssistantProposal = {
+          id: `jev-proposal:${trigger.eventId}`,
+          kind: "jev_proposal",
+          title: parsed.data.title,
+          message: parsed.data.message,
+          actionLabel: parsed.data.actionLabel,
+          action: parsed.data.action,
+          data: parsed.data.data,
+          createdAt:
+            trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
+        };
+        if (shouldSuppressAssistantProposal(proposal)) return;
+        recordAssistantProposalShown(proposal);
+        setAssistantServerProposal(proposal);
+      } catch {
+        // Network failures and aborted requests leave the proposal hidden.
+      } finally {
+        setAssistantRequestInFlight(false);
+        if (mountedRef.current) clearAssistantProposalTriggers();
+        if (activeControllerRef.current === controller) {
+          activeControllerRef.current = null;
+          activeTriggerRef.current = null;
         }
       }
     } finally {

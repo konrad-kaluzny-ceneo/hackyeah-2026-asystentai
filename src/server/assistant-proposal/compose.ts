@@ -1,4 +1,5 @@
 import type { AssistantProposalResponse } from "@/lib/assistant-proposal-api";
+import type { MetaEvent } from "@/behavior/types";
 
 import { mapJevActionToProposalAction } from "./actions";
 import { requestJev } from "./jev-client";
@@ -14,6 +15,7 @@ export async function composeProposal(
   prompt: string,
   jevSignal: AbortSignal,
   requestSignal?: AbortSignal,
+  metaEvents: readonly MetaEvent[] = [],
 ): Promise<AssistantProposalResponse> {
   let rawJevOutput: unknown;
   try {
@@ -36,7 +38,10 @@ export async function composeProposal(
     return HIDE_RESPONSE;
   }
 
-  const mapped = await mapJevActionToProposalAction(parsedJev.data.proposal);
+  const mapped = await mapJevActionToProposalAction(
+    parsedJev.data.proposal,
+    metaEvents,
+  );
   if (!mapped) {
     return HIDE_RESPONSE;
   }

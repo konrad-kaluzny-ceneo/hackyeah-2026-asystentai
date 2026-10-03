@@ -3,14 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AssistantInline } from "@/components/assistant/assistant-inline";
 import { trackCatalogEvent } from "@/lib/assistant-events";
 import { subscribeAssistantCatalogAction } from "@/lib/assistant-proposal-state";
 import { CLEAR_GLOBAL_SEARCH_EVENT, CATALOG_SEARCH_SUBMITTED_EVENT } from "@/lib/catalog-ui-events";
 import type { ActiveFilter } from "@/behavior/types";
 import type { CatalogState, Category, Product } from "@/lib/catalog-types";
-import { useEffect } from "react";
 
 const PAGE_SIZE = 20;
 
@@ -18,18 +17,33 @@ type CatalogListingProps = {
   category: Category | null;
   products: Product[];
   initialQuery?: string;
+  initialSort?: "price_asc" | "price_desc" | null;
 };
 
-export default function CatalogListing({ category, products, initialQuery = "" }: CatalogListingProps) {
+export default function CatalogListing({
+  category,
+  products,
+  initialQuery = "",
+  initialSort = null,
+}: CatalogListingProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState(initialQuery);
   const [previousInitialQuery, setPreviousInitialQuery] = useState(initialQuery);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
-  const [sortOrder, setSortOrder] = useState<"price_asc" | "price_desc" | null>(null);
+  const [sortOrder, setSortOrder] = useState<"price_asc" | "price_desc" | null>(initialSort);
   const [highlightedFilters, setHighlightedFilters] = useState<string[]>([]);
   const categorySlug = category?.slug ?? null;
+  const clearSearchAndFilters = useCallback(() => {
+    setQuery("");
+    setFilters({});
+    setPage(1);
+    trackCatalogEvent({ type: "search_changed", categorySlug, query: "" });
+    trackCatalogEvent({ type: "filters_changed", categorySlug: category?.slug ?? "all", filters: {} });
+    window.dispatchEvent(new Event(CLEAR_GLOBAL_SEARCH_EVENT));
+    router.replace(pathname, { scroll: false });
+  }, [category?.slug, categorySlug, pathname, router]);
 
   useEffect(() => {
     return subscribeAssistantCatalogAction((action) => {
@@ -43,7 +57,7 @@ export default function CatalogListing({ category, products, initialQuery = "" }
         target?.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     });
-  }, []);
+  }, [clearSearchAndFilters]);
 
   if (initialQuery !== previousInitialQuery) {
     setPreviousInitialQuery(initialQuery);
@@ -118,16 +132,6 @@ export default function CatalogListing({ category, products, initialQuery = "" }
     if (value.trim().length > 0) {
       window.dispatchEvent(new Event(CATALOG_SEARCH_SUBMITTED_EVENT));
     }
-  }
-
-  function clearSearchAndFilters() {
-    setQuery("");
-    setFilters({});
-    setPage(1);
-    trackCatalogEvent({ type: "search_changed", categorySlug, query: "" });
-    trackCatalogEvent({ type: "filters_changed", categorySlug: category?.slug ?? "all", filters: {} });
-    window.dispatchEvent(new Event(CLEAR_GLOBAL_SEARCH_EVENT));
-    router.replace(pathname, { scroll: false });
   }
 
   return (
