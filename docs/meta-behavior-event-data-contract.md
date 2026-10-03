@@ -94,12 +94,6 @@ Obecnie aktywnych jest szesnaście detektorów:
 | `search_refinement_loop` | Wielokrotne (`≥3`) wywołania wyszukiwania w krótkim oknie bez widoku produktu. | `searchCount`, `windowMs` |
 | `assistant_proposal_dismissed` | Użytkownik kliknął zamknięcie propozycji asystenta. | `pageType` |
 
-W kontrakcie istnieją też nazwy przygotowane na przyszłość:
-`repeated_validation_failure`, `technical_friction`,
-`delivery_information_seeking` i `availability_information_seeking`. Nie
-należy zakładać, że te rekordy już powstają, dopóki detektory nie zostaną
-zarejestrowane.
-
 Raw `scroll_burst`, `idle_started` i `idle_ended` pozostają lokalnymi eventami
 wejściowymi. Do bazy trafiają dopiero wyniki detekcji: odpowiednio
 `rapid_scroll_burst` i `hesitation_dwell`.

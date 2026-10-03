@@ -121,7 +121,7 @@ describe("Contract integrity", () => {
         "assistant_proposal_dismissed",
       ]),
     );
-    expect(META_EVENT_NAMES).toHaveLength(20);
+    expect(META_EVENT_NAMES).toHaveLength(16);
   });
 
   it("exports page types that cover the demo's actual routes", () => {

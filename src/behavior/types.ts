@@ -175,8 +175,6 @@ export interface EcommerceContextProvider {
 export const META_EVENT_NAMES = [
   "rage_click",
   "dead_click_cluster",
-  "repeated_validation_failure",
-  "technical_friction",
   "navigation_loop",
   "no_progress_window",
   "rapid_filter_churn",
@@ -190,8 +188,6 @@ export const META_EVENT_NAMES = [
   "description_focus",
   "search_refinement_loop",
   "assistant_proposal_dismissed",
-  "delivery_information_seeking",
-  "availability_information_seeking",
   "sustained_product_interest",
 ] as const;
 export type MetaEventName = (typeof META_EVENT_NAMES)[number];
@@ -200,8 +196,6 @@ export type MetaEventName = (typeof META_EVENT_NAMES)[number];
 export const META_EVENT_METRICS_ALLOWLIST = {
   rage_click: ["clickCount", "windowMs", "elementId"] as const,
   dead_click_cluster: ["clickCount", "windowMs", "elementId"] as const,
-  repeated_validation_failure: ["failureCount", "errorCode", "fieldType"] as const,
-  technical_friction: ["retryCount", "errorKind", "waitMs"] as const,
   navigation_loop: ["cycleLength", "repeatCount", "pageTypes"] as const,
   no_progress_window: ["activeMs", "clickCount", "scrollCount", "filterChanges"] as const,
   rapid_filter_churn: ["filterChanges", "windowMs", "undoneCount"] as const,
@@ -215,8 +209,6 @@ export const META_EVENT_METRICS_ALLOWLIST = {
   description_focus: ["dwellMs", "exposureCount", "productId"] as const,
   search_refinement_loop: ["searchCount", "windowMs"] as const,
   assistant_proposal_dismissed: ["pageType"] as const,
-  delivery_information_seeking: ["exposureCount", "interactionCount"] as const,
-  availability_information_seeking: ["exposureCount", "interactionCount"] as const,
   sustained_product_interest: ["sectionCount", "dwellMs", "sectionIds", "productId", "exposureCount"] as const,
 } as const satisfies Record<MetaEventName, readonly string[]>;
 

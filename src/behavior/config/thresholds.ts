@@ -63,8 +63,6 @@ export const THRESHOLDS = {
     cooldowns: {
       rage_click: 30 * 1000,
       dead_click_cluster: 30 * 1000,
-      repeated_validation_failure: 60 * 1000,
-      technical_friction: 60 * 1000,
       navigation_loop: 2 * 60 * 1000,
       no_progress_window: 60 * 1000,
       rapid_filter_churn: 60 * 1000,
@@ -78,8 +76,6 @@ export const THRESHOLDS = {
       description_focus: 60 * 1000,
       search_refinement_loop: 2 * 60 * 1000,
       assistant_proposal_dismissed: 0,
-      delivery_information_seeking: 60 * 1000,
-      availability_information_seeking: 60 * 1000,
       sustained_product_interest: 60 * 1000,
     },
   },
@@ -95,14 +91,6 @@ export const THRESHOLDS = {
       windowMs: 2000,
       /** Silence after the last click to confirm the click had no effect. */
       silenceMs: 1500,
-    },
-    repeated_validation_failure: {
-      minFailures: 2,
-      windowMs: 30 * 1000,
-    },
-    technical_friction: {
-      /** Max wait after a failed interaction before user retry qualifies. */
-      retryWindowMs: 15 * 1000,
     },
     navigation_loop: {
       minCycleLength: 2,
@@ -136,14 +124,6 @@ export const THRESHOLDS = {
       maxCandidates: 4,
       minTransitions: 4,
       windowMs: 3 * 60 * 1000,
-    },
-    delivery_information_seeking: {
-      minExposuresOrInteractions: 2,
-      windowMs: 60 * 1000,
-    },
-    availability_information_seeking: {
-      minExposuresOrInteractions: 2,
-      windowMs: 60 * 1000,
     },
     sustained_product_interest: {
       minDwellMs: 10 * 1000,
