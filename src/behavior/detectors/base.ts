@@ -48,9 +48,22 @@ export function buildMetaEvent(input: BuildMetaEventInput): MetaEvent {
     page: {
       type: input.ctx.pageType,
       pathname: input.ctx.pathname,
+      ...(input.ctx.ecommerce.routeTemplate !== undefined && {
+        routeTemplate: input.ctx.ecommerce.routeTemplate,
+      }),
       previousPageType: input.ctx.previousPageType,
     },
-    ...(input.subject !== undefined && { subject: input.subject }),
+    ...(input.subject !== undefined && {
+      subject: {
+        ...input.subject,
+        ...(input.subject.categoryId === undefined && input.ctx.ecommerce.categoryId !== undefined && {
+          categoryId: input.ctx.ecommerce.categoryId,
+        }),
+        ...(input.subject.brandId === undefined && input.ctx.ecommerce.brandId !== undefined && {
+          brandId: input.ctx.ecommerce.brandId,
+        }),
+      },
+    }),
     ecommerce: pickEcommerceSlice(input.ctx.ecommerce),
     metrics: input.metrics,
     quality: {

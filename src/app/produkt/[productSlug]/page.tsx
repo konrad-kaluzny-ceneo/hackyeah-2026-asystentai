@@ -1,34 +1,65 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/catalog/catalog-listing";
-import { categories, getProduct, getSimilarProducts, products } from "@/lib/catalog-data";
+import { CatalogUnavailable } from "@/components/catalog/catalog-unavailable";
+import {
+  getCategoryBySlug,
+  getProductBySlug,
+  getSimilarProducts,
+} from "@/lib/catalog-repository";
+import type { Category, Product } from "@/lib/catalog-types";
 
 type ProductPageProps = { params: Promise<{ productSlug: string }> };
 
-export function generateStaticParams() {
-  return products.map(({ slug }) => ({ productSlug: slug }));
-}
-
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
+  await connection();
   const { productSlug } = await params;
-  const product = getProduct(productSlug);
-  return {
-    title: product?.name ?? "Produkt",
-    description: product?.shortDescription,
-  };
+  try {
+    const product = await getProductBySlug(productSlug);
+    return { title: product?.name ?? "Produkt", description: product?.shortDescription };
+  } catch {
+    return { title: "Produkt AGD" };
+  }
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
+  await connection();
   const { productSlug } = await params;
-  const product = getProduct(productSlug);
+  let product: Product | undefined;
+  let category: Category | undefined;
+  let similarProducts: Product[] = [];
+  try {
+    product = await getProductBySlug(productSlug);
+    if (product) {
+      [category, similarProducts] = await Promise.all([
+        getCategoryBySlug(product.categorySlug),
+        getSimilarProducts(product, 4),
+      ]);
+    }
+  } catch (error) {
+    console.error("Product detail query failed", error);
+    return <CatalogUnavailable />;
+  }
   if (!product) notFound();
-  const category = categories.find((item) => item.slug === product.categorySlug);
-  const similarProducts = getSimilarProducts(product, 4);
 
   return (
-    <main className="mx-auto w-full max-w-7xl flex-1 px-5 pb-16 pt-6 sm:px-8">
+    <main
+      data-catalog-context=""
+      data-route-template="/produkt/[productSlug]"
+      data-catalog-category-id={product.categoryId}
+      data-catalog-category-slug={product.categorySlug}
+      data-catalog-product-id={product.id}
+      data-catalog-brand-id={product.brandId}
+      data-active-filters="[]"
+      data-element-id="product-detail"
+      data-subject-product-id={product.id}
+      data-subject-category-id={product.categoryId}
+      data-subject-brand-id={product.brandId}
+      className="mx-auto w-full max-w-7xl flex-1 px-5 pb-16 pt-6 sm:px-8"
+    >
       <div className="mb-6 flex flex-wrap items-center gap-2 text-xs text-[#819087]">
         <Link href="/" className="hover:text-[#345743]">Strona główna</Link><span>/</span>
         <Link href="/katalog" className="hover:text-[#345743]">Katalog</Link><span>/</span>
@@ -38,7 +69,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
       <section className="grid gap-8 md:grid-cols-[1.05fr_.95fr] md:gap-10 lg:gap-14">
         <div className="relative aspect-square overflow-hidden rounded-3xl bg-[#eef2ee] sm:aspect-[1.15/1]">
-          <Image src={product.imageUrl} alt={product.name} fill preload sizes="(max-width: 768px) 100vw, 55vw" className="object-cover" />
+          <Image src={product.imageUrl} alt={product.name} fill preload sizes="(max-width: 768px) 100vw, 55vw" className="max-h-full max-w-full object-contain" />
           <span className="absolute left-5 top-5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#52675a]">{product.brand}</span>
         </div>
         <div className="flex flex-col py-1 md:py-5">

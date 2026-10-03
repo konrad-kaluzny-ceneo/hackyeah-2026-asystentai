@@ -31,6 +31,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 |---|---|---|---|---|---|
 | F-01 | app-scaffold | (foundation) uruchomić pustą aplikację web z routingiem pod demo katalogu | — | Access Control | done |
 | F-02 | demo-catalog-events | (foundation) przeglądać mock katalog i emitować fakty katalogu | F-01 | FR-001 | done |
+| F-03 | emotion-overlay-chart | (foundation) demonstracyjnie oglądać mockową oś czasu emocji w debug overlay | F-01 | FR-001 | done |
 | S-01 | signal-strength-engine | … system klasyfikuje rodzaj intencji zakupowej z faktów katalogu | F-02 | FR-001, FR-002 | done |
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
@@ -102,6 +103,20 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 - **Unknowns:**
   - Zakres mock danych (ile produktów, jakie atrybuty) — Owner: team. Block: no.
 - **Risk:** Bez realistycznych eventów reguła mocy sygnału nie da się pokazać na demo.
+- **Status:** done
+
+### F-03: Mockowa oś czasu emocji w debug overlay
+
+- **Outcome:** (foundation) zespół może demonstracyjnie oglądać 30-sekundową, zapętloną oś czasu 9 emocji z komentarzami zdarzeń w dev-only debug overlay. Dane pochodzą z mockowego endpointu i są odświeżane co sekundę; nie są jeszcze podłączone do backendowej inferencji.
+- **Change ID:** emotion-overlay-chart
+- **PRD refs:** FR-001
+- **Unlocks:** —
+- **Prerequisites:** F-01
+- **Parallel with:** F-02, S-01
+- **Blockers:** —
+- **Unknowns:**
+  - Mapowanie realnych sygnałów na emocje i kalibracja wartości — Owner: team. Block: no.
+- **Risk:** Mock może sugerować gotową inferencję emocji, jeśli nie zostanie wyraźnie oznaczony jako demonstracyjny.
 - **Status:** done
 
 ## Slices
@@ -176,6 +191,7 @@ Source / Lineage:
 |---|---|---|---|---|
 | F-01 | app-scaffold | Scaffold web app for demo catalog | no | Done; patrz ## Done |
 | F-02 | demo-catalog-events | Mock AGD catalog and catalog facts | no | Done |
+| F-03 | emotion-overlay-chart | Mock emotion timeline in debug overlay | no | Dev-only demonstrator; wymaga późniejszego podpięcia realnego backendu |
 | S-01 | signal-strength-engine | Classify shopping signal strength | no | Done dla dwóch rodzajów; trzy nazwane bez klasyfikacji |
 | S-02 | decision-fatigue-box | One assistant proposal on decision fatigue | no | Done |
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |

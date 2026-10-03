@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { CategoryFilter } from "@/lib/catalog-types";
 import {
   bigint,
   boolean,
@@ -11,6 +12,48 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
+
+export const categories = pgTable("categories", {
+  id: text("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  imageUrl: text("image_url").notNull(),
+  specFilters: jsonb("spec_filters").$type<CategoryFilter[]>().notNull(),
+});
+
+export const brands = pgTable("brands", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+});
+
+export const products = pgTable(
+  "products",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => categories.id),
+    brandId: text("brand_id")
+      .notNull()
+      .references(() => brands.id),
+    model: text("model").notNull(),
+    name: text("name").notNull(),
+    price: integer("price").notNull(),
+    shortDescription: text("short_description").notNull(),
+    description: text("description").notNull(),
+    imageUrl: text("image_url").notNull(),
+    specifications: jsonb("specifications").$type<
+      Record<string, string | number | boolean>
+    >().notNull(),
+  },
+  (table) => [
+    index("products_category_id_idx").on(table.categoryId),
+    index("products_brand_id_idx").on(table.brandId),
+    index("products_category_id_price_idx").on(table.categoryId, table.price),
+  ],
+);
 
 /**
  * Canonical store for meta events produced by the client-side behavior
