@@ -1,0 +1,41 @@
+session_id,persona,start_time,anonymous_id,device_type,expected_signals
+sess_0000_23b8c1e9,decision_fatigue,2026-10-03T09:29:07.000Z,anon_bd9c66b3ad3c,mobile,"comparison_oscillation, rapid_filter_churn"
+sess_0001_3602f8ac,decision_fatigue,2026-10-03T09:36:09.000Z,anon_e059a0ee9132,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0002_c40db9b4,decision_fatigue,2026-10-03T09:51:40.000Z,anon_79ac1b1ea8e5,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0003_7b3a4e3e,decision_fatigue,2026-10-03T10:10:28.000Z,anon_e7067ef466aa,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0004_e0ccedc5,decision_fatigue,2026-10-03T10:25:03.000Z,anon_e3c436571d8c,mobile,"comparison_oscillation, rapid_filter_churn"
+sess_0005_f7860b50,decision_fatigue,2026-10-03T10:39:15.000Z,anon_a43825b559e4,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0006_3eae0032,decision_fatigue,2026-10-03T10:47:29.000Z,anon_d98868dd9c7c,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0007_da7b9095,decision_fatigue,2026-10-03T10:58:29.000Z,anon_6b44fa8dd5f2,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0008_99b49350,decision_fatigue,2026-10-03T11:05:35.000Z,anon_fbdd3933cbd5,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0009_3b048a8b,decision_fatigue,2026-10-03T11:14:57.000Z,anon_50c7c006314d,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0010_3b4206c5,product_hesitation,2026-10-03T11:25:25.000Z,anon_b3f6fe0d4860,desktop,"product_revisit, no_progress_window"
+sess_0011_6961929e,product_hesitation,2026-10-03T11:34:45.000Z,anon_a99f131849c8,desktop,"product_revisit, no_progress_window"
+sess_0012_dabac50d,product_hesitation,2026-10-03T11:49:53.000Z,anon_c9a7d91fef2a,desktop,"product_revisit, no_progress_window"
+sess_0013_0930aef6,product_hesitation,2026-10-03T12:04:38.000Z,anon_a193c4b23c19,desktop,"product_revisit, no_progress_window"
+sess_0014_9326dffd,product_hesitation,2026-10-03T12:22:08.000Z,anon_4b943e30b303,mobile,"product_revisit, no_progress_window"
+sess_0015_431d029f,product_hesitation,2026-10-03T12:34:15.000Z,anon_a377f6f1d289,desktop,"product_revisit, no_progress_window"
+sess_0016_3e5a87e3,product_hesitation,2026-10-03T12:48:53.000Z,anon_90882eafc977,desktop,"product_revisit, no_progress_window"
+sess_0017_466772ce,product_hesitation,2026-10-03T13:06:58.000Z,anon_8c61165495da,desktop,"product_revisit, no_progress_window"
+sess_0018_c33a1f6c,product_hesitation,2026-10-03T13:14:04.000Z,anon_cea60f4c39e5,desktop,"product_revisit, no_progress_window"
+sess_0019_01f7c7ec,product_hesitation,2026-10-03T13:22:06.000Z,anon_36136e15f200,mobile,"product_revisit, no_progress_window"
+sess_0020_a53bc024,technical_friction,2026-10-03T13:29:55.000Z,anon_1a5165ca3c7c,desktop,"rage_click, dead_click_cluster"
+sess_0021_26a524e3,technical_friction,2026-10-03T13:44:34.000Z,anon_71348c2a780b,desktop,"rage_click, dead_click_cluster"
+sess_0022_cab4923b,technical_friction,2026-10-03T13:58:06.000Z,anon_7321bf6b0a80,desktop,"rage_click, dead_click_cluster"
+sess_0023_28a39779,technical_friction,2026-10-03T14:13:34.000Z,anon_486bb6bfeafd,desktop,"rage_click, dead_click_cluster"
+sess_0024_a9e27ba9,technical_friction,2026-10-03T14:32:12.000Z,anon_4f6b58c8598d,desktop,"rage_click, dead_click_cluster"
+sess_0025_4f11d8dc,technical_friction,2026-10-03T14:46:54.000Z,anon_577bc55a36d5,desktop,"rage_click, dead_click_cluster"
+sess_0026_c566aa81,technical_friction,2026-10-03T15:00:18.000Z,anon_2a60c652e714,mobile,"rage_click, dead_click_cluster"
+sess_0027_87079ad4,technical_friction,2026-10-03T15:11:47.000Z,anon_d11fc8c0297c,desktop,"rage_click, dead_click_cluster"
+sess_0028_e916da57,technical_friction,2026-10-03T15:30:19.000Z,anon_e27718c5737d,mobile,"rage_click, dead_click_cluster"
+sess_0029_2387eaf6,technical_friction,2026-10-03T15:34:37.000Z,anon_72d78bdd7817,desktop,"rage_click, dead_click_cluster"
+sess_0030_d6312a80,smooth_browsing,2026-10-03T15:45:17.000Z,anon_893ad23298c3,desktop,none
+sess_0031_5b6a8102,smooth_browsing,2026-10-03T15:59:41.000Z,anon_3dba6da85844,desktop,none
+sess_0032_fd372539,smooth_browsing,2026-10-03T16:17:43.000Z,anon_40d92bce7930,desktop,none
+sess_0033_4b3446bc,smooth_browsing,2026-10-03T16:23:10.000Z,anon_53f28f11147f,desktop,none
+sess_0034_113634a5,smooth_browsing,2026-10-03T16:29:48.000Z,anon_5dc7b3e6a529,desktop,none
+sess_0035_491b90e9,smooth_browsing,2026-10-03T16:46:04.000Z,anon_7dbf4bc1ffa6,desktop,none
+sess_0036_5e70f65f,smooth_browsing,2026-10-03T16:53:54.000Z,anon_8d38bbd8fba6,desktop,none
+sess_0037_84a2576c,smooth_browsing,2026-10-03T17:04:26.000Z,anon_2976aab22a26,desktop,none
+sess_0038_92779574,smooth_browsing,2026-10-03T17:19:15.000Z,anon_07c0d116a394,desktop,none
+sess_0039_44790612,smooth_browsing,2026-10-03T17:31:50.000Z,anon_18c8a6162410,mobile,none
