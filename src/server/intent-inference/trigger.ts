@@ -15,6 +15,7 @@ import type { Database } from "@/lib/db/client";
 
 export const INTENT_ALGORITHM_VERSION = "intent-inference-v1";
 export const INTENT_INFERENCE_TIMEOUT_MS = 3_000;
+export const MIN_JEV_INTENT_EVENTS = JEV_INTENT_EVENT_LIMIT;
 
 type RequestJevIntent = (
   request: JevIntentRequest,
@@ -35,6 +36,11 @@ export async function inferAndSaveIntentSnapshot(
 ): Promise<SaveIntentSnapshotResult> {
   if (events.length === 0) {
     throw new Error("At least one MetaEvent is required for intent inference");
+  }
+  if (events.length < MIN_JEV_INTENT_EVENTS) {
+    throw new Error(
+      `At least ${MIN_JEV_INTENT_EVENTS} MetaEvents are required for intent inference`,
+    );
   }
 
   const sessionId = events[0]?.identity.sessionId;

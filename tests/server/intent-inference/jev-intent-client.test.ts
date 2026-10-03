@@ -8,7 +8,7 @@ import {
 import { makeMetaEvent } from "../../behavior/fixtures";
 
 describe("JEV intent client", () => {
-  it("sends only the ten most recent meta events and all intent criteria", () => {
+  it("sends only the five most recent meta events and all intent criteria", () => {
     const events = Array.from({ length: 12 }, (_, index) =>
       makeMetaEvent("category_interest", {
         eventId: `event-${String(index).padStart(2, "0")}`,
@@ -18,8 +18,8 @@ describe("JEV intent client", () => {
 
     expect(request.model).toBe("jev-latest");
     expect(request.state.sessionId).toBe("session-000001");
-    expect(request.state.recentMetaEvents).toHaveLength(10);
-    expect(request.state.recentMetaEvents[0].eventId).toBe("event-02");
+    expect(request.state.recentMetaEvents).toHaveLength(5);
+    expect(request.state.recentMetaEvents[0].eventId).toBe("event-07");
     expect(request.state.recentMetaEvents.at(-1)?.eventId).toBe("event-11");
     expect(Object.keys(request.questions.intents.criteria)).toEqual(
       SHOPPING_INTENT_KINDS,

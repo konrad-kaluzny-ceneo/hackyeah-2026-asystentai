@@ -48,14 +48,18 @@ function makeDbStub(captured: Array<unknown>): Database {
 
 describe("inferAndSaveIntentSnapshot", () => {
   it("sends bounded events to JEV and persists all eight returned probabilities", async () => {
-    const event = makeMetaEvent("rage_click", {
-      eventId: "event-000001",
-      detectedAt: "2026-10-03T12:00:00.000Z",
-    });
+    const events = Array.from({ length: 5 }, (_, index) =>
+      makeMetaEvent("rage_click", {
+        eventId: `event-00000${index + 1}`,
+        detectedAt: `2026-10-03T12:00:0${index}.000Z`,
+      }),
+    );
+    const event = events[0];
+    if (event === undefined) throw new Error("fixture must contain an event");
     const requestJev = vi.fn().mockResolvedValue(jevResponse);
     const captured: Array<unknown> = [];
 
-    const result = await inferAndSaveIntentSnapshot([event], {
+    const result = await inferAndSaveIntentSnapshot(events, {
       db: makeDbStub(captured),
       requestJev,
       now: () => new Date("2026-10-03T12:00:02.000Z"),
@@ -67,13 +71,20 @@ describe("inferAndSaveIntentSnapshot", () => {
       duplicate: false,
     });
     expect(requestJev).toHaveBeenCalledOnce();
-    expect(requestJev.mock.calls[0]?.[0]).toMatchObject({
+    const jevRequest = requestJev.mock.calls[0]?.[0];
+    expect(jevRequest).toMatchObject({
       model: "jev-latest",
       state: {
         sessionId: "session-test-1",
-        recentMetaEvents: [expect.objectContaining({ eventId: "event-000001" })],
       },
     });
+    expect(jevRequest.state.recentMetaEvents).toHaveLength(5);
+    expect(jevRequest.state.recentMetaEvents[0]).toEqual(
+      expect.objectContaining({ eventId: "event-000001" }),
+    );
+    expect(jevRequest.state.recentMetaEvents.at(-1)).toEqual(
+      expect.objectContaining({ eventId: "event-000005" }),
+    );
     expect(captured).toEqual([
       expect.objectContaining({
         snapshotId: "snapshot-000001",
@@ -84,7 +95,7 @@ describe("inferAndSaveIntentSnapshot", () => {
         inputEventWindow: {
           windowStartedAt: event.window.startedAt,
           windowEndedAt: event.window.endedAt,
-          eventCount: 1,
+          eventCount: 5,
         },
       }),
     ]);
@@ -92,14 +103,16 @@ describe("inferAndSaveIntentSnapshot", () => {
 
   it("rejects mixed-session batches before calling JEV", async () => {
     const requestJev = vi.fn();
-    const first = makeMetaEvent("rage_click", { eventId: "event-000001" });
+    const firstEvents = Array.from({ length: 4 }, (_, index) =>
+      makeMetaEvent("rage_click", { eventId: `event-00000${index + 1}` }),
+    );
     const second = makeMetaEvent("rage_click", {
-      eventId: "event-000002",
+      eventId: "event-000005",
       identity: { sessionId: "session-test-2", pageViewId: "pv-test-2" },
     });
 
     await expect(
-      inferAndSaveIntentSnapshot([first, second], { requestJev }),
+      inferAndSaveIntentSnapshot([...firstEvents, second], { requestJev }),
     ).rejects.toThrow("one session");
     expect(requestJev).not.toHaveBeenCalled();
   });
