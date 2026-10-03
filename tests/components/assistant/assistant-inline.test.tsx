@@ -20,17 +20,19 @@ vi.mock("@/lib/decision-engine", () => ({
 }));
 
 import { AssistantInline } from "@/components/assistant/assistant-inline";
+import { AssistantProposalCoordinator } from "@/components/assistant/assistant-proposal-coordinator";
 import {
   clearAssistantMetaEventHistory,
-  recordAssistantMetaEventBatch,
   MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL,
+  recordAssistantMetaEventBatch,
 } from "@/behavior/assistant-meta-event-history";
+import { clearAssistantProposalUiState, getAssistantProposalUiState } from "@/lib/assistant-proposal-state";
 import {
   muteAssistantFor,
   readAssistantMutedUntil,
 } from "@/lib/assistant-events";
 import type { AssistantProposal, CatalogState } from "@/lib/catalog-types";
-import { makeMetaEvent } from "../../behavior/fixtures";
+import { makeMetaEvent, resetFixtureSeed } from "../../behavior/fixtures";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
@@ -69,13 +71,11 @@ const catalogState: CatalogState = {
   resultCount: 8,
   page: 1,
 };
-
 const catalog = { categories: [], products: [] };
 
 let container: HTMLDivElement;
 let root: Root;
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
-let renderRevision = 0;
 let eventSequence = 0;
 
 function response(body: unknown, status = 200): Response {
@@ -96,37 +96,45 @@ function nextMetaEvents(count: number) {
   });
 }
 
-async function renderAssistant(decision: AssistantProposal | null) {
+async function renderAssistant(
+  decision: AssistantProposal | null = fatigueProposal,
+  state: CatalogState = catalogState,
+) {
   decisionEngineMock.current = decision;
-  renderRevision += 1;
   await act(async () => {
     root.render(
-      <AssistantInline
-        state={{ ...catalogState, page: renderRevision }}
-        catalog={catalog}
-        onClearSearchAndFilters={vi.fn()}
-      />,
+      <>
+        <AssistantProposalCoordinator />
+        <AssistantInline
+          state={state}
+          catalog={catalog}
+          onClearSearchAndFilters={vi.fn()}
+        />
+      </>,
     );
   });
 }
 
-async function flushRequestTask() {
+async function renderCoordinatorOnly() {
+  await act(async () => root.render(<AssistantProposalCoordinator />));
+}
+
+async function flushRequestTasks() {
   await act(async () => {
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 5));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 10));
   });
 }
 
 async function recordEvents(count: number) {
-  await act(async () => {
-    recordAssistantMetaEventBatch(nextMetaEvents(count));
-  });
+  await act(async () => recordAssistantMetaEventBatch(nextMetaEvents(count)));
 }
 
 beforeEach(() => {
   clearAssistantMetaEventHistory();
+  clearAssistantProposalUiState();
+  resetFixtureSeed();
   window.sessionStorage.clear();
   decisionEngineMock.current = null;
-  renderRevision = 0;
   eventSequence = 0;
   container = document.createElement("div");
   document.body.append(container);
@@ -139,19 +147,20 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   clearAssistantMetaEventHistory();
+  clearAssistantProposalUiState();
   container.remove();
   vi.unstubAllGlobals();
 });
 
-describe("AssistantInline proposal lifecycle", () => {
-  it("waits for five unique MetaEvents and sends the bounded event snapshot", async () => {
-    await renderAssistant(fatigueProposal);
+describe("assistant proposal coordinator and listing UI", () => {
+  it("waits for five events and can complete classification off the listing page", async () => {
+    await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL - 1);
-    await flushRequestTask();
+    await flushRequestTasks();
     expect(fetchMock).not.toHaveBeenCalled();
 
     await recordEvents(1);
-    await flushRequestTask();
+    await flushRequestTasks();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -159,24 +168,33 @@ describe("AssistantInline proposal lifecycle", () => {
     expect(init.method).toBe("POST");
     const body = JSON.parse(String(init.body)) as { metaEvents: unknown[] };
     expect(body.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
-    expect(container.querySelectorAll('[data-element-id="assistant-proposal"]')).toHaveLength(1);
-    expect(container.querySelector("h2")?.textContent).toBe(fatigueProposal.title);
+    expect(getAssistantProposalUiState().proposal?.data).toEqual(SHOW_PROPOSAL.data);
+
+    await renderAssistant();
+    expect(container.querySelector("h2")?.textContent).toBe("Pomóc zawęzić wybór?");
+    expect(container.querySelector('[data-element-id="assistant-action"]')?.tagName).toBe("A");
   });
 
   it("does not call the server while muted", async () => {
-    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     await act(async () => muteAssistantFor(60_000));
-    await renderAssistant(fatigueProposal);
-    await flushRequestTask();
+    await renderAssistant();
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
   });
 
-  it("keeps empty-search recovery local and preserves its clear action", async () => {
+  it("keeps empty-search recovery local and prevents coordinator requests", async () => {
+    decisionEngineMock.current = frictionProposal;
+    const emptySearchState = {
+      ...catalogState,
+      query: "no-matching-product",
+      resultCount: 0,
+    };
+    await renderAssistant(frictionProposal, emptySearchState);
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
-    await renderAssistant(frictionProposal);
-    await flushRequestTask();
+    await flushRequestTasks();
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(container.querySelector("h2")?.textContent).toBe(frictionProposal.title);
@@ -191,9 +209,10 @@ describe("AssistantInline proposal lifecycle", () => {
         data: { target: "catalog", filterKeys: [] },
       }),
     );
-    await renderAssistant(fatigueProposal);
+    await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
-    await flushRequestTask();
+    await flushRequestTasks();
+    await renderAssistant();
 
     expect(container.querySelector("h2")?.textContent).toBe("Zacznij od pełnego katalogu");
     expect(container.querySelector('[data-element-id="assistant-action"]')?.tagName).toBe("BUTTON");
@@ -207,33 +226,36 @@ describe("AssistantInline proposal lifecycle", () => {
     ["invalid response", { status: "show", kind: "other" }],
   ])("does not render a box for a %s", async (_label, body) => {
     fetchMock.mockResolvedValue(response(body));
-    await renderAssistant(fatigueProposal);
+    await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
-    await flushRequestTask();
+    await flushRequestTasks();
+    await renderAssistant(null);
 
+    expect(getAssistantProposalUiState().proposal).toBeNull();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
   });
 
-  it("serializes queued event triggers and continues after a hide response", async () => {
+  it("serializes event snapshots and continues after a hide response", async () => {
     fetchMock
       .mockResolvedValueOnce(response({ status: "hide" }))
       .mockResolvedValueOnce(response(SHOW_PROPOSAL));
-    await renderAssistant(fatigueProposal);
+    await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL + 1);
-    await flushRequestTask();
+    await flushRequestTasks();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as { metaEvents: unknown[] };
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as { metaEvents: unknown[] };
     expect(firstBody.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     expect(secondBody.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL + 1);
-    expect(container.querySelector("h2")?.textContent).toBe(fatigueProposal.title);
+    expect(getAssistantProposalUiState().proposal?.data).toEqual(SHOW_PROPOSAL.data);
   });
 
-  it("dismissal hides the box and mutes the assistant for 15 minutes", async () => {
-    await renderAssistant(fatigueProposal);
+  it("dismissal mutes for 15 minutes and clears the shared proposal", async () => {
+    await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
-    await flushRequestTask();
+    await flushRequestTasks();
+    await renderAssistant();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).not.toBeNull();
 
     const mutedAt = Date.now();
@@ -243,6 +265,7 @@ describe("AssistantInline proposal lifecycle", () => {
 
     expect(readAssistantMutedUntil()).toBeGreaterThanOrEqual(mutedAt + 15 * 60 * 1000);
     expect(readAssistantMutedUntil()).toBeLessThanOrEqual(mutedAt + 15 * 60 * 1000 + 5);
+    expect(getAssistantProposalUiState().proposal).toBeNull();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

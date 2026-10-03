@@ -35,7 +35,7 @@ The existing single-box behavior remains: local `search_friction` stays local, t
 
 ## Implementation Approach
 
-An application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and queues snapshots beginning at event five. `AssistantInline` serially drains queued snapshots while unmuted and without a visible proposal; an interrupted request is requeued on unmount. The route validates `{ metaEvents }`, gives Jev a server-built summary, then uses the Jev shortcut or OpenAI. It sanitizes filter keys before returning the action/data contract.
+An application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and queues snapshots beginning at event five. The root-mounted `AssistantProposalCoordinator` serially drains queued snapshots while unmuted and without a visible proposal, including while the listing box is unmounted; an interrupted request is requeued on coordinator unmount. `AssistantInline` renders from shared proposal state and retains local empty-search recovery. The route validates `{ metaEvents }`, gives Jev a server-built summary, then uses the Jev shortcut or OpenAI. It sanitizes filter keys before returning the action/data contract.
 
 ## Phase 1: Retain Recent MetaEvents for the Assistant
 
@@ -174,16 +174,27 @@ Call the revised endpoint from the serialized event-trigger queue and combine th
 
 #### 1. Request lifecycle and rendering
 
+**File**: `src/components/assistant/assistant-proposal-coordinator.tsx` (new)
+
+**Intent**: Keep the serialized request worker mounted with the behavior shell so it continues across category/product navigation.
+
+**Contract**: Observe the bounded MetaEvent trigger queue and shared UI state; process one request at a time while unmuted, without a server proposal or local recovery, and abort/requeue an interrupted trigger on unmount. Convert the validated response action/data into local presentation copy.
+
+**File**: `src/lib/assistant-proposal-state.ts` (new)
+
+**Intent**: Share the current server proposal and local recovery visibility between the root coordinator and listing UI.
+
+**Contract**: Expose a subscribable external store with one proposal maximum and a flag that pauses remote requests while local empty-search recovery is visible.
+
 **File**: `src/components/assistant/assistant-inline.tsx`
 
-**Intent**: Subscribe to assistant MetaEvent history and use it as the only request payload while retaining existing local behavior for empty-search recovery.
+**Intent**: Render the shared server proposal while retaining existing local behavior for empty-search recovery and dismissal.
 
 **Contract**:
 
-- No new queued event trigger: do not call the endpoint.
+- Do not own the request queue or call the endpoint; that lifecycle belongs to the root coordinator.
 - `search_friction`: render the existing local recovery proposal and do not call Jev.
-- At five unique events, then once per new event while no proposal is visible: POST the corresponding bounded `{ metaEvents }` snapshot; serialize requests in event order.
-- `show`: render one proposal from local presentation copy and the parsed server action/data; `hide`, HTTP failure, or invalid response renders nothing.
+- `show`: render one proposal from shared state using local presentation copy and parsed server action/data; `hide`, HTTP failure, or invalid response renders nothing.
 - Keep the 15-minute mute, abort in-flight requests on mute/unmount, requeue an interrupted trigger, and do not add a loader or a second box.
 
 **File**: `tests/components/assistant/assistant-inline.test.tsx` (new)
