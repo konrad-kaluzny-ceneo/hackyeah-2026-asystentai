@@ -75,7 +75,7 @@ export type CatalogState = {
 
 export type AssistantProposal = {
   id: string;
-  kind: ImplementedSignalKind;
+  kind: ImplementedSignalKind | "jev_proposal";
   title: string;
   message: string;
   actionLabel: string;

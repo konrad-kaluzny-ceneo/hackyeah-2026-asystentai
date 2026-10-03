@@ -3,6 +3,17 @@ import { MetaEventSchema } from "@/behavior/meta-event-schema";
 
 export const MAX_ASSISTANT_PROPOSAL_EVENTS = 10;
 
+export const JEV_SITUATIONS = [
+  "DECISION_FATIGUE",
+  "PRODUCT_HESITATION",
+  "NO_PROGRESS_STALL",
+  "UI_FRICTION",
+  "SMOOTH_EXPLORATION",
+] as const;
+
+export const JevSituationSchema = z.enum(JEV_SITUATIONS);
+export type JevSituation = z.infer<typeof JevSituationSchema>;
+
 const NonEmptyId = z.string().trim().min(1).max(128);
 const IsoDateString = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
   message: "expected ISO-8601 date string",
@@ -77,15 +88,28 @@ export type MetaEventsAssistantProposalRequest = z.infer<
 >;
 export type AssistantProposalRequest = CatalogAssistantProposalRequest;
 
-export const AssistantProposalResponseSchema = z.discriminatedUnion("status", [
-  z.object({
+const AssistantProposalDecisionFatigueResponseSchema = z.object({
     status: z.literal("show"),
     kind: z.literal("decision_fatigue"),
     title: z.string().trim().min(1).max(160),
     message: z.string().trim().min(1).max(500),
     action: z.literal("narrow-choice"),
     actionLabel: z.string().trim().min(1).max(160),
-  }).strict(),
+}).strict();
+
+const AssistantProposalJevResponseSchema = z.object({
+  status: z.literal("show"),
+  kind: z.literal("jev_proposal"),
+  situation: JevSituationSchema,
+  title: z.string().trim().min(1).max(160),
+  message: z.string().trim().min(1).max(500),
+  action: z.literal("narrow-choice"),
+  actionLabel: z.string().trim().min(1).max(160),
+}).strict();
+
+export const AssistantProposalResponseSchema = z.union([
+  AssistantProposalDecisionFatigueResponseSchema,
+  AssistantProposalJevResponseSchema,
   z.object({ status: z.literal("hide") }).strict(),
 ]);
 

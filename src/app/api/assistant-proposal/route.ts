@@ -87,7 +87,8 @@ async function postMetaEvents(
     );
     const response = AssistantProposalResponseSchema.safeParse({
       status: "show",
-      kind: "decision_fatigue",
+      kind: "jev_proposal",
+      situation: decision.situation,
       ...draft,
       action: "narrow-choice",
       actionLabel: "Przejdź do filtrów",

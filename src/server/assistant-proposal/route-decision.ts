@@ -2,6 +2,10 @@ import type {
   JevAssistantOutput,
   JevAssistantResponse,
 } from "@/server/assistant-proposal/schema";
+import {
+  JevSituationSchema,
+  type JevSituation,
+} from "@/lib/assistant-proposal-api";
 
 export const JEV_SHORTCUT_CONFIDENCE = 0.75;
 
@@ -11,7 +15,7 @@ export type JevRouteDecision =
   | { readonly kind: "hide" };
 
 export type RouteDecision =
-  | { readonly decision: "generate_proposal" }
+  | { readonly decision: "generate_proposal"; readonly situation: JevSituation }
   | { readonly decision: "hide" };
 
 export function routeJevOutput(output: JevAssistantOutput): RouteDecision;
@@ -26,10 +30,11 @@ export function routeJevOutput(
 ): JevRouteDecision | RouteDecision {
   if (availableFilterKeys === undefined) {
     const metaEventOutput = output as JevAssistantOutput;
-    return metaEventOutput.situation === "DECISION_FATIGUE" &&
-      metaEventOutput.proposal.confidence > JEV_SHORTCUT_CONFIDENCE
-      ? { decision: "generate_proposal" }
-      : { decision: "hide" };
+    const situation = JevSituationSchema.safeParse(metaEventOutput.situation);
+    if (!situation.success || metaEventOutput.proposal.confidence <= JEV_SHORTCUT_CONFIDENCE) {
+      return { decision: "hide" };
+    }
+    return { decision: "generate_proposal", situation: situation.data };
   }
 
   const systemOneOutput = output as JevAssistantResponse;

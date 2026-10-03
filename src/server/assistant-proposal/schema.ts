@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { JevSituationSchema } from "@/lib/assistant-proposal-api";
 
 const Probability = z.number().min(0).max(1);
 
@@ -34,7 +35,7 @@ export const JevProposalSchema = z.object({
 });
 
 export const JevAssistantOutputSchema = z.object({
-  situation: z.string(),
+  situation: JevSituationSchema,
   primary_meta_event: z.string().optional(),
   signal_strength: Probability.optional(),
   key_evidence: z.array(z.string()).optional(),

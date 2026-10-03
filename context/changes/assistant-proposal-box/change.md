@@ -9,8 +9,8 @@ archived_at: null
 
 ## Notes
 
-S-05 expanded to cover the end-to-end proposal flow: bounded MetaEvent history, MetaEvents-only request, Jev confidence gate, deterministic OpenAI stub, and existing single-box UI lifecycle.
+S-05 now triggers classification from the count of successfully sent MetaEvents rather than a browser-side fatigue decision: the first request starts at five events, then each new event retries while no proposal is visible. The server gates a deterministic demo proposal for any recognized Jev situation above 0.75.
 
-Only validated MetaEvents are sent to Jev; raw events and catalog facts remain out of the proposal request. A local fixed-response stub replaces the unfinished OpenAI branch for this demo; a real OpenAI client remains future work.
+Only validated MetaEvents are sent to Jev; raw events and catalog facts remain out of the proposal request. A local fixed-response stub replaces the unfinished OpenAI branch for this demo; a real OpenAI client remains future work. Local empty-search recovery and the one-proposal rule remain.
 
-The approved implementation phase breakdown is in `plan.md`; the cross-slice API contract is documented in `interface.md` and must be aligned during implementation.
+The revised implementation phase breakdown is in `plan.md`; the cross-slice API contract is documented in `interface.md`.
