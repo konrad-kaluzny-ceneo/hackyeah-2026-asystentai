@@ -80,7 +80,7 @@ export function EmotionTimelineChart() {
 
   if (timeline === null) {
     return (
-      <div className="flex h-[200px] min-h-[200px] items-center justify-center rounded border border-dashed border-zinc-300 bg-white/70 text-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/40">
+      <div className="flex h-full min-h-[180px] w-full items-center justify-center rounded border border-dashed border-zinc-300 bg-white/70 text-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/40">
         {error === null ? "ładowanie intencji..." : `błąd timeline: ${error}`}
       </div>
     );
@@ -95,14 +95,23 @@ export function EmotionTimelineChart() {
   );
 
   return (
-    <div className="min-w-0">
-      <div className="overflow-x-auto rounded border border-dashed border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-900/40">
-        <svg
-          aria-label="Oś czasu intencji zakupowych użytkownika"
-          className="h-[200px] min-w-[720px] w-full"
-          viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-          role="img"
-        >
+    <div className="flex min-h-[180px] min-w-0 flex-1 items-stretch gap-3">
+      <div className="w-32 shrink-0 overflow-hidden pt-1">
+        <div className="flex flex-col gap-1">
+          {timeline.series.map((intent) => (
+            <LegendItem key={intent.id} intent={intent} />
+          ))}
+        </div>
+      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded border border-dashed border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-900/40">
+          <svg
+            aria-label="Oś czasu intencji zakupowych użytkownika"
+            className="block h-full min-h-[180px] min-w-0 w-full"
+            preserveAspectRatio="none"
+            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+            role="img"
+          >
           <rect x="0" y={PLOT_TOP} width={CHART_WIDTH} height={PLOT_BOTTOM - PLOT_TOP} fill="transparent" />
           {[0, stackedMax / 2, stackedMax].map((value) => (
             <line
@@ -210,18 +219,12 @@ export function EmotionTimelineChart() {
               </text>
             </>
           )}
-        </svg>
-      </div>
-      <div className="mt-2 max-h-14 overflow-y-auto pr-1">
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {timeline.series.map((intent) => (
-            <LegendItem key={intent.id} intent={intent} />
-          ))}
+          </svg>
         </div>
+        <p className="mt-1 text-[10px] text-zinc-400">
+          {timeline.source} · stacked area · okno {timeline.windowStartSecond}–{timeline.windowEndSecond}s · odświeżanie co 1 s · prawdopodobieństwa JEV 0–100%
+        </p>
       </div>
-      <p className="mt-1 text-[10px] text-zinc-400">
-        {timeline.source} · stacked area · okno {timeline.windowStartSecond}–{timeline.windowEndSecond}s · odświeżanie co 1 s · prawdopodobieństwa JEV 0–100%
-      </p>
     </div>
   );
 }
