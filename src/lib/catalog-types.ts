@@ -1,5 +1,12 @@
 import type { ImplementedSignalKind } from "@/domain/shopping-signal";
 
+export type AssistantAction = "narrow-choice" | "clear-search-and-filters";
+
+export type AssistantActionData = {
+  target: "filters" | "catalog";
+  filterKeys: string[];
+};
+
 export type CategoryFilter = {
   key: string;
   label: string;
@@ -79,6 +86,7 @@ export type AssistantProposal = {
   title: string;
   message: string;
   actionLabel: string;
-  action: "narrow-choice" | "clear-search-and-filters";
+  action: AssistantAction;
+  data: AssistantActionData;
   createdAt: string;
 };

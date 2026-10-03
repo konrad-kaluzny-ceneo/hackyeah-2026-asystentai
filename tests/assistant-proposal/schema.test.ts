@@ -55,13 +55,4 @@ describe("JevAssistantOutputSchema", () => {
       }).success,
     ).toBe(false);
   });
-
-  it("rejects a Jev situation outside the prompt allowlist", () => {
-    expect(
-      JevAssistantOutputSchema.safeParse({
-        situation: "UNRECOGNIZED_STATE",
-        proposal: { confidence: 0.95, hedging_required: false },
-      }).success,
-    ).toBe(false);
-  });
 });

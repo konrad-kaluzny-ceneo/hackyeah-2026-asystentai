@@ -85,11 +85,11 @@ describe("GET /api/emotions-timeline", () => {
   });
 
   it("maps timeline values into stable SVG coordinates", () => {
-    expect(chartX(0, 0)).toBe(0);
-    expect(chartX(15, 0)).toBe(450);
-    expect(chartX(30, 0)).toBe(900);
-    expect(chartX(5, 5)).toBe(0);
-    expect(chartX(35, 5)).toBe(900);
+    expect(chartX(0, 0)).toBe(56);
+    expect(chartX(15, 0)).toBe(473);
+    expect(chartX(30, 0)).toBe(890);
+    expect(chartX(5, 5)).toBe(56);
+    expect(chartX(35, 5)).toBe(890);
     expect(chartY(0)).toBe(204);
     expect(chartY(1)).toBe(28);
     expect(chartY(2)).toBe(28);

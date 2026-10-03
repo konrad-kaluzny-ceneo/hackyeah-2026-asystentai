@@ -35,8 +35,8 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-01 | signal-strength-engine | … system klasyfikuje rodzaj intencji zakupowej z faktów katalogu | F-02 | FR-001, FR-002 | done |
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
-| S-04 | jev-session-proposal | … (serwer) dostać JSON z Jev i deterministycznego stubu dla każdej znanej sytuacji o wysokiej pewności | — | US-03, FR-010 | ready |
-| S-05 | assistant-proposal-box | … (UI) wysłać bounded MetaEvents od pierwszego zdarzenia i zobaczyć box, gdy Jev rozpozna stan z wysoką pewnością | S-04 | US-01, FR-007, FR-010 | ready |
+| S-04 | jev-session-proposal | … (serwer) dostać JSON z Jev/OpenAI i akcją dla decision fatigue | — | US-03, FR-010 | ready |
+| S-05 | assistant-proposal-box | … (UI) zobaczyć jeden box po klasyfikacji ograniczonej historii MetaEvents | S-04 | US-01, FR-007, FR-010 | ready |
 | S-06 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
 | S-07 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-06 | FR-012 | active |
 | S-08 | intent-timeline | … zespół oglądał realne prawdopodobieństwa 8 intencji JEV per sesja w debug overlay | S-04 | FR-013 | done |
@@ -48,7 +48,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | A | Sygnały → inferencja | `F-01` → `F-02` → `S-01` | Wspólna baza pod oba scenariusze użytkownika. |
 | B | Decision fatigue | `S-02` | Gwiazda przewodnia; dołącza do Stream A po `S-01`. |
 | C | Tarcie wyszukiwania | `S-03` | Równoległy z Stream B po `S-01`; ten sam box UX. |
-| D | Treść propozycji | `S-04` → `S-05` | S-04: route + Jev + lokalny stub (prawdziwy OpenAI odroczony). S-05: box i ograniczona historia MetaEvents (Michał). |
+| D | Treść propozycji | `S-04` → `S-05` | S-04: route + Jev/OpenAI i minimalna decyzja action/data. S-05: box i ograniczona historia MetaEvents (Michał). |
 
 ## Baseline
 
@@ -73,7 +73,7 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 
 ### DDD correction
 
-`src/behavior` is an observation context, not the shopping-signal domain. `DecisionEngine` still classifies catalog facts, but S-05 no longer uses its fatigue result to trigger a server request. After one successfully sent MetaEvent, the client sends a bounded MetaEvent summary to Jev; Jev classifies the situation on the server. The same accepted batch triggers the server-side intent snapshot flow used by the timeline. See `context/foundation/domain.md`.
+`src/behavior` is an observation context, not the shopping-signal domain. `DecisionEngine` still classifies `CatalogEvent`, but does not gate S-05 requests. S-05 sends a separate bounded MetaEvent summary to Jev after the first successfully sent event; the same accepted batch can trigger the separate intent-timeline lane. See `context/foundation/domain.md`.
 
 - `MetaEvent.quality.strength` is detector confidence. The decision engine does not use it.
 - `comparison_oscillation` and `product_revisit` are not `decision_fatigue`.
@@ -164,7 +164,7 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 
 ### S-04: Odpowiedź z Jev albo z mocniejszego modelu (serwer)
 
-- **Outcome:** `POST /api/assistant-proposal` przyjmuje 1–10 MetaEvents (body do 64 KiB) i zwraca `show` albo `hide`. Jev dostaje ich bezpieczne podsumowanie bez osobnego stanu katalogu, identyfikatorów sesji/eventu ani ścieżek; każda rozpoznana sytuacja z confidence `> 0.75` uruchamia stały lokalny stub. Confidence `0.75` lub niższe albo nieznana sytuacja zwraca `hide`. Prawdziwe OpenAI pozostaje przyszłą pracą.
+- **Outcome:** `POST /api/assistant-proposal` przyjmuje 1–10 MetaEvents (body do 64 KiB) i zwraca `show` albo `hide`. Jev dostaje bezpieczne podsumowanie bez raw eventów, identyfikatorów sesji/eventu ani ścieżek; pewny, niehedgowany fatigue może użyć skrótu Jev, a pozostałe poprawne wyniki przechodzą do OpenAI. Odpowiedź `show` zawiera wyłącznie akcję i dane.
 - **Change ID:** jev-session-proposal
 - **PRD refs:** US-03, FR-010
 - **Prerequisites:** —
@@ -172,12 +172,12 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 - **Blockers:** —
 - **Acceptance:**
   - Wyjście Jev jest sprawdzone schematem, zanim powstanie odpowiedź HTTP.
-  - Każda ze znanych sytuacji Jev (`DECISION_FATIGUE`, `PRODUCT_HESITATION`, `NO_PROGRESS_STALL`, `UI_FRICTION`, `SMOOTH_EXPLORATION`) z confidence `> 0.75` zwraca stały wynik stubu; `0.75` i niżej albo nieznana sytuacja zwraca `hide`.
-  - Żadna ścieżka tego demo nie wykonuje żądania do OpenAI.
+  - Pewny, niehedgowany `DECISION_FATIGUE` może użyć skrótu Jev; pozostałe poprawne wyjścia są rozstrzygane przez OpenAI.
+  - Błędy modeli i timeouty zwracają bezpieczne `hide`; OpenAI ma osobny timeout i wyłączone retry.
   - Rate limit Jev; błędy → `hide`.
 - **Unknowns:**
   - Adres HTTP Typesafe — Owner: team. Block: implementacja klienta Jev.
-- **Risk:** Niewłaściwy próg może pokazać słabą propozycję; stub ma tekst demonstracyjny i nie jest prawdziwym generowaniem OpenAI.
+- **Risk:** Niewłaściwy wybór akcji może skierować użytkownika do niewłaściwej części UI; akcja jest ograniczona do enuma, a klucze filtrów są sanityzowane.
 - **Status:** ready
 
 Source / Lineage:
@@ -187,7 +187,7 @@ Source / Lineage:
 
 ### S-05: Box propozycji na listingu (UI)
 
-- **Outcome:** klient wysyła ostatnie MetaEvents do S-04 po zapisaniu pierwszego zdarzenia, a potem przy każdym nowym zdarzeniu, dopóki nie ma widocznej propozycji; UI nie podejmuje decyzji o fatigue. Serwer klasyfikuje sytuację przez Jev i pokazuje jeden box ze stałą odpowiedzią stubu dla każdej znanej sytuacji z confidence `> 0.75`; niższa pewność lub nieznana sytuacja ukrywa box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
+- **Outcome:** po pierwszym unikalnym MetaEvent z poprawnie wysłanego batcha, a potem po każdym nowym evencie do pokazania propozycji, UI wysyła ograniczony snapshot do S-04 i może pokazać jeden box z lokalnym copy oraz akcją/data wybraną przez serwer. Błędy i brak propozycji ukrywają box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
 - **Change ID:** assistant-proposal-box
 - **PRD refs:** US-01, FR-007, FR-010
 - **Prerequisites:** S-04 (route zgodny z `interface.md`)
@@ -195,9 +195,9 @@ Source / Lineage:
 - **Blockers:** —
 - **Acceptance:**
   - Sukcesy `/api/meta-events` zasilają ograniczoną historię 10 MetaEvents; request assistant nie dostaje `CatalogState`, `CatalogEvent[]` ani raw events.
-  - Pięć MetaEvents → pierwszy fetch; każde nowe zdarzenie ponawia klasyfikację, jeśli box jest ukryty; friction → lokalnie; abort + ochrona przed starymi odpowiedziami.
-  - Jev dostaje minimalne podsumowanie MetaEvents; każda znana sytuacja z `> 0.75` → stub, `0.75` lub mniej albo nieznana → `hide`.
-  - Manual: cztery zdarzenia bez requestu, piąte z requestem, retry po hide, znana nie-fatigue z wysoką pewnością, pusty wynik; zamknięcie boxa.
+  - Pierwszy unikalny MetaEvent → kolejka requestów po każdym nowym evencie; `search_friction` lokalnie i priorytetowo; requesty serializowane, abortowane lub wznawiane po odmontowaniu.
+  - Jev dostaje minimalne podsumowanie MetaEvents; pewny shortcut Jev ukrywa propozycję, a pozostałe poprawne wyniki rozstrzyga OpenAI; copy nie jest generowane przez model.
+  - Manual: trzy produkty + powrót; pusty wynik; zamknięcie boxa.
 - **Unknowns:** —
 - **Risk:** Wyścig odpowiedzi bez `requestId` pokaże starą treść.
 - **Status:** ready
@@ -205,6 +205,19 @@ Source / Lineage:
 Source / Lineage:
 
 - Wydzielone z planu S-04 2026-10-03. Lane: Michał.
+
+### S-08: Timeline intencji JEV per sesja
+
+- **Outcome:** system zapisuje osiem prawdopodobieństw intencji JEV per anonimowa sesja, a `GET /api/emotions-timeline?sessionId=...` zwraca oś czasu z forward-fill ostatniego znanego stanu. Debug overlay pokazuje intencje zamiast mockowanych emocji.
+- **Change ID:** intent-timeline
+- **PRD refs:** FR-013
+- **Prerequisites:** S-04
+- **Parallel with:** — (trigger inferencji jest osobną lane)
+- **Blockers:** —
+- **Acceptance:** snapshoty są walidowane i zapisywane atomowo; endpoint zwraca wartości `0..1` w siatce sekundowej; debug overlay renderuje osiem serii.
+- **Unknowns:** —
+- **Risk:** błąd Jev nie może przerwać zapisu MetaEvents; trigger timeline jest best-effort.
+- **Status:** done
 
 ### S-06: Meta eventy zainteresowania i dynamiki
 
@@ -246,30 +259,7 @@ Source / Lineage:
 - **Unknowns:**
   - Progi dwell dla `price_focus` na stronie produktu — kalibracja. Block: no.
 - **Risk:** Asystent może być rzadko pokazywany na demo, więc `assistant_proposal_dismissed` będzie rzadki. Akceptowalne — to czysty feedback negatywny.
-- **Status:** done
-
-### S-08: Timeline intencji JEV per sesja
-
-- **Outcome:** system zapisuje atomowe snapshoty ośmiu prawdopodobieństw intencji JEV per anonimowa sesja z timestampem, a `GET /api/emotions-timeline?sessionId=...` zwraca realną oś czasu z forward-fill ostatniego znanego stanu. Debug overlay pokazuje intencje zamiast mockowanych emocji.
-- **Change ID:** intent-timeline
-- **PRD refs:** FR-013
-- **Prerequisites:** S-04
-- **Parallel with:** S-05, S-07
-- **Blockers:** —
-- **Acceptance:**
-  - tabela `session_intent_snapshots` przechowuje osiem wartości `0..1`, model, wersję algorytmu i czas obliczenia;
-  - klient JEV przekazuje maksymalnie 10 ostatnich bezpiecznych meta-eventów i wymaga wszystkich ośmiu probabilistyk;
-  - endpoint dla poprawnego `sessionId` zwraca 8 serii i uzupełnia sekundy ostatnim stanem, bez mocka;
-  - wykres odświeża dane co sekundę i pokazuje `jev` albo `empty`;
-  - wywołanie bez `sessionId` zachowuje mock tylko dla kompatybilności dev-demo.
-- **Unknowns:** częstotliwość triggera JEV i polityka retencji snapshotów — Owner: lane inferencji. Block: no.
-- **Risk:** brak triggera oznacza pustą oś czasu; `source: "empty"` odróżnia ten stan od danych modelu.
-- **Status:** done
-
-Source / Lineage:
-
-- Added on 2026-10-03 after merge of `feature/jev-session-proposal`.
-- Trigger JEV runs after an accepted `/api/meta-events` batch and persists a validated snapshot before the timeline reads it.
+- **Status:** active
 
 Source / Lineage:
 
@@ -286,11 +276,10 @@ Source / Lineage:
 | S-01 | signal-strength-engine | Classify shopping signal strength | no | Done dla dwóch rodzajów; trzy nazwane bez klasyfikacji |
 | S-02 | decision-fatigue-box | One assistant proposal on decision fatigue | no | Done |
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |
-| S-04 | jev-session-proposal | POST /api/assistant-proposal (Jev + local stub; OpenAI deferred) | yes | Lane: Edyta. Kontrakt: `assistant-proposal-box/interface.md`. |
+| S-04 | jev-session-proposal | POST /api/assistant-proposal (Jev/OpenAI action decision) | yes | Lane: Edyta. Kontrakt: `assistant-proposal-box/interface.md`. |
 | S-05 | assistant-proposal-box | Wire listing box to MetaEvents-only Jev proposal flow | yes | Lane: Michał. Po kontrakcie S-04. Plan w `context/changes/assistant-proposal-box/`. |
 | S-06 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | no | Done (`7d9e7bc`) |
 | S-07 | behavior-meta-events-2 | Price focus, search refinement loop, proposal dismissed | yes | Tagi na cenie/boxie asystenta + raw search_submitted |
-| S-08 | intent-timeline | Persist JEV intent probabilities and render session timeline | yes | Eight intents, forward-fill, same timeline URL; trigger is a separate lane. |
 
 ## Open Roadmap Questions
 

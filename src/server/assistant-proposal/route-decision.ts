@@ -1,59 +1,21 @@
-import type {
-  JevAssistantOutput,
-  JevAssistantResponse,
-} from "@/server/assistant-proposal/schema";
-import {
-  JevSituationSchema,
-  type JevSituation,
-} from "@/lib/assistant-proposal-api";
-
-export const JEV_SHORTCUT_CONFIDENCE = 0.75;
-
-export type JevRouteDecision =
-  | { readonly kind: "shortcut"; readonly filterKey: string }
-  | { readonly kind: "needs_openai" }
-  | { readonly kind: "hide" };
+import type { JevAssistantOutput } from "./schema";
 
 export type RouteDecision =
-  | { readonly decision: "generate_proposal"; readonly situation: JevSituation }
-  | { readonly decision: "hide" };
+  | { decision: "shortcut"; message: string }
+  | { decision: "needs_openai" };
 
-export function routeJevOutput(output: JevAssistantOutput): RouteDecision;
-export function routeJevOutput(
-  output: JevAssistantResponse,
-  availableFilterKeys: readonly string[],
-): JevRouteDecision;
-
-export function routeJevOutput(
-  output: JevAssistantResponse | JevAssistantOutput,
-  availableFilterKeys?: readonly string[],
-): JevRouteDecision | RouteDecision {
-  if (availableFilterKeys === undefined) {
-    const metaEventOutput = output as JevAssistantOutput;
-    const situation = JevSituationSchema.safeParse(metaEventOutput.situation);
-    if (!situation.success || metaEventOutput.proposal.confidence <= JEV_SHORTCUT_CONFIDENCE) {
-      return { decision: "hide" };
-    }
-    return { decision: "generate_proposal", situation: situation.data };
-  }
-
-  const systemOneOutput = output as JevAssistantResponse;
-  const { situation, recommended_filter: recommendedFilter } = systemOneOutput.answers;
-
-  if (situation.choice !== "DECISION_FATIGUE") {
-    return { kind: "hide" };
-  }
+/** Keep a confident, unhedged decision-fatigue draft; route other valid outputs to OpenAI. */
+export function routeJevOutput(output: JevAssistantOutput): RouteDecision {
+  const message = output.proposal.message_draft?.trim() ?? "";
 
   if (
-    situation.confidence < JEV_SHORTCUT_CONFIDENCE ||
-    recommendedFilter.confidence < JEV_SHORTCUT_CONFIDENCE
+    output.situation === "DECISION_FATIGUE" &&
+    output.proposal.confidence >= 0.75 &&
+    output.proposal.hedging_required === false &&
+    message.length > 0
   ) {
-    return { kind: "needs_openai" };
+    return { decision: "shortcut", message };
   }
 
-  if (!availableFilterKeys.includes(recommendedFilter.choice)) {
-    return { kind: "needs_openai" };
-  }
-
-  return { kind: "shortcut", filterKey: recommendedFilter.choice };
+  return { decision: "needs_openai" };
 }

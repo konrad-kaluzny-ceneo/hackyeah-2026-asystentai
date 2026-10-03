@@ -11,12 +11,14 @@ import {
 } from "@/behavior/assistant-meta-event-history";
 import type { MetaEvent } from "@/behavior/types";
 import { safeParseAssistantProposalResponse } from "@/lib/assistant-proposal-api";
+import type { AssistantProposal } from "@/lib/catalog-types";
 import {
   CATALOG_SESSION_CHANGED,
   readAssistantMutedUntil,
 } from "@/lib/assistant-events";
 import {
   getAssistantProposalUiState,
+  setAssistantSearchRecoveryVisible,
   setAssistantServerProposal,
   subscribeAssistantProposalUiState,
 } from "@/lib/assistant-proposal-state";
@@ -79,6 +81,11 @@ export function AssistantProposalCoordinator() {
       if (muteTimer !== undefined) window.clearTimeout(muteTimer);
       const mutedUntil = readAssistantMutedUntil();
       if (mutedUntil > Date.now()) {
+        requestAllowedRef.current = false;
+        clearAssistantProposalTriggers();
+        activeControllerRef.current?.abort();
+        setAssistantServerProposal(null);
+        setAssistantSearchRecoveryVisible(false);
         setMuted(true);
         muteTimer = window.setTimeout(refreshMute, mutedUntil - Date.now());
       } else {
@@ -99,7 +106,9 @@ export function AssistantProposalCoordinator() {
     workerActiveRef.current = true;
 
     try {
-      while (mountedRef.current && requestAllowedRef.current) {
+      while (mountedRef.current
+        // && requestAllowedRef.current
+      ) {
         const trigger = takeAssistantProposalTrigger();
         if (trigger === null) return;
 
@@ -127,15 +136,19 @@ export function AssistantProposalCoordinator() {
 
           requestAllowedRef.current = false;
           clearAssistantProposalTriggers();
-          setAssistantServerProposal({
+          const proposal: AssistantProposal = {
             id: `jev-proposal:${trigger.eventId}`,
             kind: "jev_proposal",
             title: parsed.data.title,
             message: parsed.data.message,
-            actionLabel: parsed.data.actionLabel,
-            action: parsed.data.action,
+            actionLabel: "Przejdź do filtrów",
+            action: "narrow-choice",
+            data: { target: "filters", filterKeys: [] },
             createdAt:
               trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
+          };
+          setAssistantServerProposal({
+            ...proposal,
           });
           return;
         } catch {
