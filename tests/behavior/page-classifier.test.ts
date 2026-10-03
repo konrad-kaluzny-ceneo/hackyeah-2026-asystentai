@@ -13,9 +13,16 @@ describe("classifyPathname", () => {
     expect(classifyPathname("/katalog/", PAGE_TYPE_RULES)).toBe("catalog");
   });
 
+  it("classifies category listings and product cards", () => {
+    expect(classifyPathname("/katalog/lodowki", PAGE_TYPE_RULES)).toBe(
+      "catalog",
+    );
+    expect(classifyPathname("/produkt/pralka-x", PAGE_TYPE_RULES)).toBe(
+      "product",
+    );
+  });
+
   it("returns 'unknown' for routes that don't exist in the app yet", () => {
-    // Spec examples mention /search, /product, etc. — none of them exist in
-    // src/app/, so they must classify as 'unknown' rather than be guessed.
     expect(classifyPathname("/search", PAGE_TYPE_RULES)).toBe("unknown");
     expect(classifyPathname("/product/pralka-x", PAGE_TYPE_RULES)).toBe(
       "unknown",

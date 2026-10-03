@@ -15,22 +15,24 @@ To wzorce UI: `rage_click`, `dead_click_cluster`, `rapid_filter_churn`, `no_prog
 
 `MetaEvent.quality.strength` to pewność heurystyki detektora (0–1). To nie jest moc sygnału zakupowego z FR-002.
 
-`comparison_oscillation` i `product_revisit` nie są decision fatigue. Decision fatigue wymaga produktów o podobnych parametrach (US-01). Samo chodzenie między kartami tego nie dowodzi.
+Asystent tego kontekstu nie czyta. `comparison_oscillation` i `product_revisit` nie są decision fatigue.
 
 ## Intencja zakupowa
 
-Kod języka: `src/domain/shopping-signal.ts`. Klasyfikacja sesji: jeszcze nie ma (slice S-01).
+Fakty sesji: `CatalogEvent` w sessionStorage (`src/lib/assistant-events.ts`). Klasyfikacja: `DecisionEngine` w `src/lib/decision-engine.ts`. Nazwy rodzajów: `src/domain/shopping-signal.ts`.
 
-| Kind | Kiedy (PRD) |
+Silnik zwraca co najwyżej jedną propozycję. Pusty wynik ma pierwszeństwo przed decision fatigue.
+
+| Kind | Stan w MVP |
 |---|---|
-| `brand` | Search konkretnej marki. Silny sygnał producenta. |
-| `uncertainty` | Produkty o różnych parametrach. Użytkownik nie wie, czego potrzebuje. |
-| `decision_fatigue` | Co najmniej trzy produkty o podobnych parametrach. Wie, czego potrzebuje, ma za dużo opcji. |
-| `weak_budget` | Sama kategoria, bez węższych dowodów. Słaby sygnał budżetu. |
-| `search_friction` | Zero wyników, wielokrotne zmiany filtrów, cofanie. |
+| `decision_fatigue` | Działa. Trzy podobne produkty w kategorii, potem powrót na listę. |
+| `search_friction` | Działa jako pusty wynik przy aktywnym searchu lub filtrach. |
+| `brand` | Nazwane, nieklasyfikowane. |
+| `uncertainty` | Nazwane, nieklasyfikowane. |
+| `weak_budget` | Nazwane, nieklasyfikowane. |
 
-`ShoppingSignal.strength` to siła tej interpretacji sesji, nie wynik detektora.
+`ShoppingSignal.strength` w typie to siła interpretacji. Silnik jej nie liczy: reguła albo pasuje, albo nie.
 
 ## Reguła na hackathon
 
-Nie dokładamy kolejnych detektorów UX jako zamiennika S-01. F-02 ma emitować fakty katalogu (produkt, parametry, filtry, search, liczba wyników) do istniejącego kolektora. S-01 z tych faktów wybiera jeden `ShoppingSignalKind`.
+Nie dokładamy detektorów UX jako zamiennika intencji. Nowe rodzaje sygnału dopisujemy do `SHOPPING_SIGNAL_KINDS` i do `IMPLEMENTED_SIGNAL_KINDS` dopiero wtedy, gdy `DecisionEngine` je naprawdę zwraca.
