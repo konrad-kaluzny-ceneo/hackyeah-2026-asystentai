@@ -10,15 +10,15 @@ export default function Home() {
         </h1>
         <p className="max-w-2xl text-lg leading-8 text-zinc-600 dark:text-zinc-400">
           Kupujący AGD przegląda wiele produktów o podobnych parametrach i nie
-          podejmuje decyzji. Ta aplikacja jest pustym szkieletem demo: sesja
-          anonimowa, jedna trasa katalogu i miejsce na co najwyżej jedną
-          propozycję następnego kroku.
+          podejmuje decyzji. Szkielet demo jest uruchomiony: sesja anonimowa,
+          pusta trasa katalogu i miejsce na co najwyżej jedną propozycję
+          następnego kroku.
         </p>
       </div>
       <ul className="flex flex-col gap-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
         <li>Bez logowania i bez akcji na koszyku.</li>
-        <li>Katalog i zdarzenia sygnałów nie są jeszcze podpięte.</li>
-        <li>Reguły produktu: context/foundation/prd.md.</li>
+        <li>Katalog nie emituje jeszcze faktów zakupowych.</li>
+        <li>Klasyfikacja intencji i propozycja asystenta nie są jeszcze zbudowane.</li>
       </ul>
       <Link
         href="/katalog"

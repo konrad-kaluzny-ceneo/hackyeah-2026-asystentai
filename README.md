@@ -1,6 +1,8 @@
 # Asystent AI — intencje na bieżąco
 
-Szkielet demo katalogu AGD. Asystent ma z sygnałów przeglądania proponować jeden następny krok. Sesja jest anonimowa. Katalog, zdarzenia i box asystenta nie są jeszcze zaimplementowane.
+Szkielet demo katalogu AGD. Asystent ma z intencji przeglądania proponować jeden następny krok. Sesja jest anonimowa.
+
+Szkielet aplikacji jest uruchomiony. Obok niego działa pipeline obserwacji UI (`src/behavior/`, meta eventy). To nie jest klasyfikacja intencji zakupowej. Katalog mockowy, sygnały zakupowe (`src/domain/shopping-signal.ts`) i box asystenta nie są jeszcze zaimplementowane. Granica domeny: [context/foundation/domain.md](context/foundation/domain.md).
 
 Reguły produktu: [context/foundation/prd.md](context/foundation/prd.md). Kolejność slice’ów: [context/foundation/roadmap.md](context/foundation/roadmap.md).
 

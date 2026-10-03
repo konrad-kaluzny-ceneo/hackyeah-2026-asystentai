@@ -74,7 +74,10 @@ window.
 ## Hard rules
 
 - Detectors observe **patterns in behavior**. They never infer emotion,
-  intent, or demographics.
+  intent, or demographics. Shopping-intent kinds (`brand`, `uncertainty`,
+  `decision_fatigue`, `weak_budget`, `search_friction`) are not detectors.
+  They belong in `src/domain/shopping-signal.ts` (slice S-01). A detector
+  may record an observation that later becomes evidence for that slice.
 - Detectors never emit free-text metrics. `metrics: Record<string, string|number|boolean>` —
   but strings must be identifiers (catalog IDs, bucket labels, enum values),
   never user input.

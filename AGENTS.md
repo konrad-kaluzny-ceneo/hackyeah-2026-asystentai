@@ -41,7 +41,8 @@ Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can d
 - `src/app/layout.tsx` — Polish document language and the shared header.
 - `src/app/behavior-debug-shell.tsx` — mounts the tracker and the dev-only debug overlay.
 - `src/app/api/meta-events/route.ts` — POST endpoint for client behavior meta events.
-- `src/behavior/` — client-side pipeline (collector → buffer → analyzer → detectors → dispatcher). Raw events never leave the browser.
+- `src/domain/` — shopping-intent language (`ShoppingSignalKind`). Observation patterns in `src/behavior/` are not these signals. See `context/foundation/domain.md`.
+- `src/behavior/` — client-side observation pipeline (collector → buffer → analyzer → detectors → dispatcher). Raw events never leave the browser. Detector confidence is not shopping-signal strength.
 - `src/behavior/ui/` — dev-only debug overlay (`DebugOverlay` + in-memory `debug-store`). Never sends anything anywhere.
 - `src/server/meta-events/` — Zod validation and persistence of meta events.
 - `src/lib/db/` — Drizzle ORM schema (`meta_events` table) and lazy pg client.
