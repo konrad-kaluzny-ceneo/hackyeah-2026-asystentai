@@ -4,8 +4,14 @@
 - **Plan**: context/changes/jev-session-proposal/plan.md
 - **Mode**: Deep
 - **Date**: 2026-10-03
-- **Verdict**: SOUND
+- **Verdict**: SOUND (oryginał, fazy 1–3 z UI)
 - **Findings**: 0 critical 0 warnings 0 observations
+
+## Scope split (2026-10-03)
+
+- UI boxa → `context/changes/assistant-proposal-box` (S-05, Michał).
+- `jev-session-proposal` kończy się na `POST /api/assistant-proposal` i `interface.md`.
+- Przed `/implement` na S-04: krótki sanity check, że route mapuje na kontrakt (bez re-run pełnego review, o ile nie zmienią się progi Jev).
 
 ## Verdicts
 

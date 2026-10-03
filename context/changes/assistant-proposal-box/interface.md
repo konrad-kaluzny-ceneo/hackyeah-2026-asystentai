@@ -1,0 +1,163 @@
+# Kontrakt: propozycja asystenta (decision fatigue)
+
+Wspólna umowa między **S-04** (`jev-session-proposal`, Edyta) a **S-05** (`assistant-proposal-box`, Michał). Serwer implementuje route; UI konsumuje odpowiedź.
+
+**Single source of truth w kodzie:** `src/lib/assistant-proposal-api.ts` — tworzy i utrzymuje **S-04** (Zod + typy TS). **S-05** tylko importuje; nie duplikuje schematu.
+
+## Podział plików
+
+| Plik / obszar | Owner | Uwagi |
+| --- | --- | --- |
+| `src/lib/assistant-proposal-api.ts` | Edyta (S-04) | Request/response Zod, parser odpowiedzi |
+| `src/app/api/assistant-proposal/route.ts` | Edyta | POST, rate limit, mapowanie na kontrakt |
+| `src/server/assistant-proposal/*` | Edyta | Jev, OpenAI, compose, schemat wyjścia Jev |
+| `src/lib/decision-engine.ts` | poza S-04/S-05* | *Zmiany progów osobnym slice; S-05 tylko woła silnik |
+| `src/components/assistant/assistant-inline.tsx` | Michał (S-05) | Fetch, mute, render |
+| `src/lib/assistant-events.ts` | Michał (S-05) | Tylko jeśli potrzeba pod lifecycle boxa; bez zmian semantyki eventów |
+| Ten plik `interface.md` | oboje | Zmiana kształtu JSON → aktualizacja tutaj + oba plany |
+
+## Endpoint
+
+`POST /api/assistant-proposal`
+
+- Content-Type: `application/json`
+- Brak identyfikatora sesji w body (limiter po IP jak meta eventy).
+- Sukces biznesowy: **zawsze HTTP 200** z body `show` | `hide` (patrz niżej). UI nie interpretuje `4xx`/`5xx` jako treści propozycji.
+
+### Kody HTTP
+
+| Kod | Kiedy | Body (orientacyjnie) | Zachowanie UI (S-05) |
+| --- | --- | --- | --- |
+| `200` | Poprawne przetworzenie | `AssistantProposalResponse` | `show` → box; `hide` → brak boxa |
+| `400` | Złe body (Zod) | `{ error: string }` — jak meta-events | Traktować jak brak propozycji (nie pokazywać boxa fatigue) |
+| `405` | Nie POST | — | Nie wołać z UI |
+| `500` | Wyjątek nieobsłużony w route | `{ error: string }` opcjonalnie | Jak `hide` — brak boxa |
+
+## Request
+
+```ts
+type AssistantProposalRequest = {
+  state: CatalogState;
+  events: CatalogEvent[];
+};
+```
+
+`CatalogState` i `CatalogEvent` — ten sam kształt co w `src/lib/catalog-types.ts`.
+
+### Przykład request
+
+```json
+{
+  "state": {
+    "categorySlug": "lodowki",
+    "query": "",
+    "filters": {},
+    "resultCount": 12,
+    "page": 1
+  },
+  "events": [
+    {
+      "id": "e1",
+      "timestamp": "2026-10-03T14:00:00.000Z",
+      "type": "product_view",
+      "categorySlug": "lodowki",
+      "productSlug": "lodowka-a"
+    },
+    {
+      "id": "e2",
+      "timestamp": "2026-10-03T14:01:00.000Z",
+      "type": "product_view",
+      "categorySlug": "lodowki",
+      "productSlug": "lodowka-b"
+    },
+    {
+      "id": "e3",
+      "timestamp": "2026-10-03T14:02:00.000Z",
+      "type": "return_to_listing",
+      "categorySlug": "lodowki"
+    },
+    {
+      "id": "e4",
+      "timestamp": "2026-10-03T14:02:01.000Z",
+      "type": "listing_view",
+      "categorySlug": "lodowki"
+    }
+  ]
+}
+```
+
+**Kiedy UI woła endpoint (S-05, poza implementacją S-04):**
+
+- Tylko gdy `DecisionEngine(...)` zwróci propozycję z `kind: "decision_fatigue"`.
+- Nie wołać przy `search_friction`, `null` ani gdy asystent jest wyciszony (15 min).
+
+## Response (HTTP 200)
+
+Discriminated union:
+
+```ts
+type AssistantProposalResponse =
+  | {
+      status: "show";
+      kind: "decision_fatigue";
+      title: string;
+      message: string;
+      action: "narrow-choice";
+      actionLabel: string;
+    }
+  | { status: "hide" };
+```
+
+### Przykład `show` (skrót Jev)
+
+Serwer może uzupełnić `title` / `actionLabel` stałymi wartościami produktowymi (spójnymi z S-02):
+
+```json
+{
+  "status": "show",
+  "kind": "decision_fatigue",
+  "title": "Pomóc zawęzić wybór?",
+  "message": "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
+  "action": "narrow-choice",
+  "actionLabel": "Przejdź do filtrów"
+}
+```
+
+### Przykład `show` (OpenAI)
+
+Ten sam kształt; `title` i `message` z mocniejszego modelu:
+
+```json
+{
+  "status": "show",
+  "kind": "decision_fatigue",
+  "title": "Trzy podobne lodówki — jeden parametr",
+  "message": "Wybierz pojemność albo wysokość w filtrach, żeby szybciej porównać modele.",
+  "action": "narrow-choice",
+  "actionLabel": "Przejdź do filtrów"
+}
+```
+
+### Przykład `hide`
+
+```json
+{
+  "status": "hide"
+}
+```
+
+Reguły:
+
+- `status: "hide"` — brak boxa dla tego wywołania (błąd modelu, limit Jev, timeout Jev 3 s, zły JSON Jev, porażka OpenAI, rate limit, faza 1 S-04 gdy `needs_openai`).
+- Przy `show`: `title`, `message`, `actionLabel` — niepuste stringi po trim.
+- `action` zawsze `"narrow-choice"` dla tej ścieżki (link `#filters` po stronie UI; brak porównania w MVP).
+- Skrót Jev: treść głównie w `message`; serwer uzupełnia `title` i `actionLabel`.
+- OpenAI: pełne `title` + `message`; serwer nadal ustawia `action` / `actionLabel`.
+
+## Semantyka `hide` vs pusty wynik
+
+- `search_friction` **nie** używa tego endpointu — UI bierze copy z `DecisionEngine` (S-03).
+
+## Wersjonowanie
+
+Zmiana kształtu JSON → ten plik + `assistant-proposal-api.ts` + oba plany change. UI i route importują wyłącznie moduł współdzielony.

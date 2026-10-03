@@ -35,7 +35,8 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-01 | signal-strength-engine | … system klasyfikuje rodzaj intencji zakupowej z faktów katalogu | F-02 | FR-001, FR-002 | done |
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
-| S-04 | jev-session-proposal | … dostać jedną odpowiedź: z wyjścia Jev przy popularnym i pewnym przypadku, inaczej od mocniejszego modelu | — | US-03, FR-010 | ready |
+| S-04 | jev-session-proposal | … (serwer) dostać JSON propozycji z Jev albo OpenAI dla decision fatigue | — | US-03, FR-010 | ready |
+| S-05 | assistant-proposal-box | … (UI) zobaczyć box z odpowiedzią API albo brak boxa przy decision fatigue | S-04 | US-01, FR-007, FR-010 | ready |
 
 ## Streams
 
@@ -44,7 +45,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | A | Sygnały → inferencja | `F-01` → `F-02` → `S-01` | Wspólna baza pod oba scenariusze użytkownika. |
 | B | Decision fatigue | `S-02` | Gwiazda przewodnia; dołącza do Stream A po `S-01`. |
 | C | Tarcie wyszukiwania | `S-03` | Równoległy z Stream B po `S-01`; ten sam box UX. |
-| D | Treść propozycji | prompt Jev → `S-04` | Gotowy prompt idzie do Jev. Popularny i pewny przypadek zostaje na Jev. Reszta idzie do mocniejszego modelu. Lane: Edyta. |
+| D | Treść propozycji | `S-04` → `S-05` | S-04: route + Jev/OpenAI. S-05: box na listingu (Michał). Lane treści: Edyta; lane UI: Michał. |
 
 ## Baseline
 
@@ -158,32 +159,47 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 - **Risk:** Drugi must-have scenariusz tarcia; można odłożyć po S-02 przy skrajnej presji czasu.
 - **Status:** done
 
-### S-04: Odpowiedź z Jev albo z mocniejszego modelu
+### S-04: Odpowiedź z Jev albo z mocniejszego modelu (serwer)
 
-- **Outcome:** kupujący dostaje jedną odpowiedź. Gotowy prompt ze skryptu przechodzi przez model Jev. Po sprawdzeniu wyjścia odpowiedź powstaje z tego wyjścia, gdy przypadek jest wśród najbardziej popularnych i pewność jest największa. W pozostałych przypadkach mocniejszy model układa jedną odpowiedź na podstawie wyjścia Jev.
+- **Outcome:** `POST /api/assistant-proposal` zwraca `{ status: "show", … }` albo `{ status: "hide" }` zgodnie z `context/changes/assistant-proposal-box/interface.md`. Prompt składany na serwerze z faktów katalogu; Jev klasyfikuje; skrót przy pewnym `DECISION_FATIGUE`; inaczej OpenAI. Pusty wynik nie woła route.
 - **Change ID:** jev-session-proposal
 - **PRD refs:** US-03, FR-010
 - **Prerequisites:** —
-- **Parallel with:** —
+- **Parallel with:** S-05 (planowanie UI może iść równolegle; implementacja boxa po kontrakcie route)
 - **Blockers:** —
 - **Acceptance:**
-  - Prompt zbudowany przez istniejący skrypt jest wysyłany do modelu Jev, a wyjście zostaje zachowane.
-  - Wyjście Jev jest sprawdzone, zanim powstanie odpowiedź dla kupującego.
-  - Przy najbardziej popularnym przypadku i największej pewności odpowiedź dla kupującego powstaje z wyjścia Jev, bez mocniejszego modelu.
-  - W pozostałych przypadkach mocniejszy model układa jedną odpowiedź dla kupującego na podstawie wyjścia Jev.
+  - Wyjście Jev jest sprawdzone schematem, zanim powstanie odpowiedź HTTP.
+  - Skrót (pewny `DECISION_FATIGUE`) nie woła OpenAI.
+  - Poza skrótem OpenAI układa `title` + `message` lub route zwraca `hide`.
+  - Rate limit Jev; błędy → `hide`.
 - **Unknowns:**
-  - Które przypadki liczą się jako najbardziej popularne — Owner: team. Block: no.
-  - Jaki próg jest największą pewnością — Owner: team. Block: no.
-  - Który model jest tym mocniejszym — Owner: team. Block: no.
-  - Czy odpowiedź w tym slice wchodzi do boxa na stronie, czy zostaje wynikiem pipeline’u — Owner: team. Block: no.
-- **Risk:** Za niski próg puści słabą odpowiedź prosto do kupującego. Za wysoki próg wywoła mocniejszy model prawie zawsze.
+  - Adres HTTP Typesafe — Owner: team. Block: implementacja klienta Jev.
+- **Risk:** Za niski próg puści słabą odpowiedź; za wysoki — koszt OpenAI.
 - **Status:** ready
 
 Source / Lineage:
 
-- Added via `/roadmap-add` on 2026-10-03. Poprawione 2026-10-03: wejściem jest gotowy prompt do Jev, nie fakty katalogu w boxie.
-- Goal: przy popularnym i pewnym przypadku wystarcza Jev, a mocniejszy model układa odpowiedź tylko poza tym.
-- Lane: Edyta.
+- Added via `/roadmap-add` on 2026-10-03.
+- Scope split 2026-10-03: UI → S-05. Lane: Edyta.
+
+### S-05: Box propozycji na listingu (UI)
+
+- **Outcome:** kupujący przy decision fatigue widzi jeden box z treścią z S-04 albo nie widzi boxa (`hide`). Pusty wynik nadal ze stałą propozycją S-03. Wyciszenie 15 min bez zmian. Bez loadera.
+- **Change ID:** assistant-proposal-box
+- **PRD refs:** US-01, FR-007, FR-010
+- **Prerequisites:** S-04 (route zgodny z `interface.md`)
+- **Parallel with:** —
+- **Blockers:** —
+- **Acceptance:**
+  - `DecisionEngine` → fatigue → fetch; friction → lokalnie; abort + numer żądania.
+  - Manual: trzy produkty + powrót; pusty wynik; zamknięcie boxa.
+- **Unknowns:** —
+- **Risk:** Wyścig odpowiedzi bez `requestId` pokaże starą treść.
+- **Status:** ready
+
+Source / Lineage:
+
+- Wydzielone z planu S-04 2026-10-03. Lane: Michał.
 
 ## Backlog Handoff
 
@@ -195,7 +211,8 @@ Source / Lineage:
 | S-01 | signal-strength-engine | Classify shopping signal strength | no | Done dla dwóch rodzajów; trzy nazwane bez klasyfikacji |
 | S-02 | decision-fatigue-box | One assistant proposal on decision fatigue | no | Done |
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |
-| S-04 | jev-session-proposal | Route Jev output to a shopper reply or a stronger model | yes | Lane: Edyta. Prompt już jest. Klucze są lokalnie, poza gitem. |
+| S-04 | jev-session-proposal | POST /api/assistant-proposal (Jev + OpenAI) | yes | Lane: Edyta. Kontrakt: `assistant-proposal-box/interface.md`. |
+| S-05 | assistant-proposal-box | Wire listing box to assistant-proposal API | yes | Lane: Michał. Po S-04. Plan w `context/changes/assistant-proposal-box/`. |
 
 ## Open Roadmap Questions
 
