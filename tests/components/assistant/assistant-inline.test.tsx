@@ -2,80 +2,67 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const decisionEngineMock = vi.hoisted(() => ({
-  current: null as null | {
-    id: string;
-    kind: "decision_fatigue" | "search_friction";
-    title: string;
-    message: string;
-    actionLabel: string;
-    action: "narrow-choice" | "clear-search-and-filters";
-    createdAt: string;
-  },
-}));
-
-vi.mock("@/lib/decision-engine", () => ({
-  DecisionEngine: vi.fn(() => decisionEngineMock.current),
-}));
-
-import { AssistantInline } from "@/components/assistant/assistant-inline";
 import {
   clearAssistantMetaEventHistory,
   recordAssistantMetaEventBatch,
 } from "@/behavior/assistant-meta-event-history";
-import {
-  muteAssistantFor,
-  readAssistantMutedUntil,
-} from "@/lib/assistant-events";
-import type { AssistantProposal, CatalogState } from "@/lib/catalog-types";
-import { makeMetaEvent } from "../../behavior/fixtures";
+import { AssistantInline } from "@/components/assistant/assistant-inline";
+import { muteAssistantFor, readAssistantMutedUntil } from "@/lib/assistant-events";
+import type { CatalogState, Category, Product } from "@/lib/catalog-types";
+import { makeMetaEvent, resetFixtureSeed } from "../../behavior/fixtures";
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const FIXED_PROPOSAL = {
   status: "show",
-  kind: "decision_fatigue",
+  kind: "jev_proposal",
+  situation: "PRODUCT_HESITATION",
   title: "Stała propozycja",
-  message: "Zawęźmy wybór według najważniejszego parametru.",
+  message: "To demonstracyjna podpowiedź.",
   action: "narrow-choice",
   actionLabel: "Przejdź do filtrów",
 } as const;
 
-const fatigueProposal: AssistantProposal = {
-  id: "decision-fatigue:return-1",
-  kind: "decision_fatigue",
-  title: "Lokalny tytuł nie powinien się pokazać",
-  message: "Oczekiwanie na serwer",
-  actionLabel: "Przejdź do filtrów",
-  action: "narrow-choice",
-  createdAt: "2026-10-03T12:00:00.000Z",
+const category: Category = {
+  id: "category-fridges",
+  slug: "lodowki",
+  name: "Lodówki",
+  description: "",
+  imageUrl: "",
+  specFilters: [
+    { key: "capacityLiters", label: "Pojemność", kind: "range", min: 100, max: 500 },
+  ],
 };
 
-const frictionProposal: AssistantProposal = {
-  id: "empty-results:search-1",
-  kind: "search_friction",
-  title: "Nie znaleźliśmy produktów",
-  message: "Wyczyść wyszukiwanie i filtry, aby zobaczyć cały katalog w tej kategorii.",
-  actionLabel: "Wyczyść wyszukiwanie i filtry",
-  action: "clear-search-and-filters",
-  createdAt: "2026-10-03T12:00:00.000Z",
-};
+const products: Product[] = [300, 320, 340].map((capacity, index) => ({
+  id: `fridge-${index + 1}`,
+  slug: `fridge-${index + 1}`,
+  categorySlug: category.slug,
+  categoryId: category.id,
+  brandId: "brand-demo",
+  brand: "Demo",
+  model: `F-${index + 1}`,
+  name: `Lodówka ${index + 1}`,
+  price: 2_000 + index * 100,
+  shortDescription: "Model demonstracyjny",
+  description: "Model demonstracyjny",
+  imageUrl: "",
+  specifications: { capacityLiters: capacity },
+}));
 
+const catalog = { categories: [category], products };
 const catalogState: CatalogState = {
-  categorySlug: "lodowki",
+  categorySlug: category.slug,
   query: "",
   filters: {},
-  resultCount: 8,
+  resultCount: products.length,
   page: 1,
 };
-
-const catalog = { categories: [], products: [] };
-const metaEvent = makeMetaEvent("rage_click", { eventId: "meta-event-1" });
 
 let container: HTMLDivElement;
 let root: Root;
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
-let renderRevision = 0;
+let clearSearch: ReturnType<typeof vi.fn>;
 
 function response(body: unknown, status = 200): Response {
   return {
@@ -85,43 +72,48 @@ function response(body: unknown, status = 200): Response {
   } as Response;
 }
 
-async function renderAssistant(decision: AssistantProposal | null) {
-  decisionEngineMock.current = decision;
-  renderRevision += 1;
+function metaEvent(index: number) {
+  return makeMetaEvent("rage_click", {
+    eventId: `meta-event-${index}`,
+    detectedAt: new Date(1_800_000_000_000 + index * 1_000).toISOString(),
+  });
+}
+
+async function renderAssistant(state = catalogState) {
   await act(async () => {
     root.render(
       <AssistantInline
-        state={{ ...catalogState, page: renderRevision }}
+        state={state}
         catalog={catalog}
-        onClearSearchAndFilters={vi.fn()}
+        onClearSearchAndFilters={clearSearch}
       />,
     );
   });
 }
 
-async function flushRequestTask() {
+async function flushRequestTasks() {
   await act(async () => {
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 1));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 5));
   });
 }
 
-async function addMetaEvent() {
+async function addMetaEvents(...indexes: number[]) {
   await act(async () => {
-    recordAssistantMetaEventBatch([metaEvent]);
+    recordAssistantMetaEventBatch(indexes.map(metaEvent));
   });
 }
 
 beforeEach(() => {
   clearAssistantMetaEventHistory();
+  resetFixtureSeed();
   window.sessionStorage.clear();
-  decisionEngineMock.current = null;
-  renderRevision = 0;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   fetchMock = vi.fn<typeof fetch>();
   fetchMock.mockResolvedValue(response(FIXED_PROPOSAL));
   vi.stubGlobal("fetch", fetchMock);
+  clearSearch = vi.fn();
 });
 
 afterEach(async () => {
@@ -131,97 +123,126 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe("AssistantInline proposal lifecycle", () => {
-  it("waits for MetaEvents, then sends one events-only request and renders one server proposal", async () => {
-    await renderAssistant(fatigueProposal);
-    await flushRequestTask();
+describe("AssistantInline MetaEvent proposal lifecycle", () => {
+  it("waits for five events, then sends only MetaEvents and renders a known-state proposal", async () => {
+    await renderAssistant();
+    await addMetaEvents(1, 2, 3, 4);
+    await flushRequestTasks();
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
 
-    await addMetaEvent();
-    await flushRequestTask();
+    await addMetaEvents(5);
+    await flushRequestTasks();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/assistant-proposal");
     expect(init.method).toBe("POST");
-    expect(JSON.parse(String(init.body))).toEqual({ metaEvents: [metaEvent] });
+    expect(JSON.parse(String(init.body))).toEqual({
+      metaEvents: [1, 2, 3, 4, 5].map(metaEvent),
+    });
     expect(container.querySelectorAll('[data-element-id="assistant-proposal"]')).toHaveLength(1);
     expect(container.querySelector("h2")?.textContent).toBe(FIXED_PROPOSAL.title);
   });
 
-  it("does not request for null decisions or while muted", async () => {
-    recordAssistantMetaEventBatch([metaEvent]);
-    await renderAssistant(null);
-    await flushRequestTask();
-    expect(fetchMock).not.toHaveBeenCalled();
+  it("queues one request for each event after the threshold until one shows", async () => {
+    fetchMock
+      .mockResolvedValueOnce(response({ status: "hide" }))
+      .mockResolvedValueOnce(response({ status: "hide" }))
+      .mockResolvedValueOnce(response(FIXED_PROPOSAL));
+    await renderAssistant();
+    await addMetaEvents(1, 2, 3, 4);
+    await addMetaEvents(5, 6);
+    await flushRequestTasks();
 
-    await act(async () => {
-      muteAssistantFor(60_000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      metaEvents: [1, 2, 3, 4, 5].map(metaEvent),
     });
-    await renderAssistant(fatigueProposal);
-    await flushRequestTask();
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
+      metaEvents: [1, 2, 3, 4, 5, 6].map(metaEvent),
+    });
+
+    await addMetaEvents(7);
+    await flushRequestTasks();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body))).toEqual({
+      metaEvents: [1, 2, 3, 4, 5, 6, 7].map(metaEvent),
+    });
+    expect(container.querySelectorAll('[data-element-id="assistant-proposal"]')).toHaveLength(1);
+
+    await addMetaEvents(8);
+    await flushRequestTasks();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not request while muted", async () => {
+    muteAssistantFor(60_000);
+    await renderAssistant();
+    await addMetaEvents(1, 2, 3, 4, 5, 6);
+    await flushRequestTasks();
+
     expect(fetchMock).not.toHaveBeenCalled();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
   });
 
-  it("keeps empty-search recovery local and preserves its clear action", async () => {
-    recordAssistantMetaEventBatch([metaEvent]);
-    await renderAssistant(frictionProposal);
-    await flushRequestTask();
+  it("keeps empty-search recovery local and suppresses Jev requests", async () => {
+    await renderAssistant({
+      ...catalogState,
+      query: "no such product",
+      resultCount: 0,
+    });
+    await addMetaEvents(1, 2, 3, 4, 5, 6);
+    await flushRequestTasks();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(container.querySelector("h2")?.textContent).toBe(frictionProposal.title);
+    expect(container.querySelector("h2")?.textContent).toBe("Nie znaleźliśmy produktów");
     expect(container.querySelector('[data-element-id="assistant-action"]')?.tagName).toBe("BUTTON");
   });
 
-  it.each([
-    ["hide response", { status: "hide" }],
-    ["invalid response", { status: "show", kind: "other" }],
-  ])("does not render a fatigue box for a %s", async (_label, body) => {
-    fetchMock.mockResolvedValue(response(body));
-    recordAssistantMetaEventBatch([metaEvent]);
-    await renderAssistant(fatigueProposal);
-    await flushRequestTask();
-
+  it("hides invalid responses and retries on the next event", async () => {
+    fetchMock
+      .mockResolvedValueOnce(response({ status: "show", kind: "unknown" }))
+      .mockResolvedValueOnce(response(FIXED_PROPOSAL));
+    await renderAssistant();
+    await addMetaEvents(1, 2, 3, 4, 5);
+    await flushRequestTasks();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
+
+    await addMetaEvents(6);
+    await flushRequestTasks();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(container.querySelector("h2")?.textContent).toBe(FIXED_PROPOSAL.title);
   });
 
-  it("ignores an older response after its request is aborted for a newer trigger", async () => {
-    const pending: Array<(value: Response) => void> = [];
+  it("aborts and ignores a pending Jev result when local empty-search recovery takes priority", async () => {
+    let resolveRequest: ((value: Response) => void) | undefined;
     fetchMock.mockImplementation(
-      () => new Promise<Response>((resolve) => pending.push(resolve)),
+      () => new Promise<Response>((resolve) => { resolveRequest = resolve; }),
     );
-    recordAssistantMetaEventBatch([metaEvent]);
-    await renderAssistant(fatigueProposal);
-    await flushRequestTask();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await renderAssistant();
+    await addMetaEvents(1, 2, 3, 4, 5);
+    await flushRequestTasks();
+    const requestSignal = fetchMock.mock.calls[0]?.[1]?.signal;
+    expect(requestSignal?.aborted).toBe(false);
 
-    const newerProposal = { ...fatigueProposal, id: "decision-fatigue:return-2" };
-    await renderAssistant(newerProposal);
-    await flushRequestTask();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const firstSignal = (fetchMock.mock.calls[0]?.[1] as RequestInit).signal;
-    expect(firstSignal?.aborted).toBe(true);
-    expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
+    await renderAssistant({
+      ...catalogState,
+      query: "no such product",
+      resultCount: 0,
+    });
+    expect(requestSignal?.aborted).toBe(true);
 
     await act(async () => {
-      pending[1]?.(response({ ...FIXED_PROPOSAL, title: "Nowsza odpowiedź" }));
+      resolveRequest?.(response(FIXED_PROPOSAL));
       await Promise.resolve();
     });
-    await act(async () => {
-      pending[0]?.(response({ ...FIXED_PROPOSAL, title: "Stara odpowiedź" }));
-      await Promise.resolve();
-    });
-
-    expect(container.querySelector("h2")?.textContent).toBe("Nowsza odpowiedź");
-    expect(container.querySelectorAll('[data-element-id="assistant-proposal"]')).toHaveLength(1);
+    expect(container.querySelector("h2")?.textContent).toBe("Nie znaleźliśmy produktów");
   });
 
   it("dismissal hides the box and mutes the assistant for 15 minutes", async () => {
-    recordAssistantMetaEventBatch([metaEvent]);
-    await renderAssistant(fatigueProposal);
-    await flushRequestTask();
+    await renderAssistant();
+    await addMetaEvents(1, 2, 3, 4, 5);
+    await flushRequestTasks();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).not.toBeNull();
 
     const mutedAt = Date.now();
@@ -229,13 +250,12 @@ describe("AssistantInline proposal lifecycle", () => {
       container.querySelector<HTMLButtonElement>('[data-element-id="assistant-dismiss"]')?.click();
     });
 
-    expect(readAssistantMutedUntil()).toBeGreaterThanOrEqual(
-      mutedAt + 15 * 60 * 1000,
-    );
-    expect(readAssistantMutedUntil()).toBeLessThanOrEqual(
-      mutedAt + 15 * 60 * 1000 + 5,
-    );
+    expect(readAssistantMutedUntil()).toBeGreaterThanOrEqual(mutedAt + 15 * 60 * 1000);
+    expect(readAssistantMutedUntil()).toBeLessThanOrEqual(mutedAt + 15 * 60 * 1000 + 5);
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
+
+    await addMetaEvents(6);
+    await flushRequestTasks();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

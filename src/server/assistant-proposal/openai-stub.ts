@@ -13,8 +13,8 @@ export async function generateProposalWithOpenAiStub(
   _jevOutput: JevAssistantOutput,
 ): Promise<AssistantDraft> {
   return {
-    title: "Pomóc zawęzić wybór?",
+    title: "Mogę podpowiedzieć następny krok",
     message:
-      "Wybierzmy jeden parametr, na przykład pojemność, aby szybciej zawęzić wyniki.",
+      "To demonstracyjna podpowiedź na podstawie ostatnich sygnałów z przeglądania.",
   };
 }

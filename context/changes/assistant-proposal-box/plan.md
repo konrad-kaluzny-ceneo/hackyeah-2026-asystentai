@@ -2,16 +2,16 @@
 
 ## Overview
 
-Connect the existing behavior MetaEvent pipeline to the assistant proposal flow. The client keeps a bounded window of successfully dispatched MetaEvents and, when the existing decision-fatigue gate fires, sends that window to the server. The server asks Jev to classify the event summary; only `DECISION_FATIGUE` with Jev `proposal.confidence > 0.75` reaches a deterministic OpenAI stub that returns the demo proposal. Lower confidence and failures produce no box. Real OpenAI integration remains future work.
+Connect the behavior MetaEvent pipeline to assistant proposals without asking the browser to decide whether the shopper has decision fatigue. Once the client has five distinct MetaEvents from successfully delivered `/api/meta-events` batches, it calls `/api/assistant-proposal`; each later MetaEvent triggers another request while no proposal is visible. The server asks Jev to classify the bounded event summary and returns a deterministic demo proposal for any recognized situation with confidence strictly above 0.75. Lower confidence, unknown situations, and failures produce no Jev proposal. Real OpenAI integration remains future work.
 
 ## Current State Analysis
 
 - Raw behavior events are collected and analyzed in the browser. Detectors emit privacy-safe `MetaEvent`s; the dispatcher batches them to `POST /api/meta-events`. Raw events stay in the browser (`src/behavior/types.ts:54-57,171-173`).
-- The full MetaEvent batch is available after a successful HTTP response through the dispatcher's `onBatchSent` callback (`src/behavior/dispatcher/dispatcher.ts:87-105`). The production tracker shell currently sends that callback only to the dev debug summary store (`src/app/behavior-debug-shell.tsx:33-43`). That store retains summaries, not full events (`src/behavior/ui/debug-store.ts:89-124`), and is not an assistant data source.
-- `AssistantInline` currently uses `DecisionEngine` to render fixed local copy. It does not call `/api/assistant-proposal` (`src/components/assistant/assistant-inline.tsx:28-48`). The existing mute lasts 15 minutes (`:52-55`).
-- The existing proposal endpoint accepts `{ state, events }` with catalog state and `CatalogEvent[]`; the Jev prompt reads category, query, filters, and product slugs (`src/lib/assistant-proposal-api.ts:54-60,100-116`; `src/server/assistant-proposal/prompt.ts:3-25`).
-- The route currently returns Jev's own draft directly for a high-confidence fatigue result; other valid outputs return `hide` because the OpenAI branch is unfinished (`src/server/assistant-proposal/route-decision.ts:12-35`; `src/app/api/assistant-proposal/route.ts:86-102`).
-- `DecisionEngine` already supplies an occasional client-side gate: three distinct pairwise-similar product views followed by a return to the listing, with no later route or catalog change (`src/lib/decision-engine.ts:104-183`). The request body will contain MetaEvents only; catalog events remain local to this gate.
+- The full MetaEvent batch is available after a successful HTTP response through the dispatcher's `onBatchSent` callback (`src/behavior/dispatcher/dispatcher.ts:87-105`). The tracker shell publishes full events into `assistant-meta-event-history` and separately records reduced summaries for the dev overlay; the assistant store is not the debug store.
+- `AssistantInline` currently gates requests on a local `DecisionEngine` fatigue result, then calls `/api/assistant-proposal` once per fatigue proposal ID when the history is non-empty. The existing mute lasts 15 minutes (`src/components/assistant/assistant-inline.tsx`).
+- The proposal endpoint already accepts only `{ metaEvents }` (1–10 strict MetaEvents) and the Jev prompt builds a minimized summary; raw/catalog events and catalog state are not part of this request (`src/lib/assistant-proposal-api.ts`; `src/server/assistant-proposal/prompt.ts`).
+- The route currently invokes the local stub only for `DECISION_FATIGUE` with confidence above 0.75; every other valid Jev situation returns `hide` (`src/server/assistant-proposal/route-decision.ts`; `src/app/api/assistant-proposal/route.ts`).
+- `DecisionEngine` currently supplies the client-side fatigue gate: three distinct pairwise-similar product views followed by a return to the listing, with no later route or catalog change (`src/lib/decision-engine.ts:104-183`). Phase 3 removes this gate from the Jev request path; catalog events remain local.
 
 ### Key Discoveries:
 
@@ -21,21 +21,21 @@ Connect the existing behavior MetaEvent pipeline to the assistant proposal flow.
 
 ## Desired End State
 
-When the current decision-fatigue gate fires, the client sends one `POST /api/assistant-proposal` containing only a bounded array of recent MetaEvents that were sent to `/api/meta-events`. The server validates and summarizes those events for Jev without sending raw events or catalog state. For a valid `DECISION_FATIGUE` result with confidence strictly above `0.75`, the server calls a fixed local proposal stub and returns its valid `show` response. Confidence at or below `0.75`, other situations, empty input, invalid output, timeout, rate limit, or model error return `hide` and render no fatigue box.
+When the client history first reaches five distinct MetaEvents from successful `/api/meta-events` batches, the client sends `POST /api/assistant-proposal` with only the latest bounded MetaEvent snapshot. Every later distinct event triggers another request while no proposal is visible and the assistant is not muted. The browser does not use `DecisionEngine` to decide whether fatigue or another state has been reached. The server validates and summarizes the events for Jev without sending raw events or catalog state. A recognized Jev situation with confidence strictly above `0.75` reaches the deterministic local proposal stub; unknown situations, confidence at or below `0.75`, invalid input/output, timeout, rate limit, or model error return `hide`. The local empty-search recovery remains local and keeps the single-box priority.
 
-The existing single-box behavior remains: local `search_friction` stays local, the fatigue proposal has no loader, stale requests are ignored, and dismissal mutes the assistant for 15 minutes. The real OpenAI API client and key are not part of this change.
+The existing single-box behavior remains: local `search_friction` stays local, there is no loader, stale requests are ignored, and dismissal mutes the assistant for 15 minutes. The real OpenAI API client and key are not part of this change.
 
 ## What We're NOT Doing
 
 - Sending raw events, raw-event checkpoints, catalog state, or `CatalogEvent[]` to Jev.
 - Reusing `src/behavior/ui/debug-store.ts` as an assistant data source.
-- Calling Jev for every browsing event, for `search_friction`, while muted, or when the behavior tracker is disabled.
+- Calling Jev before five distinct successfully sent MetaEvents, for a visible local `search_friction` proposal, while muted, or when the behavior tracker is disabled.
 - Implementing a real OpenAI request, API key handling, or a second proposal box.
 - Changing detector definitions, thresholds, or `DecisionEngine` criteria.
 
 ## Implementation Approach
 
-Use the existing fatigue proposal ID as the request identity. A separate application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and notifies `AssistantInline`. The UI calls the route once for a given fatigue proposal ID when the store has events and the assistant is not muted. The shared API contract changes to `{ metaEvents: MetaEvent[] }`; the route validates that bounded request, gives Jev a server-built summary, then either hides or invokes a deterministic stub. Existing route rate limits and Jev's three-second timeout remain in force.
+The application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and notifies `AssistantInline`. The UI starts one request for each newly observed event once the history contains at least five events, provided no proposal is visible and the assistant is not muted. Each request carries the latest 10-event snapshot. The shared request remains `{ metaEvents: MetaEvent[] }`. The route validates that bounded request, gives Jev a server-built summary, validates Jev's situation against the known prompt vocabulary, then hides or invokes the deterministic demo stub based on the strict confidence threshold. Existing route rate limits and Jev's three-second timeout remain in force.
 
 ## Phase 1: Retain Recent MetaEvents for the Assistant
 
@@ -85,7 +85,7 @@ Expose a bounded, production-safe snapshot of full MetaEvents without involving 
 
 ### Overview
 
-Replace the catalog-event request contract and the Jev shortcut with the requested confidence-gated stub branch.
+This completed phase replaced the earlier catalog-event request contract with a MetaEvents-only request and introduced the initial fatigue-only confidence-gated local stub. Phase 3 revises the request trigger and broadens the server gate.
 
 ### Changes Required:
 
@@ -125,9 +125,9 @@ Replace the catalog-event request contract and the Jev shortcut with the request
 
 **File**: `src/server/assistant-proposal/route-decision.ts`
 
-**Intent**: Apply the requested strict confidence gate for the existing fatigue proposal path.
+**Intent**: Apply the original strict confidence gate for the decision-fatigue proposal path; Phase 3 supersedes this fatigue-only restriction.
 
-**Contract**: Only `situation === "DECISION_FATIGUE"` and `proposal.confidence > 0.75` reaches the proposal stub. At exactly `0.75` or below, return `hide`; do not use Jev's `message_draft` as a shortcut. The fatigue situation condition preserves the current product scope.
+**Contract**: At this phase's completion, only `situation === "DECISION_FATIGUE"` and `proposal.confidence > 0.75` reached the proposal stub. At exactly `0.75` or below, the route returned `hide`; Jev's `message_draft` was not used as a shortcut. Phase 3 updates this gate to any recognized Jev situation.
 
 **File**: `src/server/assistant-proposal/openai-stub.ts` (new)
 
@@ -141,19 +141,19 @@ Replace the catalog-event request contract and the Jev shortcut with the request
 
 **Intent**: Validate MetaEvents, call Jev, apply the confidence gate, and invoke the stub only for the qualifying branch.
 
-**Contract**: Preserve 30/min per-IP and 10/min per-process limits and Jev's three-second timeout. Empty/invalid input, invalid Jev schema, non-fatigue, confidence `<= 0.75`, timeout, rate limit, or stub failure returns `{ status: "hide" }`; confidence `> 0.75` for fatigue invokes the stub and returns the existing `show` schema.
+**Contract**: Preserve 30/min per-IP and 10/min per-process limits and Jev's three-second timeout. Empty/invalid input, invalid Jev schema, unknown situation, confidence `<= 0.75`, timeout, rate limit, or stub failure returns `{ status: "hide" }`; any recognized situation above the confidence threshold invokes the stub and returns the revised `show` schema.
 
 **File**: `context/changes/jev-session-proposal/plan.md` and `context/changes/jev-session-proposal/plan-brief.md`
 
 **Intent**: Align the S-04 server notes with the new shared route behavior and remove the now-deferred live OpenAI work from this flow.
 
-**Contract**: Document the stub as the current boundary and leave the real OpenAI client/key as future work. Do not change unrelated S-04 status history.
+**Contract**: Document the stub as the current boundary and leave the real OpenAI client/key as future work. Update the S-04 gate from fatigue-only to all recognized Jev situations without changing unrelated S-04 status history.
 
 **File**: `context/foundation/prd.md` and `context/foundation/roadmap.md`
 
 **Intent**: Align FR-010 and S-04/S-05 acceptance text with the agreed confidence-gated demo flow.
 
-**Contract**: Preserve the one-proposal guardrail and state that confidence at or below `0.75` yields no proposal; actual OpenAI generation remains deferred.
+**Contract**: Preserve the one-proposal guardrail and document the five-event threshold, server classification for known Jev situations, and confidence boundary; actual OpenAI generation remains deferred.
 
 ### Phase Success Criteria
 
@@ -164,8 +164,8 @@ Replace the catalog-event request contract and the Jev shortcut with the request
 
 #### Manual Verification:
 
-- Valid fatigue output at `0.76` invokes the stub and returns the fixed valid `show` response.
-- Confidence `0.75` and below, a non-fatigue situation, invalid Jev output, Jev timeout, or stub failure returns `hide` and does not invoke any real OpenAI endpoint.
+- A recognized fatigue or non-fatigue output at `0.76` invokes the stub and returns the fixed valid `show` response.
+- Confidence `0.75` and below, an unknown situation, invalid Jev output, Jev timeout, or stub failure returns `hide` and does not invoke any real OpenAI endpoint.
 - Invalid/raw-event payloads and more than 10 events are rejected before Jev is called.
 
 **Implementation Note**: After automated checks pass, pause for the manual checks before starting Phase 3.
@@ -174,42 +174,64 @@ Replace the catalog-event request contract and the Jev shortcut with the request
 
 ### Overview
 
-Call the revised endpoint from the existing fatigue UI gate and render only the validated stub response.
+Replace the client fatigue gate with a MetaEvent-count trigger and broaden the server gate to all recognized Jev situations.
 
 ### Changes Required:
 
-#### 1. Request lifecycle and rendering
+#### 1. Client request lifecycle and rendering
 
 **File**: `src/components/assistant/assistant-inline.tsx`
 
-**Intent**: Subscribe to assistant MetaEvent history and use it as the only request payload while retaining existing local behavior for empty-search recovery.
+**Intent**: Subscribe to assistant MetaEvent history and trigger classification from event count, not a local fatigue decision, while retaining the existing local empty-search recovery.
 
 **Contract**:
 
-- `DecisionEngine === null`: render nothing and do not call the endpoint.
-- `search_friction`: render the existing local recovery proposal and do not call Jev.
-- `decision_fatigue`: if not muted and the MetaEvent history is non-empty, call `POST /api/assistant-proposal` once for that fatigue proposal ID with `{ metaEvents }` only.
-- `show`: render one proposal from the shared response parser; `hide`, HTTP failure, or invalid response renders nothing.
+- When the history first reaches five distinct events, call `POST /api/assistant-proposal` with the latest at most 10 events; send another request for each newly observed event thereafter while no proposal is visible and the assistant is not muted.
+- Do not use `DecisionEngine`'s `decision_fatigue` result as an assistant-request condition. Preserve `search_friction` as local recovery; when a proposal is already visible, do not request or show a competing proposal.
+- `show`: render one validated Jev proposal; `hide`, HTTP failure, or invalid response leaves the box hidden and allows the next new MetaEvent to trigger another classification request.
 - Keep the 15-minute mute, abort superseded requests, ignore stale responses, and do not add a loader or a second box.
 
-**File**: `tests/components/assistant/assistant-inline.test.tsx` (new)
+**File**: `tests/components/assistant/assistant-inline.test.tsx`
 
-**Intent**: Cover request gating and the existing single-box lifecycle.
+**Intent**: Cover the five-event threshold, event-by-event retries, and the existing single-box lifecycle.
 
-**Contract**: Verify fatigue with recent MetaEvents sends one events-only request; no history, muted, null, or friction does not call the endpoint; hide and invalid responses render no fatigue box; a fixed show renders one box; stale requests cannot replace newer state.
+**Contract**: Verify four events send nothing, the fifth sends one events-only request without a fatigue decision, each later event retries after a hide, a shown proposal stops further requests, mute and local visible search recovery suppress requests, invalid responses render no Jev box, and stale responses cannot replace newer state.
+
+#### 2. Server known-state gate and generic demo proposal
+
+**Files**: `src/server/assistant-proposal/schema.ts`, `src/server/assistant-proposal/route-decision.ts`, `src/server/assistant-proposal/openai-stub.ts`, `src/app/api/assistant-proposal/route.ts`, `src/lib/assistant-proposal-api.ts`
+
+**Intent**: Let Jev classify fatigue and other recognized situations, then make the confidence decision on the server before invoking the deterministic demo stub.
+
+**Contract**: Validate `situation` against the five states in the Jev prompt: `DECISION_FATIGUE`, `PRODUCT_HESITATION`, `NO_PROGRESS_STALL`, `UI_FRICTION`, and `SMOOTH_EXPLORATION`. Any recognized situation with Jev proposal confidence strictly greater than `0.75` invokes the same deterministic demo stub; at or below the threshold, or for an unknown situation, return `hide`. The `show` response identifies a generic Jev proposal rather than mislabeling every result as decision fatigue. The stub remains local and makes no OpenAI network call.
+
+**Files**: `tests/assistant-proposal/route-decision.test.ts`, `tests/assistant-proposal/route.test.ts`, `tests/assistant-proposal/assistant-proposal-api.test.ts`
+
+**Intent**: Cover recognized-state allowlisting and the confidence boundary across route and response contract.
+
+**Contract**: Verify a non-fatigue known situation above threshold calls the stub and returns `show`; unknown situations and confidence `<= 0.75` return `hide`.
+
+#### 3. Documentation alignment
+
+**Files**: `context/changes/assistant-proposal-box/interface.md`, `context/changes/jev-session-proposal/plan.md`, `context/changes/jev-session-proposal/plan-brief.md`, `context/foundation/prd.md`, `context/foundation/roadmap.md`, `context/foundation/domain.md`
+
+**Intent**: Make the documented S-04/S-05 contract match the new browser threshold and server-owned Jev classification.
+
+**Contract**: Document five successful MetaEvents as the initial request threshold, one new request per later event while no proposal is visible, server classification for all recognized Jev situations, the strict confidence gate, generic deterministic stub, and unchanged privacy and one-box rules.
 
 ### Phase Success Criteria
 
 #### Automated Verification:
 
-- `npm test -- tests/components/assistant/assistant-inline.test.tsx tests/lib/assistant-events.test.ts`
+- `npm test -- tests/components/assistant/assistant-inline.test.tsx tests/assistant-proposal/route-decision.test.ts tests/assistant-proposal/route.test.ts tests/assistant-proposal/assistant-proposal-api.test.ts tests/lib/assistant-events.test.ts`
 - `npm run typecheck`
 
 #### Manual Verification:
 
-- Browse three similar products and return to the listing with tracking enabled. Confirm `/api/meta-events` receives detector MetaEvents, followed by one `/api/assistant-proposal` request whose body contains only a bounded `metaEvents` array.
-- Confirm the server calls Jev; a qualifying response calls the local stub and displays its fixed proposal. Lower/equal confidence produces no fatigue box.
-- Confirm empty-search recovery stays local, dismissal mutes for 15 minutes, and another proposal cannot appear at the same time.
+- With tracking enabled, send four distinct MetaEvents successfully and confirm no proposal request; send the fifth and confirm one `/api/assistant-proposal` request containing only the latest bounded `metaEvents`.
+- Return `hide`, then add a sixth event and confirm another request. Return a high-confidence known non-fatigue Jev situation and confirm the generic demo proposal appears; further events must not create another box or request while it is visible.
+- Return confidence `0.75` or below and confirm no box; add a later event and confirm classification is retried. Confirm unknown Jev situations hide.
+- Confirm empty-search recovery remains local, dismissal mutes for 15 minutes, and the request contains no raw events, catalog state, or catalog events.
 
 ## Testing Strategy
 
@@ -217,7 +239,7 @@ Call the revised endpoint from the existing fatigue UI gate and render only the 
 
 - MetaEvent history ordering, deduplication, max-10 bound, and clear behavior.
 - Shared MetaEvent validation and request count/body-size limits.
-- Jev confidence boundary (`0.75` hides; `0.76` invokes the stub), non-fatigue hide, stub output validation, and failure paths.
+- Jev confidence boundary (`0.75` hides; `0.76` invokes the stub for a known state), known-state allowlist, stub output validation, and failure paths.
 - UI gate, mute, abort, and stale-request handling.
 
 ### Integration Tests:
@@ -229,18 +251,18 @@ Call the revised endpoint from the existing fatigue UI gate and render only the 
 
 1. Enable `NEXT_PUBLIC_BEHAVIOR_TRACKING=true` and browse between product pages and a category listing.
 2. Confirm raw events remain in the local debug overlay and MetaEvents continue to post to `/api/meta-events`.
-3. Trigger decision fatigue by viewing three similar products and returning to the listing.
+3. Browse with existing detectors until five distinct MetaEvents have been successfully posted to `/api/meta-events`; no fatigue-specific catalog sequence is required.
 4. Inspect `/api/assistant-proposal`: it contains no raw events, catalog state, or catalog events, only the bounded MetaEvent array.
-5. Use mocked Jev boundary outputs: `0.76` shows the fixed stub proposal; `0.75` hides it.
+5. Use mocked Jev boundary outputs: a known state at `0.76` shows the fixed stub proposal; `0.75` hides it. After a hidden result, one new MetaEvent triggers another request.
 6. Dismiss the proposal and confirm the 15-minute mute; verify empty-search recovery remains local.
 
 ## Performance Considerations
 
-Retain and send no more than 10 MetaEvents per proposal request, with a 64 KiB body ceiling. Preserve the existing Jev timeout and rate limits. The fixed stub must not add an external network wait.
+Retain and send no more than 10 MetaEvents per proposal request, with a 64 KiB body ceiling. Preserve the existing Jev timeout and rate limits; requests beyond those limits still return `hide`. The fixed stub must not add an external network wait.
 
 ## Migration Notes
 
-The request contract changes from `{ state, events: CatalogEvent[] }` to `{ metaEvents: MetaEvent[] }`. The browser and route must ship together. Existing meta-event persistence remains unchanged; the assistant keeps only a bounded in-memory window of events received through the successful batch callback. A page reload clears this assistant window, while client-side catalog navigation preserves it for the mounted tracker lifetime.
+The request contract remains `{ metaEvents: MetaEvent[] }`; this revision changes its trigger and server decision policy. The browser and route response contract must ship together. Existing meta-event persistence remains unchanged; the assistant keeps only a bounded in-memory window of events received through the successful batch callback. A page reload clears this assistant window, while client-side catalog navigation preserves it for the mounted tracker lifetime.
 
 ## References
 
@@ -281,14 +303,15 @@ The request contract changes from `{ state, events: CatalogEvent[] }` to `{ meta
 - [x] 2.5 Verify `0.76` calls stub and returns `show`; `0.75` returns `hide` without OpenAI network traffic. — f18f06b
 - [x] 2.6 Verify invalid/oversized inputs and Jev/stub failures return `hide`. — f18f06b
 
-### Phase 3: Wire the Existing Assistant Box
+### Phase 3: Server-Driven Classification from MetaEvent Threshold
 
 #### Automated
 
-- [x] 3.1 Subscribe the UI to recent MetaEvents and post once per fatigue trigger.
-- [x] 3.2 Preserve local friction, mute, abort, stale-response, and one-box behavior with tests.
-- [x] 3.3 Run focused UI tests and typecheck.
+- [ ] 3.1 Replace the client fatigue gate with a five-event threshold and a new-event request trigger, stopping after a proposal is shown.
+- [ ] 3.2 Gate the server demo stub on any recognized Jev situation with confidence above 0.75 and update the response type so it is not fatigue-only.
+- [ ] 3.3 Align the S-04/S-05 interface, product requirements, roadmap, and domain notes.
+- [ ] 3.4 Run focused route/UI tests and typecheck.
 
 #### Manual
 
-- [ ] 3.4 Verify the full browse → meta-events → proposal request → Jev → stub → single box flow.
+- [ ] 3.5 Verify the five-event threshold, retry on each later event after hide, high-confidence non-fatigue show, and single-box/mute behavior.

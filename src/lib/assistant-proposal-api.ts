@@ -4,13 +4,25 @@ import { MetaEventSchema } from "@/behavior/meta-event-schema";
 
 export const MAX_ASSISTANT_PROPOSAL_EVENTS = 10;
 
+export const JEV_SITUATIONS = [
+  "DECISION_FATIGUE",
+  "PRODUCT_HESITATION",
+  "NO_PROGRESS_STALL",
+  "UI_FRICTION",
+  "SMOOTH_EXPLORATION",
+] as const;
+
+export const JevSituationSchema = z.enum(JEV_SITUATIONS);
+export type JevSituation = z.infer<typeof JevSituationSchema>;
+
 // ============================================================================
 // Response Contract (context/changes/assistant-proposal-box/interface.md)
 // ============================================================================
 
 export const AssistantProposalShowSchema = z.object({
   status: z.literal("show"),
-  kind: z.literal("decision_fatigue"),
+  kind: z.literal("jev_proposal"),
+  situation: JevSituationSchema,
   title: z
     .string()
     .transform((val) => val.trim())

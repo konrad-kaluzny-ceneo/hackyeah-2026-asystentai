@@ -99,7 +99,8 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const parsedResponse = AssistantProposalResponseSchema.safeParse({
     status: "show",
-    kind: "decision_fatigue",
+    kind: "jev_proposal",
+    situation: decision.situation,
     ...draft,
     action: "narrow-choice",
     actionLabel: "Przejdź do filtrów",

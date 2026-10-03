@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   CATALOG_SESSION_CHANGED,
   muteAssistantFor,
@@ -8,13 +14,13 @@ import {
   readCatalogEvents,
 } from "@/lib/assistant-events";
 import { DecisionEngine } from "@/lib/decision-engine";
+import { safeParseAssistantProposalResponse } from "@/lib/assistant-proposal-api";
 import {
-  MAX_ASSISTANT_PROPOSAL_EVENTS,
-  safeParseAssistantProposalResponse,
-} from "@/lib/assistant-proposal-api";
-import {
+  clearAssistantProposalTriggers,
   getAssistantMetaEventHistory,
+  requeueAssistantProposalTrigger,
   subscribeAssistantMetaEventHistory,
+  takeAssistantProposalTrigger,
 } from "@/behavior/assistant-meta-event-history";
 import type { MetaEvent } from "@/behavior/types";
 import type { AssistantProposal, CatalogState, Category, Product } from "@/lib/catalog-types";
@@ -33,23 +39,39 @@ export function AssistantInline({
   catalog,
   onClearSearchAndFilters,
 }: AssistantInlineProps) {
-  const [decision, setDecision] = useState<AssistantProposal | null>(null);
+  const [localProposal, setLocalProposal] = useState<AssistantProposal | null>(null);
   const [muted, setMuted] = useState(false);
-  const [proposal, setProposal] = useState<AssistantProposal | null>(null);
+  const [serverProposal, setServerProposal] = useState<AssistantProposal | null>(null);
   const recentMetaEvents = useSyncExternalStore(
     subscribeAssistantMetaEventHistory,
     getAssistantMetaEventHistory,
     () => EMPTY_META_EVENT_HISTORY,
   );
-  const recentMetaEventsRef = useRef(recentMetaEvents);
-  recentMetaEventsRef.current = recentMetaEvents;
-
-  const decisionRef = useRef(decision);
-  decisionRef.current = decision;
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
-  const requestedFatigueIdsRef = useRef(new Set<string>());
-  const hasMetaEvents = recentMetaEvents.length > 0;
+  const requestAllowedRef = useRef(false);
+  const mountedRef = useRef(false);
+  const workerActiveRef = useRef(false);
+  const activeControllerRef = useRef<AbortController | null>(null);
+  const activeTriggerRef = useRef<ReturnType<typeof takeAssistantProposalTrigger>>(null);
+  const proposal = localProposal ?? serverProposal;
+  const requestAllowed = !muted && localProposal === null && serverProposal === null;
+  requestAllowedRef.current = requestAllowed;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      requestAllowedRef.current = false;
+      const activeTrigger = activeTriggerRef.current;
+      if (activeTrigger !== null) {
+        requeueAssistantProposalTrigger(activeTrigger);
+        activeTriggerRef.current = null;
+      }
+      activeControllerRef.current?.abort();
+      activeControllerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     let muteTimer: number | undefined;
@@ -58,9 +80,10 @@ export function AssistantInline({
 
       const mutedUntil = readAssistantMutedUntil();
       if (mutedUntil > Date.now()) {
+        mutedRef.current = true;
         setMuted(true);
-        setDecision(null);
-        setProposal(null);
+        setLocalProposal(null);
+        setServerProposal(null);
         muteTimer = window.setTimeout(
           refreshDecision,
           mutedUntil - Date.now(),
@@ -69,11 +92,21 @@ export function AssistantInline({
       }
 
       setMuted(false);
-      const nextDecision = DecisionEngine(readCatalogEvents(), state, catalog);
-      setDecision((current) =>
-        current?.id === nextDecision?.id && current?.kind === nextDecision?.kind
-          ? current
-          : nextDecision,
+      mutedRef.current = false;
+      const hasActiveEmptySearch =
+        state.resultCount === 0 &&
+        (state.query.trim().length > 0 ||
+          Object.values(state.filters).some((value) => value.trim().length > 0));
+      // DecisionEngine's first and only eligible branch here is local
+      // search_friction. The client never evaluates its fatigue rules.
+      const localRecovery = hasActiveEmptySearch
+        ? DecisionEngine(readCatalogEvents(), state, catalog)
+        : null;
+      if (localRecovery?.kind === "search_friction") {
+        setServerProposal(null);
+      }
+      setLocalProposal(
+        localRecovery?.kind === "search_friction" ? localRecovery : null,
       );
     };
 
@@ -85,95 +118,95 @@ export function AssistantInline({
     };
   }, [catalog, state]);
 
-  useEffect(() => {
-    if (decision === null) {
-      setProposal(null);
-      return;
-    }
+  const drainProposalTriggers = useCallback(async (): Promise<void> => {
+    // A single worker preserves event order while still queueing new triggers
+    // that arrive during an in-flight Jev request.
+    if (workerActiveRef.current) return;
+    workerActiveRef.current = true;
 
-    if (decision.kind === "search_friction") {
-      setProposal(decision);
-      return;
-    }
+    try {
+      while (mountedRef.current && requestAllowedRef.current) {
+        const trigger = takeAssistantProposalTrigger();
+        if (trigger === null) return;
 
-    setProposal(null);
-    if (
-      muted ||
-      !hasMetaEvents ||
-      requestedFatigueIdsRef.current.has(decision.id)
-    ) {
-      return;
-    }
+        const controller = new AbortController();
+        activeTriggerRef.current = trigger;
+        activeControllerRef.current = controller;
 
-    const request = new AbortController();
-    let isCurrentRequest = true;
-    // Deferring one task lets React clean up a replayed effect before it sends
-    // anything, while the ID set still limits a real trigger to one request.
-    const requestTimer = window.setTimeout(() => {
-      if (
-        !isCurrentRequest ||
-        request.signal.aborted ||
-        decisionRef.current?.id !== decision.id ||
-        mutedRef.current
-      ) {
-        return;
-      }
+        try {
+          const response = await fetch("/api/assistant-proposal", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ metaEvents: trigger.metaEvents }),
+            signal: controller.signal,
+          });
+          if (!response.ok || !mountedRef.current) continue;
 
-      const metaEvents = recentMetaEventsRef.current.slice(
-        -MAX_ASSISTANT_PROPOSAL_EVENTS,
-      );
-      if (metaEvents.length === 0) return;
-
-      requestedFatigueIdsRef.current.add(decision.id);
-      void fetch("/api/assistant-proposal", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ metaEvents }),
-        signal: request.signal,
-      })
-        .then(async (response) => {
-          if (!response.ok) return;
           const body: unknown = await response.json();
           const parsed = safeParseAssistantProposalResponse(body);
           if (
-            !isCurrentRequest ||
-            decisionRef.current?.id !== decision.id ||
-            mutedRef.current ||
+            !requestAllowedRef.current ||
             !parsed.success ||
             parsed.data.status !== "show"
           ) {
-            return;
+            continue;
           }
 
-          setProposal({
-            id: decision.id,
-            kind: "decision_fatigue",
+          requestAllowedRef.current = false;
+          clearAssistantProposalTriggers();
+          setServerProposal({
+            id: `jev-proposal:${trigger.eventId}`,
+            kind: "jev_proposal",
             title: parsed.data.title,
             message: parsed.data.message,
             actionLabel: parsed.data.actionLabel,
             action: parsed.data.action,
-            createdAt: decision.createdAt,
+            createdAt:
+              trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
           });
-        })
-        .catch(() => {
-          // Network errors and aborts keep the fatigue proposal hidden.
-        });
+          return;
+        } catch {
+          // Network failures and aborted requests leave the proposal hidden.
+        } finally {
+          if (activeControllerRef.current === controller) {
+            activeControllerRef.current = null;
+            activeTriggerRef.current = null;
+          }
+        }
+      }
+    } finally {
+      workerActiveRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!requestAllowed) {
+      clearAssistantProposalTriggers();
+      activeControllerRef.current?.abort();
+      return;
+    }
+
+    let isCurrentEffect = true;
+    const requestTimer = window.setTimeout(() => {
+      if (!isCurrentEffect || !mountedRef.current) return;
+      void drainProposalTriggers();
     }, 0);
 
     return () => {
-      isCurrentRequest = false;
+      isCurrentEffect = false;
       window.clearTimeout(requestTimer);
-      request.abort();
     };
-  }, [decision, hasMetaEvents, muted]);
+  }, [drainProposalTriggers, recentMetaEvents, requestAllowed]);
 
   const dismiss = () => {
     muteAssistantFor(MUTE_DURATION_MS);
     mutedRef.current = true;
-    decisionRef.current = null;
+    requestAllowedRef.current = false;
+    clearAssistantProposalTriggers();
+    activeControllerRef.current?.abort();
     setMuted(true);
-    setDecision(null);
-    setProposal(null);
+    setLocalProposal(null);
+    setServerProposal(null);
   };
 
   if (!proposal) return null;

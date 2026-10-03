@@ -71,7 +71,8 @@ describe("POST /api/assistant-proposal", () => {
     const json = await response.json();
     expect(json).toEqual({
       status: "show",
-      kind: "decision_fatigue",
+      kind: "jev_proposal",
+      situation: "DECISION_FATIGUE",
       title: "Stały tytuł",
       message: "Stała treść demo.",
       action: "narrow-choice",
@@ -101,10 +102,11 @@ describe("POST /api/assistant-proposal", () => {
 
     expect(await response.json()).toEqual({
       status: "show",
-      kind: "decision_fatigue",
-      title: "Pomóc zawęzić wybór?",
+      kind: "jev_proposal",
+      situation: "DECISION_FATIGUE",
+      title: "Mogę podpowiedzieć następny krok",
       message:
-        "Wybierzmy jeden parametr, na przykład pojemność, aby szybciej zawęzić wyniki.",
+        "To demonstracyjna podpowiedź na podstawie ostatnich sygnałów z przeglądania.",
       action: "narrow-choice",
       actionLabel: "Przejdź do filtrów",
     });
@@ -121,9 +123,30 @@ describe("POST /api/assistant-proposal", () => {
     expect(stubSpy).not.toHaveBeenCalled();
   });
 
-  it("returns hide for a high-confidence non-fatigue situation", async () => {
+  it("shows the generic stub for a high-confidence non-fatigue situation", async () => {
     vi.spyOn(jevClient, "requestJev").mockResolvedValue(
       jevOutput(0.95, "PRODUCT_HESITATION"),
+    );
+    const stubSpy = vi.spyOn(proposalStub, "generateProposalWithOpenAiStub");
+
+    const response = await POST(makeRequest(validRequestBody));
+
+    expect(await response.json()).toEqual({
+      status: "show",
+      kind: "jev_proposal",
+      situation: "PRODUCT_HESITATION",
+      title: "Mogę podpowiedzieć następny krok",
+      message:
+        "To demonstracyjna podpowiedź na podstawie ostatnich sygnałów z przeglądania.",
+      action: "narrow-choice",
+      actionLabel: "Przejdź do filtrów",
+    });
+    expect(stubSpy).toHaveBeenCalledOnce();
+  });
+
+  it("hides unknown Jev situations without calling the stub", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(
+      jevOutput(0.95, "UNKNOWN_SITUATION"),
     );
     const stubSpy = vi.spyOn(proposalStub, "generateProposalWithOpenAiStub");
 
