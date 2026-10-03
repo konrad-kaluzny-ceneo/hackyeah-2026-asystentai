@@ -4,6 +4,11 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
 import { THRESHOLDS } from "@/behavior/config/thresholds";
+import { AssistantProposalCoordinator } from "@/components/assistant/assistant-proposal-coordinator";
+import {
+  clearAssistantMetaEventHistory,
+  recordAssistantMetaEventBatch,
+} from "@/behavior/assistant-meta-event-history";
 import {
   CATALOG_PRODUCT_VIEW_EVENT,
   type CatalogProductViewDetail,
@@ -35,7 +40,15 @@ export function BehaviorDebugShell() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const tracker = initBehaviorTracker({ onBatchSent: recordBatchSent });
+    clearAssistantMetaEventHistory();
+    let isActive = true;
+    const tracker = initBehaviorTracker({
+      onBatchSent: (batch) => {
+        if (!isActive) return;
+        recordAssistantMetaEventBatch(batch.events);
+        recordBatchSent(batch);
+      },
+    });
     trackerRef.current = tracker;
     setDebugState({
       trackerEnabled: tracker !== null,
@@ -67,6 +80,8 @@ export function BehaviorDebugShell() {
     }, REPORT_INTERVAL_MS);
 
     return () => {
+      isActive = false;
+      clearAssistantMetaEventHistory();
       window.clearInterval(intervalId);
       window.removeEventListener(CATALOG_PRODUCT_VIEW_EVENT, onCatalogProductView);
       void tracker.destroy();
@@ -79,11 +94,12 @@ export function BehaviorDebugShell() {
     trackerRef.current?.collector.syncPathname();
   }, [pathname]);
 
-  if (process.env.NODE_ENV !== "development") {
-    return null;
-  }
-
-  return <DebugOverlay />;
+  return (
+    <>
+      <AssistantProposalCoordinator />
+      {process.env.NODE_ENV === "development" ? <DebugOverlay /> : null}
+    </>
+  );
 }
 
 function snapshotFromTracker(tracker: BehaviorTracker): Partial<DebugState> {

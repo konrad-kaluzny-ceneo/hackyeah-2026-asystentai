@@ -1,36 +1,16 @@
 import type { JevAssistantOutput } from "./schema";
+import { JevSituationSchema, type JevSituation } from "@/lib/assistant-proposal-api";
 
 export type RouteDecision =
-  | {
-      decision: "shortcut";
-      message: string;
-    }
-  | {
-      decision: "needs_openai";
-    };
+  | { decision: "generate_proposal"; situation: JevSituation }
+  | { decision: "hide" };
 
-/**
- * Pure decision function:
- * Shortcut only when situation is DECISION_FATIGUE, confidence >= 0.75,
- * hedging_required is false, and message_draft is non-empty.
- * All other valid outputs require the stronger model (OpenAI).
- */
+/** Any known Jev situation above the confidence threshold reaches the stub. */
 export function routeJevOutput(output: JevAssistantOutput): RouteDecision {
-  const messageDraft = output.proposal.message_draft?.trim() ?? "";
-
-  if (
-    output.situation === "DECISION_FATIGUE" &&
-    output.proposal.confidence >= 0.75 &&
-    output.proposal.hedging_required === false &&
-    messageDraft.length > 0
-  ) {
-    return {
-      decision: "shortcut",
-      message: messageDraft,
-    };
+  const situation = JevSituationSchema.safeParse(output.situation);
+  if (!situation.success || output.proposal.confidence <= 0.75) {
+    return { decision: "hide" };
   }
 
-  return {
-    decision: "needs_openai",
-  };
+  return { decision: "generate_proposal", situation: situation.data };
 }

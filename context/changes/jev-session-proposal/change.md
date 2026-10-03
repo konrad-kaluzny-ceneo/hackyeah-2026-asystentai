@@ -9,7 +9,7 @@ archived_at: null
 
 ## Notes
 
-Offline’owy generator promptów był tylko PoC. Dla decision fatigue serwer układa odpowiedź: Jev (Typesafe) albo OpenAI. Deliverable tego change: `POST /api/assistant-proposal` + typy z `context/changes/assistant-proposal-box/interface.md`.
+Offline’owy generator promptów był tylko PoC. Serwer klasyfikuje ograniczone MetaEvents przez Jev (Typesafe), a każda znana sytuacja powyżej progu confidence przechodzi przez deterministyczny lokalny stub; prawdziwe OpenAI jest odroczone. S-05 wywołuje route od piątego MetaEvent. Deliverable tego change: `POST /api/assistant-proposal` + typy z `context/changes/assistant-proposal-box/interface.md`.
 
 Wyświetlanie boxa wycięte do `assistant-proposal-box` (S-05, Michał).
 

@@ -2,10 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import {
   AssistantProposalRequestSchema,
-  type AssistantProposalResponse,
+  AssistantProposalResponseSchema,
 } from "@/lib/assistant-proposal-api";
 import { InMemoryRateLimiter } from "@/server/meta-events/rate-limit";
 import { requestJev } from "@/server/assistant-proposal/jev-client";
+import {
+  generateProposalWithOpenAiStub,
+  type AssistantDraft,
+} from "@/server/assistant-proposal/openai-stub";
 import { buildAssistantPrompt } from "@/server/assistant-proposal/prompt";
 import { routeJevOutput } from "@/server/assistant-proposal/route-decision";
 import { JevAssistantOutputSchema } from "@/server/assistant-proposal/schema";
@@ -15,6 +19,7 @@ export const IP_LIMIT = 30;
 export const PROCESS_LIMIT = 10;
 export const WINDOW_MS = 60_000;
 export const JEV_TIMEOUT_MS = 3000;
+export const MAX_REQUEST_BODY_BYTES = 64 * 1024;
 
 export let ipLimiter = new InMemoryRateLimiter(IP_LIMIT, WINDOW_MS);
 export let processLimiter = new InMemoryRateLimiter(PROCESS_LIMIT, WINDOW_MS);
@@ -44,60 +49,108 @@ export async function POST(request: NextRequest): Promise<Response> {
   const processRate = processLimiter.check("global_process");
 
   if (!ipRate.allowed || !processRate.allowed) {
-    const hideResponse: AssistantProposalResponse = { status: "hide" };
-    return NextResponse.json(hideResponse, { status: 200 });
+    return hide();
   }
 
-  // 2. Parse & validate request body
+  // 2. Enforce a byte ceiling before decoding or parsing untrusted JSON.
   let bodyUnknown: unknown;
   try {
-    bodyUnknown = await request.json();
+    const bodyText = await readRequestBody(request);
+    if (bodyText === null) return hide();
+    bodyUnknown = JSON.parse(bodyText);
   } catch {
-    return NextResponse.json({ error: "invalid_json" }, { status: 400 });
+    return hide();
   }
 
   const parsedRequest = AssistantProposalRequestSchema.safeParse(bodyUnknown);
   if (!parsedRequest.success) {
-    return NextResponse.json(
-      { error: "validation_failed", issues: parsedRequest.error.issues },
-      { status: 400 },
-    );
+    return hide();
   }
 
   // 3. Compose prompt & call Jev with 3-second abort signal
-  const prompt = buildAssistantPrompt(parsedRequest.data);
-
   let rawJevOutput: unknown;
   try {
+    const prompt = buildAssistantPrompt(parsedRequest.data);
     const signal = AbortSignal.timeout(JEV_TIMEOUT_MS);
     rawJevOutput = await requestJev(prompt, signal);
   } catch {
-    const hideResponse: AssistantProposalResponse = { status: "hide" };
-    return NextResponse.json(hideResponse, { status: 200 });
+    return hide();
   }
 
   // 4. Validate Jev output schema
   const parsedJev = JevAssistantOutputSchema.safeParse(rawJevOutput);
   if (!parsedJev.success) {
-    const hideResponse: AssistantProposalResponse = { status: "hide" };
-    return NextResponse.json(hideResponse, { status: 200 });
+    return hide();
   }
 
   // 5. Evaluate route decision
   const decision = routeJevOutput(parsedJev.data);
-  if (decision.decision === "shortcut") {
-    const showResponse: AssistantProposalResponse = {
-      status: "show",
-      kind: "decision_fatigue",
-      title: "Pomóc zawęzić wybór?",
-      message: decision.message,
-      action: "narrow-choice",
-      actionLabel: "Przejdź do filtrów",
-    };
-    return NextResponse.json(showResponse, { status: 200 });
+  if (decision.decision === "hide") {
+    return hide();
   }
 
-  // Phase 1: needs_openai returns hide (OpenAI branch added in Phase 2)
-  const hideResponse: AssistantProposalResponse = { status: "hide" };
-  return NextResponse.json(hideResponse, { status: 200 });
+  // This local deterministic stub stands in for the future OpenAI call.
+  let draft: AssistantDraft;
+  try {
+    draft = await generateProposalWithOpenAiStub(parsedJev.data);
+  } catch {
+    return hide();
+  }
+
+  const parsedResponse = AssistantProposalResponseSchema.safeParse({
+    status: "show",
+    kind: "jev_proposal",
+    situation: decision.situation,
+    ...draft,
+    action: "narrow-choice",
+    actionLabel: "Przejdź do filtrów",
+  });
+  if (!parsedResponse.success) return hide();
+
+  return NextResponse.json(parsedResponse.data, { status: 200 });
+}
+
+function hide(): Response {
+  return NextResponse.json({ status: "hide" }, { status: 200 });
+}
+
+async function readRequestBody(request: NextRequest): Promise<string | null> {
+  const contentLength = request.headers.get("content-length");
+  if (contentLength !== null) {
+    const declaredBytes = Number(contentLength);
+    if (
+      Number.isFinite(declaredBytes) &&
+      declaredBytes > MAX_REQUEST_BODY_BYTES
+    ) {
+      return null;
+    }
+  }
+
+  const reader = request.body?.getReader();
+  if (reader === undefined) return null;
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_REQUEST_BODY_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bodyBytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bodyBytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(bodyBytes);
 }

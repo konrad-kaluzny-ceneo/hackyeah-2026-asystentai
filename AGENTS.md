@@ -17,7 +17,7 @@ Hackathon web app for one contextual next step while someone browses an applianc
 - Do not add login, roles, or an admin panel. The MVP session is anonymous (`prd.md` Access Control).
 - Do not add to cart, assemble a product set, contact support, compare several models in one box, or cross-sell. Those are Non-Goals in `@context/foundation/prd.md`.
 - Show at most one assistant proposal at a time. `DecisionEngine` already returns one. Do not add a second competing prompt.
-- Catalog products live in `src/lib/catalog-data.ts`. Do not add a second catalog or feed the assistant from `src/behavior/` meta events.
+- Catalog products live in `src/lib/catalog-data.ts`. Do not add a second catalog or send current catalog state/events to Jev. The approved S-05 flow may send only the bounded, validated MetaEvent history from successful `/api/meta-events` batches; raw events and debug-store data never enter that flow.
 - Do not commit `.env*` files. `@.gitignore` ignores them.
 
 ## Working a slice
@@ -43,9 +43,10 @@ Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can d
 - `src/lib/decision-engine.ts` — classifies a catalog session into at most one implemented shopping signal.
 - `src/domain/` — shopping-signal kind names. Observation patterns in `src/behavior/` are not these signals. See `context/foundation/domain.md`.
 - `src/app/layout.tsx` — Polish document language and the shared header.
-- `src/app/behavior-debug-shell.tsx` — mounts the tracker and the dev-only debug overlay.
+- `src/app/behavior-debug-shell.tsx` — mounts the tracker, the persistent assistant-proposal coordinator, and the dev-only debug overlay.
 - `src/app/api/meta-events/route.ts` — POST endpoint for client behavior meta events.
-- `src/behavior/` — client-side observation pipeline (collector → buffer → analyzer → detectors → dispatcher). Raw events never leave the browser. Detector confidence is not shopping-signal strength. The assistant does not read these events.
+- `src/behavior/` — client-side observation pipeline (collector → buffer → analyzer → detectors → dispatcher). Raw events never leave the browser. Detector confidence is not shopping-signal strength. S-05 may pass a bounded MetaEvent snapshot to the proposal route; it must not use raw events or `debug-store`.
+- `src/components/assistant/assistant-proposal-coordinator.tsx` — root-mounted client request lifecycle; calls the proposal route at the MetaEvent threshold, including while the listing box is unmounted.
 - `src/behavior/ui/` — dev-only debug overlay (`DebugOverlay` + in-memory `debug-store`). Never sends anything anywhere.
 - `src/server/meta-events/` — Zod validation and persistence of meta events.
 - `src/lib/db/` — Drizzle ORM schema (`meta_events` table) and lazy pg client.
@@ -67,6 +68,7 @@ Verify with `npm test` and `npm run typecheck`. Open the browser only when that 
 ## Behavior-tracking rules
 
 - Raw events stay in the browser (memory + sessionStorage). Only meta events are POSTed to `/api/meta-events`.
+- The S-05 assistant request may contain only up to 10 validated MetaEvents from successfully sent batches. Do not send raw events, catalog state/events, or debug-store data to Jev.
 - `add_to_cart`, `compare_added`, `compare_removed`, `favorite_added` exist in the TypeScript contract for future reuse, but the demo collector never emits them (PRD Non-Goals; `@context/foundation/prd.md`).
 - Feature flag: `NEXT_PUBLIC_BEHAVIOR_TRACKING=true` enables the tracker client-side. Anything else disables it.
 - Detectors, page-type rules, thresholds and the detector dedupe/cooldown live under `src/behavior/`. See `docs/adding-detector.md` and `docs/adding-page-type.md` before extending.

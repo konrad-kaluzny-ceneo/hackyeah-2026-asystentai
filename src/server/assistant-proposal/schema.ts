@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { JevSituationSchema } from "@/lib/assistant-proposal-api";
+
 export const JevProposalSchema = z.object({
   action_type: z.string().optional(),
   confidence: z.number().min(0).max(1),
@@ -10,7 +12,7 @@ export const JevProposalSchema = z.object({
 });
 
 export const JevAssistantOutputSchema = z.object({
-  situation: z.string(),
+  situation: JevSituationSchema,
   primary_meta_event: z.string().optional(),
   signal_strength: z.number().min(0).max(1).optional(),
   key_evidence: z.array(z.string()).optional(),

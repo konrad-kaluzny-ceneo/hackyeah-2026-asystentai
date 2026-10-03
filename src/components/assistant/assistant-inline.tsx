@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   CATALOG_SESSION_CHANGED,
   muteAssistantFor,
@@ -8,9 +8,19 @@ import {
   readCatalogEvents,
 } from "@/lib/assistant-events";
 import { DecisionEngine } from "@/lib/decision-engine";
+import {
+  getAssistantProposalUiState,
+  setAssistantSearchRecoveryVisible,
+  setAssistantServerProposal,
+  subscribeAssistantProposalUiState,
+} from "@/lib/assistant-proposal-state";
 import type { AssistantProposal, CatalogState, Category, Product } from "@/lib/catalog-types";
 
 const MUTE_DURATION_MS = 15 * 60 * 1000;
+const EMPTY_PROPOSAL_UI_STATE = {
+  proposal: null,
+  searchRecoveryVisible: false,
+} as const;
 
 type AssistantInlineProps = {
   state: CatalogState;
@@ -23,20 +33,43 @@ export function AssistantInline({
   catalog,
   onClearSearchAndFilters,
 }: AssistantInlineProps) {
-  const [proposal, setProposal] = useState<AssistantProposal | null>(null);
+  const [localProposal, setLocalProposal] = useState<AssistantProposal | null>(null);
+  const [muted, setMuted] = useState(false);
+  const proposalUiState = useSyncExternalStore(
+    subscribeAssistantProposalUiState,
+    getAssistantProposalUiState,
+    () => EMPTY_PROPOSAL_UI_STATE,
+  );
+  const proposal = localProposal ?? proposalUiState.proposal;
 
   useEffect(() => {
     let muteTimer: number | undefined;
     const refreshProposal = () => {
       if (muteTimer !== undefined) window.clearTimeout(muteTimer);
-
       const mutedUntil = readAssistantMutedUntil();
       if (mutedUntil > Date.now()) {
-        setProposal(null);
+        setMuted(true);
+        setLocalProposal(null);
+        setAssistantServerProposal(null);
+        setAssistantSearchRecoveryVisible(false);
         muteTimer = window.setTimeout(refreshProposal, mutedUntil - Date.now());
         return;
       }
-      setProposal(DecisionEngine(readCatalogEvents(), state, catalog));
+
+      setMuted(false);
+      const hasActiveEmptySearch =
+        state.resultCount === 0 &&
+        (state.query.trim().length > 0 ||
+          Object.values(state.filters).some((value) => value.trim().length > 0));
+      // This call can only return local search_friction in the gated case;
+      // the component never evaluates DecisionEngine's fatigue branch.
+      const localRecovery = hasActiveEmptySearch
+        ? DecisionEngine(readCatalogEvents(), state, catalog)
+        : null;
+      const isSearchRecovery = localRecovery?.kind === "search_friction";
+      setAssistantSearchRecoveryVisible(isSearchRecovery);
+      if (isSearchRecovery) setAssistantServerProposal(null);
+      setLocalProposal(isSearchRecovery ? localRecovery : null);
     };
 
     refreshProposal();
@@ -44,15 +77,19 @@ export function AssistantInline({
     return () => {
       window.removeEventListener(CATALOG_SESSION_CHANGED, refreshProposal);
       if (muteTimer !== undefined) window.clearTimeout(muteTimer);
+      setAssistantSearchRecoveryVisible(false);
     };
   }, [catalog, state]);
 
-  if (!proposal) return null;
-
   const dismiss = () => {
     muteAssistantFor(MUTE_DURATION_MS);
-    setProposal(null);
+    setAssistantServerProposal(null);
+    setAssistantSearchRecoveryVisible(false);
+    setMuted(true);
+    setLocalProposal(null);
   };
+
+  if (muted || !proposal) return null;
 
   return (
     <aside
