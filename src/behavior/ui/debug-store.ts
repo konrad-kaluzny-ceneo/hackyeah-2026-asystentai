@@ -1,4 +1,4 @@
-import type { MetaEvent, PageType } from "../types";
+import type { MetaEvent, PageType, RawEvent } from "../types";
 
 /**
  * Lightweight in-memory store for the dev-only debug overlay. Holds
@@ -19,6 +19,15 @@ export interface SentMetaEventSummary {
   readonly evidenceCount: number;
 }
 
+export interface RawEventSummary {
+  readonly eventId: string;
+  readonly name: RawEvent["name"];
+  readonly timestamp: number;
+  readonly sequenceNumber: number;
+  readonly pageType: PageType;
+  readonly pathname: string;
+}
+
 export interface DebugState {
   /** Whether the tracker is enabled (true when initBehaviorTracker returned non-null). */
   readonly trackerEnabled: boolean;
@@ -30,13 +39,15 @@ export interface DebugState {
   readonly totalMetaSentThisSession: number;
   /** Sliding window of the most recently-sent meta events. */
   readonly lastSentMetaEvents: readonly SentMetaEventSummary[];
+  /** Raw event summaries retained by the latest sessionStorage checkpoint. */
+  readonly lastRawEvents: readonly RawEventSummary[];
   readonly sessionId: string | null;
   readonly pageViewId: string | null;
   readonly pageType: PageType;
   readonly pathname: string;
 }
 
-export const MAX_LAST_SENT_META_EVENTS = 10;
+export const MAX_LAST_SENT_META_EVENTS = 100;
 
 const INITIAL_STATE: DebugState = {
   trackerEnabled: false,
@@ -44,6 +55,7 @@ const INITIAL_STATE: DebugState = {
   unsentMetaEvents: 0,
   totalMetaSentThisSession: 0,
   lastSentMetaEvents: [],
+  lastRawEvents: [],
   sessionId: null,
   pageViewId: null,
   pageType: "unknown",
@@ -128,9 +140,29 @@ function shallowEqualDebugState(a: DebugState, b: DebugState): boolean {
     a.unsentMetaEvents === b.unsentMetaEvents &&
     a.totalMetaSentThisSession === b.totalMetaSentThisSession &&
     a.lastSentMetaEvents === b.lastSentMetaEvents &&
+    areRawEventSummariesEqual(a.lastRawEvents, b.lastRawEvents) &&
     a.sessionId === b.sessionId &&
     a.pageViewId === b.pageViewId &&
     a.pageType === b.pageType &&
     a.pathname === b.pathname
   );
+}
+
+function areRawEventSummariesEqual(
+  a: readonly RawEventSummary[],
+  b: readonly RawEventSummary[],
+): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((event, index) => {
+    const other = b[index];
+    return (
+      event.eventId === other.eventId &&
+      event.name === other.name &&
+      event.timestamp === other.timestamp &&
+      event.sequenceNumber === other.sequenceNumber &&
+      event.pageType === other.pageType &&
+      event.pathname === other.pathname
+    );
+  });
 }

@@ -31,7 +31,7 @@ export function DebugOverlay() {
   return (
     <aside
       aria-label="Behavior debug"
-      className="fixed inset-x-0 bottom-0 z-50 h-[200px] border-t border-zinc-300 bg-white/95 font-mono text-xs text-zinc-900 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-100"
+      className="fixed inset-x-0 bottom-0 z-50 flex max-h-[min(28rem,calc(100dvh-1rem))] flex-col border-t border-zinc-300 bg-white/95 font-mono text-xs text-zinc-900 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-100"
     >
       <button
         type="button"
@@ -43,8 +43,8 @@ export function DebugOverlay() {
         <span aria-hidden>{collapsed ? "▸" : "▾"}</span>
       </button>
       {!collapsed && (
-        <div className="grid h-[164px] grid-cols-1 gap-4 overflow-hidden px-4 py-3 sm:grid-cols-[minmax(13rem,0.8fr)_minmax(0,2fr)]">
-          <div className="min-w-0 overflow-y-auto pr-1">
+        <div className="grid min-h-0 grid-cols-1 gap-4 overflow-y-auto px-4 py-3 sm:grid-cols-[minmax(13rem,0.8fr)_minmax(0,2fr)]">
+          <div className="min-w-0 space-y-3 overflow-y-auto pr-1">
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
               <Stat label="Page" value={`${state.pageType}`} title={state.pathname} />
               <Stat label="Path" value={state.pathname} />
@@ -66,24 +66,65 @@ export function DebugOverlay() {
                 title={state.sessionId ?? undefined}
               />
             </dl>
-            <section className="mt-3">
-              <h3 className="mb-1 font-semibold text-zinc-600 dark:text-zinc-400">
-                Last sent meta events
-              </h3>
-              {state.lastSentMetaEvents.length === 0 ? (
-                <p className="text-zinc-500">none yet</p>
+            <section className="rounded border border-zinc-200 bg-zinc-50/70 p-2 dark:border-zinc-700 dark:bg-zinc-800/40">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-semibold text-zinc-600 dark:text-zinc-400">
+                  Raw events
+                </h3>
+                <span className="text-zinc-400">{state.lastRawEvents.length}</span>
+              </div>
+              {state.lastRawEvents.length === 0 ? (
+                <p className="mt-2 text-zinc-500">none yet</p>
               ) : (
-                <ul className="space-y-1">
-                  {state.lastSentMetaEvents.map((e) => (
+                <ul className="mt-2 max-h-36 space-y-1 overflow-y-auto pr-1">
+                  {state.lastRawEvents.map((event) => (
                     <li
-                      key={e.eventId}
-                      className="truncate rounded bg-zinc-100 px-2 py-1 dark:bg-zinc-800"
-                      title={`batch ${e.batchId} · sent ${formatTime(e.sentAt)}`}
+                      key={event.eventId}
+                      className="rounded bg-zinc-100 px-2 py-1 dark:bg-zinc-800"
                     >
-                      <span className="font-semibold">{e.name}</span>
-                      <span className="ml-2 text-zinc-500">
-                        s={e.strength.toFixed(2)} n={e.evidenceCount}
-                      </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate font-semibold">{event.name}</span>
+                        <time className="shrink-0 text-zinc-500">
+                          {formatTimestamp(event.timestamp)}
+                        </time>
+                      </div>
+                      <div className="flex gap-2 text-zinc-500">
+                        <span>#{event.sequenceNumber}</span>
+                        <span className="truncate">
+                          {event.pageType} · {event.pathname}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section className="rounded border border-zinc-200 bg-zinc-50/70 p-2 dark:border-zinc-700 dark:bg-zinc-800/40">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-semibold text-zinc-600 dark:text-zinc-400">
+                  Sent meta events
+                </h3>
+                <span className="text-zinc-400">{state.lastSentMetaEvents.length}</span>
+              </div>
+              {state.lastSentMetaEvents.length === 0 ? (
+                <p className="mt-2 text-zinc-500">none yet</p>
+              ) : (
+                <ul className="mt-2 max-h-36 space-y-1 overflow-y-auto pr-1">
+                  {state.lastSentMetaEvents.map((event) => (
+                    <li
+                      key={event.eventId}
+                      className="rounded bg-zinc-100 px-2 py-1 dark:bg-zinc-800"
+                      title={`batch ${event.batchId}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate font-semibold">{event.name}</span>
+                        <time className="shrink-0 text-zinc-500">
+                          {formatTime(event.sentAt)}
+                        </time>
+                      </div>
+                      <div className="text-zinc-500">
+                        strength={event.strength.toFixed(2)} · evidence={event.evidenceCount}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -99,7 +140,7 @@ export function DebugOverlay() {
                 placeholder
               </span>
             </div>
-            <div className="relative mt-2 min-h-0 flex-1 overflow-hidden rounded border border-dashed border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-900/40">
+            <div className="relative mt-2 min-h-40 flex-1 overflow-hidden rounded border border-dashed border-zinc-300 bg-white/70 aspect-[16/7] dark:border-zinc-600 dark:bg-zinc-900/40">
               <svg
                 aria-hidden="true"
                 className="h-full w-full"
@@ -155,4 +196,8 @@ function formatTime(iso: string): string {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return iso;
   return new Date(t).toLocaleTimeString("pl-PL", { hour12: false });
+}
+
+function formatTimestamp(timestamp: number): string {
+  return formatTime(new Date(timestamp).toISOString());
 }

@@ -7,10 +7,13 @@ import {
   initBehaviorTracker,
   type BehaviorTracker,
 } from "@/behavior/initializer";
+import type { RawEvent } from "@/behavior/types";
 import { DebugOverlay } from "@/behavior/ui/DebugOverlay";
 import {
+  recordBatchSent,
   setDebugState,
   type DebugState,
+  type RawEventSummary,
 } from "@/behavior/ui/debug-store";
 
 const REPORT_INTERVAL_MS = 1_000;
@@ -26,7 +29,7 @@ export function BehaviorDebugShell() {
   const trackerRef = useRef<BehaviorTracker | null>(null);
 
   useEffect(() => {
-    const tracker = initBehaviorTracker();
+    const tracker = initBehaviorTracker({ onBatchSent: recordBatchSent });
     trackerRef.current = tracker;
     setDebugState({
       trackerEnabled: tracker !== null,
@@ -56,8 +59,10 @@ export function BehaviorDebugShell() {
 
 function snapshotFromTracker(tracker: BehaviorTracker): Partial<DebugState> {
   const page = tracker.collector.getCurrentPage();
+  const rawEvents = readCheckpointRawEvents();
   return {
-    rawEventsInSessionStorage: readCheckpointEventCount(),
+    rawEventsInSessionStorage: rawEvents.length,
+    lastRawEvents: rawEvents,
     unsentMetaEvents: tracker.dispatcher.queueSize(),
     sessionId: readSessionIdSafe(),
     pageViewId: page.pageViewId,
@@ -75,16 +80,40 @@ function readSessionIdSafe(): string | null {
   }
 }
 
-function readCheckpointEventCount(): number {
-  if (typeof window === "undefined") return 0;
+function readCheckpointRawEvents(): RawEventSummary[] {
+  if (typeof window === "undefined") return [];
   try {
     const raw = window.sessionStorage.getItem(
       THRESHOLDS.buffer.checkpointStorageKey,
     );
-    if (raw === null) return 0;
+    if (raw === null) return [];
     const parsed = JSON.parse(raw) as { events?: unknown };
-    return Array.isArray(parsed.events) ? parsed.events.length : 0;
+    if (!Array.isArray(parsed.events)) return [];
+    return parsed.events
+      .filter(isRawEvent)
+      .reverse()
+      .map((event) => ({
+        eventId: event.id,
+        name: event.name,
+        timestamp: event.timestamp,
+        sequenceNumber: event.sequenceNumber,
+        pageType: event.pageType,
+        pathname: event.pathname,
+      }));
   } catch {
-    return 0;
+    return [];
   }
+}
+
+function isRawEvent(value: unknown): value is RawEvent {
+  if (typeof value !== "object" || value === null) return false;
+  const event = value as Partial<RawEvent>;
+  return (
+    typeof event.id === "string" &&
+    typeof event.name === "string" &&
+    typeof event.timestamp === "number" &&
+    typeof event.sequenceNumber === "number" &&
+    typeof event.pageType === "string" &&
+    typeof event.pathname === "string"
+  );
 }
