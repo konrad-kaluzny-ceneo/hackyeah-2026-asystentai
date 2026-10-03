@@ -31,7 +31,7 @@ export function DebugOverlay() {
   return (
     <aside
       aria-label="Behavior debug"
-      className="fixed inset-x-0 bottom-0 z-50 flex max-h-[min(28rem,calc(100dvh-1rem))] flex-col border-t border-zinc-300 bg-white/95 font-mono text-xs text-zinc-900 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-100"
+      className="fixed inset-x-0 bottom-0 z-50 flex max-h-[min(20rem,calc(100dvh-300px))] flex-col border-t border-zinc-300 bg-white/95 font-mono text-xs text-zinc-900 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95 dark:text-zinc-100"
     >
       <button
         type="button"
