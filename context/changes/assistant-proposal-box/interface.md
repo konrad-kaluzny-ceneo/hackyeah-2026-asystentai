@@ -1,6 +1,6 @@
 # Kontrakt: propozycja asystenta z MetaEvents
 
-Wspólna umowa dla serverowego przepływu Jev/OpenAI i boxa S-05. UI woła route tylko przy decyzji fatigue; serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents. Przy pewnym, niehedgowanym wyniku Jev używa skrótu; w pozostałych poprawnych przypadkach decyzję podejmuje OpenAI.
+Wspólna umowa dla serverowego przepływu Jev/OpenAI i boxa S-05. UI wysyła snapshot po pięciu unikalnych MetaEvents z poprawnie wysłanych batchy, a potem po każdym nowym evencie, dopóki propozycja nie zostanie pokazana albo asystent nie zostanie wyciszony. Serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents. Przy pewnym, niehedgowanym wyniku fatigue Jev używa skrótu; w pozostałych poprawnych przypadkach decyzję podejmuje OpenAI.
 
 **Kontrakty w kodzie:** `src/lib/assistant-proposal-api.ts` zawiera request/response UI; `src/behavior/meta-event-schema.ts` jest współdzielonym, ścisłym schematem MetaEvent. `/api/meta-events` zachowuje dotychczasowy format batcha.
 
@@ -72,7 +72,7 @@ Serwer nie przekazuje Jev pełnego obiektu MetaEvent ani osobnego stanu katalogu
 
 ## Request gate i zachowanie serwera
 
-- S-05 woła route przy `decision_fatigue`, gdy ma niepustą historię; `search_friction` pozostaje lokalne.
+- S-05 woła route po piątym unikalnym evencie z poprawnie wysłanych batchy, a następnie dla każdego nowego eventu, dopóki nie ma widocznej propozycji; `search_friction` pozostaje lokalne.
 - Jev jest wywoływany dopiero po walidacji requestu.
 - Pewny, niehedgowany `DECISION_FATIGUE` z niepustym szkicem Jev może użyć skrótu. Pozostałe poprawne wyniki przechodzą do OpenAI.
 - Nieprawidłowe body, błąd walidacji Jev, timeout, rate limit albo błąd OpenAI skutkują `{ status: "hide" }`.

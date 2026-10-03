@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearAssistantMetaEventHistory,
+  clearAssistantProposalTriggers,
   getAssistantMetaEventHistory,
   MAX_ASSISTANT_META_EVENTS,
   recordAssistantMetaEventBatch,
+  takeAssistantProposalTrigger,
   subscribeAssistantMetaEventHistory,
 } from "@/behavior/assistant-meta-event-history";
 
@@ -77,5 +79,46 @@ describe("assistant MetaEvent history", () => {
 
     clearAssistantMetaEventHistory();
     expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("queues one chronological snapshot at five events and for every later unique event", () => {
+    recordAssistantMetaEventBatch(
+      Array.from({ length: 4 }, (_, index) =>
+        event(`event-${String(index + 1).padStart(4, "0")}`, (index + 1) * 1_000),
+      ),
+    );
+    expect(takeAssistantProposalTrigger()).toBeNull();
+
+    recordAssistantMetaEventBatch([
+      event("event-0005", 5_000),
+      event("event-0006", 6_000),
+    ]);
+    expect(takeAssistantProposalTrigger()).toEqual({
+      eventId: "event-0005",
+      metaEvents: Array.from({ length: 5 }, (_, index) =>
+        event(`event-${String(index + 1).padStart(4, "0")}`, (index + 1) * 1_000),
+      ),
+    });
+    expect(takeAssistantProposalTrigger()).toEqual({
+      eventId: "event-0006",
+      metaEvents: Array.from({ length: 6 }, (_, index) =>
+        event(`event-${String(index + 1).padStart(4, "0")}`, (index + 1) * 1_000),
+      ),
+    });
+    expect(takeAssistantProposalTrigger()).toBeNull();
+  });
+
+  it("ignores retried event IDs and can clear queued proposal triggers", () => {
+    recordAssistantMetaEventBatch(
+      Array.from({ length: 5 }, (_, index) =>
+        event(`event-${String(index + 1).padStart(4, "0")}`, (index + 1) * 1_000),
+      ),
+    );
+    recordAssistantMetaEventBatch([event("event-0005", 5_000)]);
+    expect(takeAssistantProposalTrigger()?.eventId).toBe("event-0005");
+
+    recordAssistantMetaEventBatch([event("event-0006", 6_000)]);
+    clearAssistantProposalTriggers();
+    expect(takeAssistantProposalTrigger()).toBeNull();
   });
 });

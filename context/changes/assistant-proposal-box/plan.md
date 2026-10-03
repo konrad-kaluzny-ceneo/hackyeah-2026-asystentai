@@ -2,7 +2,7 @@
 
 ## Overview
 
-Connect the existing behavior MetaEvent pipeline to the assistant proposal flow. The client keeps a bounded window of successfully dispatched MetaEvents and, when the existing decision-fatigue gate fires, sends that window to the server. The server asks Jev to classify the event summary, then uses a confident Jev shortcut or OpenAI to return only an action and its data. Failures produce no box; presentation copy remains local to the UI.
+Connect the existing behavior MetaEvent pipeline to the assistant proposal flow. The client keeps a bounded window of successfully dispatched MetaEvents and queues a request after five unique events, then after each new event while no proposal is visible. The server asks Jev to classify the event summary, then uses a confident Jev shortcut or OpenAI to return only an action and its data. Failures produce no box; presentation copy remains local to the UI.
 
 ## Current State Analysis
 
@@ -11,7 +11,7 @@ Connect the existing behavior MetaEvent pipeline to the assistant proposal flow.
 - `AssistantInline` currently uses `DecisionEngine` to render fixed local copy. It does not call `/api/assistant-proposal` (`src/components/assistant/assistant-inline.tsx:28-48`). The existing mute lasts 15 minutes (`:52-55`).
 - The shared proposal request accepts `{ metaEvents }` only. The Jev prompt minimizes event data and excludes raw events, session/page-view identifiers, and paths.
 - A confident, unhedged Jev fatigue result can use the shortcut; other valid outputs use OpenAI and return the same action/data contract.
-- `DecisionEngine` already supplies an occasional client-side gate: three distinct pairwise-similar product views followed by a return to the listing, with no later route or catalog change (`src/lib/decision-engine.ts:104-183`). The request body will contain MetaEvents only; catalog events remain local to this gate.
+- `DecisionEngine` still supplies local empty-search recovery and a fatigue copy candidate, but the S-05 server request cadence is now event-count based. Catalog events never enter the request.
 
 ### Key Discoveries:
 
@@ -21,7 +21,7 @@ Connect the existing behavior MetaEvent pipeline to the assistant proposal flow.
 
 ## Desired End State
 
-When the current decision-fatigue gate fires, the client sends one `POST /api/assistant-proposal` containing only a bounded array of recent MetaEvents that were sent to `/api/meta-events`. The server validates and summarizes those events for Jev without sending raw events or catalog state. Jev may provide a confident shortcut; other valid results go to OpenAI. The API returns `show` with an action and data, or `hide`; the UI combines a valid action with local presentation copy.
+After five unique MetaEvents from successful `/api/meta-events` batches, the client queues one `POST /api/assistant-proposal` per new event while unmuted and without a visible proposal. Each request contains only a bounded array of recent MetaEvents. The server validates and summarizes those events for Jev without sending raw events or catalog state. Jev may provide a confident shortcut; other valid results go to OpenAI. The API returns `show` with an action and data, or `hide`; the UI combines a valid action with local presentation copy.
 
 The existing single-box behavior remains: local `search_friction` stays local, the fatigue proposal has no loader, stale requests are ignored, and dismissal mutes the assistant for 15 minutes. OpenAI has a separate short deadline with SDK retries disabled.
 
@@ -29,13 +29,13 @@ The existing single-box behavior remains: local `search_friction` stays local, t
 
 - Sending raw events, raw-event checkpoints, catalog state, or `CatalogEvent[]` to Jev.
 - Reusing `src/behavior/ui/debug-store.ts` as an assistant data source.
-- Calling Jev for every browsing event, for `search_friction`, while muted, or when the behavior tracker is disabled.
+- Calling Jev before five unique events, for local `search_friction`, while muted, or when the behavior tracker is disabled.
 - Sending raw events or catalog facts to Jev/OpenAI, or adding a second proposal box.
 - Changing detector definitions, thresholds, or `DecisionEngine` criteria.
 
 ## Implementation Approach
 
-Use the existing fatigue proposal ID as the request identity. A separate application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and notifies `AssistantInline`. The UI calls the route once for a given fatigue proposal ID when the store has events and the assistant is not muted. The route validates `{ metaEvents }`, gives Jev a server-built summary, then uses the Jev shortcut or OpenAI. It sanitizes filter keys before returning the action/data contract.
+An application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and queues snapshots beginning at event five. `AssistantInline` serially drains queued snapshots while unmuted and without a visible proposal; an interrupted request is requeued on unmount. The route validates `{ metaEvents }`, gives Jev a server-built summary, then uses the Jev shortcut or OpenAI. It sanitizes filter keys before returning the action/data contract.
 
 ## Phase 1: Retain Recent MetaEvents for the Assistant
 
@@ -168,7 +168,7 @@ Replace the catalog-event request contract with bounded MetaEvents and connect t
 
 ### Overview
 
-Call the revised endpoint from the existing fatigue UI gate and combine the validated action/data with local UI copy.
+Call the revised endpoint from the serialized event-trigger queue and combine the validated action/data with local UI copy.
 
 ### Changes Required:
 
@@ -180,17 +180,17 @@ Call the revised endpoint from the existing fatigue UI gate and combine the vali
 
 **Contract**:
 
-- `DecisionEngine === null`: render nothing and do not call the endpoint.
+- No new queued event trigger: do not call the endpoint.
 - `search_friction`: render the existing local recovery proposal and do not call Jev.
-- `decision_fatigue`: if not muted and the MetaEvent history is non-empty, call `POST /api/assistant-proposal` once for that fatigue proposal ID with `{ metaEvents }` only.
+- At five unique events, then once per new event while no proposal is visible: POST the corresponding bounded `{ metaEvents }` snapshot; serialize requests in event order.
 - `show`: render one proposal from local presentation copy and the parsed server action/data; `hide`, HTTP failure, or invalid response renders nothing.
-- Keep the 15-minute mute, abort superseded requests, ignore stale responses, and do not add a loader or a second box.
+- Keep the 15-minute mute, abort in-flight requests on mute/unmount, requeue an interrupted trigger, and do not add a loader or a second box.
 
 **File**: `tests/components/assistant/assistant-inline.test.tsx` (new)
 
-**Intent**: Cover request gating and the existing single-box lifecycle.
+**Intent**: Cover the event threshold, queued request lifecycle, and the existing single-box behavior.
 
-**Contract**: Verify fatigue with recent MetaEvents sends one events-only request; no history, muted, null, or friction does not call the endpoint; hide and invalid responses render no fatigue box; a fixed show renders one box; stale requests cannot replace newer state.
+**Contract**: Verify four events send nothing, the fifth and later events queue bounded events-only requests, mute/friction stop the queue, hide responses allow later queued triggers to proceed, and show responses render only one box with local copy.
 
 ### Phase Success Criteria
 
@@ -201,7 +201,7 @@ Call the revised endpoint from the existing fatigue UI gate and combine the vali
 
 #### Manual Verification:
 
-- Browse three similar products and return to the listing with tracking enabled. Confirm `/api/meta-events` receives detector MetaEvents, followed by one `/api/assistant-proposal` request whose body contains only a bounded `metaEvents` array.
+- With tracking enabled, confirm the first four unique MetaEvents do not trigger the proposal route; event five starts classification and subsequent events queue one bounded request each until a proposal is visible.
 - Confirm the server calls Jev and then either uses a confident shortcut or calls OpenAI; the UI displays local copy with the returned action.
 - Confirm empty-search recovery stays local, dismissal mutes for 15 minutes, and another proposal cannot appear at the same time.
 
@@ -212,7 +212,7 @@ Call the revised endpoint from the existing fatigue UI gate and combine the vali
 - MetaEvent history ordering, deduplication, max-10 bound, and clear behavior.
 - Shared MetaEvent validation and request count/body-size limits.
 - Jev shortcut boundary, OpenAI fallback, action/data validation, filter-key sanitization, and provider failure paths.
-- UI gate, mute, abort, and stale-request handling.
+- Five-event threshold, queue ordering, mute, abort/requeue, and single-box UI behavior.
 
 ### Integration Tests:
 
@@ -223,7 +223,7 @@ Call the revised endpoint from the existing fatigue UI gate and combine the vali
 
 1. Enable `NEXT_PUBLIC_BEHAVIOR_TRACKING=true` and browse between product pages and a category listing.
 2. Confirm raw events remain in the local debug overlay and MetaEvents continue to post to `/api/meta-events`.
-3. Trigger decision fatigue by viewing three similar products and returning to the listing.
+3. Generate at least five unique MetaEvents from successfully sent batches; verify a request is queued for the fifth and later events.
 4. Inspect `/api/assistant-proposal`: it contains no raw events, catalog state, or catalog events, only the bounded MetaEvent array.
 5. Use mocked Jev/OpenAI output to verify the shortcut and OpenAI paths return the same action/data shape.
 6. Dismiss the proposal and confirm the 15-minute mute; verify empty-search recovery remains local.
@@ -279,8 +279,8 @@ The request contract changes from `{ state, events: CatalogEvent[] }` to `{ meta
 
 #### Automated
 
-- [x] 3.1 Subscribe the UI to recent MetaEvents and post once per fatigue trigger.
-- [x] 3.2 Preserve local friction, mute, abort, stale-response, and one-box behavior with tests.
+- [x] 3.1 Subscribe the UI to recent MetaEvents and serialize requests from the five-event threshold onward.
+- [x] 3.2 Preserve local friction, mute, abort/requeue, and one-box behavior with tests.
 - [x] 3.3 Run focused UI tests and typecheck.
 
 #### Manual

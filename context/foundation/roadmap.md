@@ -36,7 +36,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
 | S-04 | jev-session-proposal | … (serwer) dostać JSON z Jev/OpenAI i akcją dla decision fatigue | — | US-03, FR-010 | ready |
-| S-05 | assistant-proposal-box | … (UI) zobaczyć box po wysłaniu MetaEvents albo brak boxa przy decision fatigue | S-04 | US-01, FR-007, FR-010 | ready |
+| S-05 | assistant-proposal-box | … (UI) zobaczyć jeden box po klasyfikacji ograniczonej historii MetaEvents | S-04 | US-01, FR-007, FR-010 | ready |
 | S-06 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
 | S-07 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-06 | FR-012 | active |
 
@@ -186,7 +186,7 @@ Source / Lineage:
 
 ### S-05: Box propozycji na listingu (UI)
 
-- **Outcome:** kupujący przy decision fatigue wysyła ostatnie MetaEvents do S-04 i widzi jeden box z lokalnym copy oraz akcją/data wybraną przez serwer. Błędy i brak propozycji ukrywają box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
+- **Outcome:** po pięciu unikalnych MetaEvents z poprawnie wysłanych batchy, a potem po każdym nowym evencie do pokazania propozycji, UI wysyła ograniczony snapshot do S-04 i może pokazać jeden box z lokalnym copy oraz akcją/data wybraną przez serwer. Błędy i brak propozycji ukrywają box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
 - **Change ID:** assistant-proposal-box
 - **PRD refs:** US-01, FR-007, FR-010
 - **Prerequisites:** S-04 (route zgodny z `interface.md`)
@@ -194,7 +194,7 @@ Source / Lineage:
 - **Blockers:** —
 - **Acceptance:**
   - Sukcesy `/api/meta-events` zasilają ograniczoną historię 10 MetaEvents; request assistant nie dostaje `CatalogState`, `CatalogEvent[]` ani raw events.
-  - `DecisionEngine` → fatigue → fetch; friction → lokalnie; abort + numer żądania.
+  - Pięć unikalnych MetaEvents → kolejka requestów po każdym nowym evencie; `search_friction` lokalnie i priorytetowo; requesty serializowane, abortowane lub wznawiane po odmontowaniu.
   - Jev dostaje minimalne podsumowanie MetaEvents; odpowiedź korzysta ze skrótu Jev albo OpenAI i nie przesyła wygenerowanego copy do UI.
   - Manual: trzy produkty + powrót; pusty wynik; zamknięcie boxa.
 - **Unknowns:** —
