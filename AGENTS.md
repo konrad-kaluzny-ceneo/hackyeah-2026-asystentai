@@ -39,6 +39,10 @@ Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can d
 - `src/app/page.tsx` — shell description.
 - `src/app/katalog/page.tsx` — empty demo-catalog route.
 - `src/app/layout.tsx` — Polish document language and the shared header.
+- `src/app/api/meta-events/route.ts` — POST endpoint for client behavior meta events.
+- `src/behavior/` — client-side pipeline (collector → buffer → analyzer → detectors → dispatcher). Raw events never leave the browser.
+- `src/server/meta-events/` — Zod validation and persistence of meta events.
+- `src/lib/db/` — Drizzle ORM schema (`meta_events` table) and lazy pg client.
 - `@/*` maps to `src/*` in `@tsconfig.json`.
 - Living product docs stay under `context/foundation/`. Do not copy them into `src/`.
 
@@ -46,6 +50,15 @@ Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can d
 
 - `npm run dev` — local app at http://localhost:3000.
 - `npm run lint` — ESLint (`@eslint.config.mjs`).
+- `npm run typecheck` — `tsc --noEmit`.
 - `npm run build` — production build. Run it before a PR that changes the app.
+- `npm test` — Vitest suite under `tests/` (`@vitest.config.ts`, happy-dom). Use `npm run test:watch` while iterating.
+- `npm run db:generate` — drizzle-kit generates SQL migrations into `drizzle/` from `@src/lib/db/schema.ts`.
+- `npm run db:migrate` — drizzle-kit applies pending migrations; requires `DATABASE_URL` (see `@.env.example`).
 
-There is no test runner in this repo. Do not claim a test command exists.
+## Behavior-tracking rules
+
+- Raw events stay in the browser (memory + sessionStorage). Only meta events are POSTed to `/api/meta-events`.
+- `add_to_cart`, `compare_added`, `compare_removed`, `favorite_added` exist in the TypeScript contract for future reuse, but the demo collector never emits them (PRD Non-Goals; `@context/foundation/prd.md`).
+- Feature flag: `NEXT_PUBLIC_BEHAVIOR_TRACKING=true` enables the tracker client-side. Anything else disables it.
+- Detectors, page-type rules, thresholds and the detector dedupe/cooldown live under `src/behavior/`. See `docs/adding-detector.md` and `docs/adding-page-type.md` before extending.

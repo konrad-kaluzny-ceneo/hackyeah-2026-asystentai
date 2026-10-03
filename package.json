@@ -6,21 +6,33 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "drizzle-orm": "^0.45.3",
     "next": "16.3.7",
+    "pg": "^8.23.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
+    "happy-dom": "^20.14.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }
