@@ -75,6 +75,7 @@ export const THRESHOLDS = {
       hesitation_dwell: 60 * 1000,
       rapid_scroll_burst: 30 * 1000,
       price_focus: 60 * 1000,
+      description_focus: 60 * 1000,
       search_refinement_loop: 2 * 60 * 1000,
       assistant_proposal_dismissed: 0,
       delivery_information_seeking: 60 * 1000,
@@ -166,6 +167,10 @@ export const THRESHOLDS = {
       windowMs: 30 * 1000,
     },
     price_focus: {
+      minDwellMs: 3 * 1000,
+      windowMs: 60 * 1000,
+    },
+    description_focus: {
       minDwellMs: 3 * 1000,
       windowMs: 60 * 1000,
     },

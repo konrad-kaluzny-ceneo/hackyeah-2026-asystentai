@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AssistantProposalDismissedDetector } from "@/behavior/detectors/assistant-proposal-dismissed";
+import { DescriptionFocusDetector } from "@/behavior/detectors/description-focus";
 import { PriceFocusDetector } from "@/behavior/detectors/price-focus";
 import { SearchRefinementLoopDetector } from "@/behavior/detectors/search-refinement-loop";
 import { buildDetectorRegistry } from "@/behavior/detectors";
@@ -16,6 +17,82 @@ import {
 } from "../fixtures";
 
 describe("S-06 meta-event detectors", () => {
+  it("emits description_focus when dwell on the product description meets the threshold", () => {
+    resetFixtureSeed();
+    const detector = new DescriptionFocusDetector(makeIdGenerator("evt"));
+    const events: RawEvent[] = [
+      makeRawEvent({ name: "element_exposure_started", elementId: "product-description", timestamp: 10_000, pageType: "product" }),
+      makeRawEvent({ name: "element_exposure_ended", elementId: "product-description", timestamp: 14_000, pageType: "product" }),
+    ];
+    const out = detector.analyze(
+      makeAnalysisContext({
+        events,
+        windowStart: 0,
+        windowEnd: 15_000,
+        pageType: "product",
+        pathname: "/produkt/lodowka-x",
+        ecommerce: makeEcommerceContext({
+          pageType: "product",
+          pathname: "/produkt/lodowka-x",
+          productId: "p-1",
+          brandId: "b-1",
+          categoryId: "fridges",
+        }),
+      }),
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].name).toBe("description_focus");
+    expect(out[0].metrics["dwellMs"]).toBe(4_000);
+    expect(out[0].metrics["exposureCount"]).toBe(1);
+    expect(out[0].subject?.id).toBe("p-1");
+    expect(MetaEventSchema.safeParse(out[0]).success).toBe(true);
+  });
+
+  it("does not emit description_focus below threshold or outside product pages", () => {
+    resetFixtureSeed();
+    const detector = new DescriptionFocusDetector(makeIdGenerator("evt"));
+    const short: RawEvent[] = [
+      makeRawEvent({ name: "element_exposure_started", elementId: "product-description", timestamp: 0, pageType: "product" }),
+      makeRawEvent({ name: "element_exposure_ended", elementId: "product-description", timestamp: 2_000, pageType: "product" }),
+    ];
+    expect(
+      detector.analyze(makeAnalysisContext({ events: short, windowEnd: 5_000, pageType: "product" })),
+    ).toEqual([]);
+
+    const nonProduct: RawEvent[] = [
+      makeRawEvent({ name: "element_exposure_started", elementId: "product-description", timestamp: 0, pageType: "catalog" }),
+      makeRawEvent({ name: "element_exposure_ended", elementId: "product-description", timestamp: 10_000, pageType: "catalog" }),
+    ];
+    expect(
+      detector.analyze(makeAnalysisContext({ events: nonProduct, windowEnd: 12_000, pageType: "catalog" })),
+    ).toEqual([]);
+  });
+
+  it("counts an exposure that is still open at analysis time", () => {
+    resetFixtureSeed();
+    const detector = new DescriptionFocusDetector(makeIdGenerator("evt"));
+    const out = detector.analyze(
+      makeAnalysisContext({
+        events: [
+          makeRawEvent({
+            name: "element_exposure_started",
+            elementId: "product-description",
+            timestamp: 1_000,
+            pageType: "product",
+          }),
+        ],
+        windowStart: 0,
+        windowEnd: 5_000,
+        pageType: "product",
+        ecommerce: makeEcommerceContext({ pageType: "product", productId: "p-1" }),
+      }),
+    );
+
+    expect(out).toHaveLength(1);
+    expect(out[0].metrics["dwellMs"]).toBe(4_000);
+    expect(out[0].metrics["exposureCount"]).toBe(1);
+  });
+
   it("emits price_focus when dwell on the price box meets the threshold", () => {
     resetFixtureSeed();
     const detector = new PriceFocusDetector(makeIdGenerator("evt"));
@@ -115,11 +192,12 @@ describe("S-06 meta-event detectors", () => {
     expect(detector.analyze(makeAnalysisContext({ events, windowStart: 90_000, windowEnd: 120_000 }))).toEqual([]);
   });
 
-  it("registry returns 15 detectors including the new three", () => {
+  it("registry returns 16 detectors including the new four", () => {
     const names = buildDetectorRegistry(makeIdGenerator("evt")).map((d) => d.name);
     expect(names).toContain("price_focus");
     expect(names).toContain("search_refinement_loop");
     expect(names).toContain("assistant_proposal_dismissed");
-    expect(names).toHaveLength(15);
+    expect(names).toContain("description_focus");
+    expect(names).toHaveLength(16);
   });
 });

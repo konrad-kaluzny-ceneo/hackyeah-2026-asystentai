@@ -90,7 +90,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </section>
 
       <section className="mt-12 grid gap-8 border-t border-[#e4e9e5] pt-9 lg:grid-cols-[.8fr_1.2fr]">
-        <div>
+        <div
+          data-element-id="product-description"
+          data-subject-product-id={product.id}
+          data-subject-category-id={product.categoryId}
+          data-subject-brand-id={product.brandId}
+        >
           <p className="text-xs font-bold uppercase tracking-[.16em] text-[#829389]">Opis produktu</p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight">Codzienna wygoda</h2>
           <p className="mt-4 text-sm leading-7 text-[#65736a]">{product.description}</p>

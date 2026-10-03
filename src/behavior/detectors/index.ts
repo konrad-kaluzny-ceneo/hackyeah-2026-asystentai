@@ -5,6 +5,7 @@ import { AssistantProposalDismissedDetector } from "./assistant-proposal-dismiss
 import { ComparisonOscillationDetector } from "./comparison-oscillation";
 import { CategoryInterestDetector } from "./category-interest";
 import { DeadClickClusterDetector } from "./dead-click-cluster";
+import { DescriptionFocusDetector } from "./description-focus";
 import { FilterEngagementDetector } from "./filter-engagement";
 import { HesitationDwellDetector } from "./hesitation-dwell";
 import { NavigationLoopDetector } from "./navigation-loop";
@@ -39,6 +40,7 @@ export function buildDetectorRegistry(
     new RapidScrollBurstDetector(generateEventId),
     new NavigationLoopDetector(generateEventId),
     new PriceFocusDetector(generateEventId),
+    new DescriptionFocusDetector(generateEventId),
     new SearchRefinementLoopDetector(generateEventId),
     new AssistantProposalDismissedDetector(generateEventId),
   ];
