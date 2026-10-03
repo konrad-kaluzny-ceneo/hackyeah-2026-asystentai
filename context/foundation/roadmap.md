@@ -34,6 +34,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-01 | signal-strength-engine | … system klasyfikuje rodzaj intencji zakupowej z faktów katalogu | F-02 | FR-001, FR-002 | done |
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
+| S-04 | jev-session-proposal | … dostać jedną propozycję ułożoną przez model z faktów katalogu tej sesji | S-02, S-03 | US-03, FR-010 | ready |
 
 ## Streams
 
@@ -42,6 +43,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | A | Sygnały → inferencja | `F-01` → `F-02` → `S-01` | Wspólna baza pod oba scenariusze użytkownika. |
 | B | Decision fatigue | `S-02` | Gwiazda przewodnia; dołącza do Stream A po `S-01`. |
 | C | Tarcie wyszukiwania | `S-03` | Równoległy z Stream B po `S-01`; ten sam box UX. |
+| D | Treść propozycji | `S-02` + `S-03` → `S-04` | Model układa tekst jednej propozycji z faktów katalogu. Lane: Edyta. |
 
 ## Baseline
 
@@ -141,6 +143,28 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 - **Risk:** Drugi must-have scenariusz tarcia; można odłożyć po S-02 przy skrajnej presji czasu.
 - **Status:** done
 
+### S-04: Propozycja ułożona z sesji
+
+- **Outcome:** kupujący dostaje jedną propozycję, której treść model ułożył z faktów katalogu tej sesji.
+- **Change ID:** jev-session-proposal
+- **PRD refs:** US-03, FR-010
+- **Prerequisites:** S-02, S-03
+- **Parallel with:** —
+- **Blockers:** —
+- **Acceptance:**
+  - Asystent pokazuje jedną propozycję, a jej tekst pochodzi z odpowiedzi modelu.
+  - Model dostaje fakty katalogu bieżącej sesji.
+  - Wywołanie korzysta z konfiguracji modelu już obecnej w środowisku.
+- **Unknowns:** —
+- **Risk:** Odpowiedź modelu może nie zmieścić się w 3 sekundach albo zaproponować porównanie kilku modeli, które jest poza MVP.
+- **Status:** ready
+
+Source / Lineage:
+
+- Added via `/roadmap-add` on 2026-10-03.
+- Goal: treść jednej propozycji wynika z faktów bieżącej sesji katalogu.
+- Lane: Edyta.
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID | Suggested issue title | Ready for `/plan` | Notes |
@@ -150,12 +174,13 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 | S-01 | signal-strength-engine | Classify shopping signal strength | no | Done dla dwóch rodzajów; trzy nazwane bez klasyfikacji |
 | S-02 | decision-fatigue-box | One assistant proposal on decision fatigue | no | Done |
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |
+| S-04 | jev-session-proposal | One model-written proposal from catalog facts | yes | Lane: Edyta. Klucze modelu są w lokalnym środowisku, poza gitem. |
 
 ## Open Roadmap Questions
 
 1. **Mock katalog vs integracja Ceneo na demo** — Owner: team. Block: roadmap-wide (nie blokuje F-01).
 2. **Sygnały przerwania przeglądania (B-017)** — Owner: user. Block: no.
-3. **Pipeline inferencji (model Jev) — hosting i klucze** — Owner: team. Block: S-02 jeśli brak decyzji przed implementacją propozycji tekstowej.
+3. **Pipeline inferencji (model Jev) — hosting i klucze** — Owner: team. Zamknięte 2026-10-03: hosting i klucze są w lokalnym środowisku. Dalsza praca to S-04.
 
 ## Parked
 

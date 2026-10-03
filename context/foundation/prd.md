@@ -3,6 +3,7 @@ project: "Asystent AI — intencje na bieżąco"
 version: 1
 status: draft
 created: 2026-10-03
+updated: 2026-10-03
 product_type: web-app
 target_scale:
   users: medium
@@ -65,6 +66,14 @@ Osoba kupująca sprzęt AGD online, korzystająca z filtrów i wyszukiwarki na s
 - **When** system wykryje tarcie wyszukiwania
 - **Then** asystent proponuje jedno konkretne działanie (np. cofnięcie wybranego filtra lub zmiana frazy)
 
+### US-03: Kupujący dostaje propozycję ułożoną z faktów tej sesji
+
+- **Given** w tej sesji są fakty przeglądania katalogu, a model jest już skonfigurowany
+- **When** asystent pokazuje propozycję
+- **Then** ta jedna propozycja ma treść ułożoną przez model z faktów katalogu tej sesji
+
+Value: treść jednej propozycji wynika z faktów bieżącej sesji katalogu
+
 ## Functional Requirements
 
 ### Sygnały i stany
@@ -93,6 +102,8 @@ Osoba kupująca sprzęt AGD online, korzystająca z filtrów i wyszukiwarki na s
   > Socratic: Counter: „za dużo stanów UI”. Resolution: must-have subset; porównanie i cross-sell w nice-to-have / non-goals.
 
 - FR-009: Asystent respektuje: jedna propozycja na raz, priorytet koszyka nad inspiracją, wyciszenie po zamknięciu, brak powtórek pytań, korekta założeń, honest uncertainty przy słabym sygnale. Priority: must-have
+
+- FR-010: Asystent może ułożyć treść jednej propozycji z faktów katalogu bieżącej sesji, korzystając ze skonfigurowanego modelu. Priority: must-have
 
 ## Non-Functional Requirements
 
