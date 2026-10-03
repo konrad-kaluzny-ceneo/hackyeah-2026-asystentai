@@ -1,0 +1,55 @@
+# Bootstrapper-side config (per-starter overrides + per-language audit commands)
+#
+# Owned by: bootstrapper
+# Consumes from: tech-stack-selector's references/starter-registry.yaml (by starter_id lookup)
+# Validator: scripts/validate-starter-registry-sync.mjs (one-way: every starter_id keyed
+#            under `starters:` here must exist in the tech-stack-selector registry)
+#
+# Two top-level keys:
+#   starters         — keyed-by-starter_id map carrying bootstrapper-side overrides for the
+#                      starters that need them. cwd_strategy is the only per-starter override
+#                      v1 carries. Cards not listed here default to `subdir-then-move` (see
+#                      `scaffold-merge.md`).
+#   audit_commands   — language_family -> shell command lookup for the post-scaffold audit
+#                      slot. `null` means "no built-in audit tool for this ecosystem"; Step 3
+#                      skips the audit and notes the skip in verification.md.
+#
+# cwd_strategy values (see references/scaffold-merge.md for the full mechanic):
+#   subdir-then-move — substitute `{name}=.bootstrap-scaffold`, run cmd, apply conflict
+#                       policy moving files up, delete temp dir.
+#   native-cwd       — substitute `{name}=.`, run cmd directly in cwd; no merge step;
+#                       conflict policy still applies pre-flight.
+#   git-clone        — same as subdir-then-move plus delete `.bootstrap-scaffold/.git/`
+#                       before move-up so the upstream starter's history does not leak.
+
+starters:
+  next:
+    cwd_strategy: subdir-then-move
+  astro:
+    cwd_strategy: subdir-then-move
+  vite-react:
+    cwd_strategy: subdir-then-move
+  t3:
+    cwd_strategy: subdir-then-move
+  hono:
+    cwd_strategy: native-cwd
+  expo:
+    cwd_strategy: subdir-then-move
+  astro-starter:
+    cwd_strategy: git-clone
+  django:
+    cwd_strategy: native-cwd
+  fastapi:
+    cwd_strategy: native-cwd
+
+audit_commands:
+  js: "npm audit --json"
+  python: "pip-audit"
+  ruby: "bundle audit check"
+  rust: "cargo audit"
+  go: "govulncheck ./..."
+  dotnet: "dotnet list package --vulnerable"
+  java: null
+  php: null
+  dart: null
+  multi: null

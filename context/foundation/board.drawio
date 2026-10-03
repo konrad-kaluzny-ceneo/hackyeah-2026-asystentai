@@ -1,0 +1,129 @@
+<mxfile host="app.diagrams.net" pages="2">
+  <diagram id="sciezka" name="Draft" compressed="false">
+    <mxGraphModel dx="1254" dy="597" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="BHXNnO2DprNrXNOJPkzE-11" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="BHXNnO2DprNrXNOJPkzE-10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="BHXNnO2DprNrXNOJPkzE-13" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="BHXNnO2DprNrXNOJPkzE-12" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="QpSfiPSOI_3kDt8jnSOE-5" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="QpSfiPSOI_3kDt8jnSOE-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-17" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="Uq7As5gmzwwlNb1xTZ3C-16" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-25" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="Uq7As5gmzwwlNb1xTZ3C-24" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-37" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="Uq7As5gmzwwlNb1xTZ3C-36">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="BHXNnO2DprNrXNOJPkzE-9" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Projekt: Asystent AI na bieżąco &lt;b&gt;analizujący intencje użytkownika&lt;/b&gt; i proponujący dalsze działania" vertex="1">
+          <mxGeometry height="80" width="210" x="470" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="BHXNnO2DprNrXNOJPkzE-10" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="Stan: Decision Fatigue (zmęczenie decyzyjne)" vertex="1">
+          <mxGeometry height="60" width="120" x="785" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="BHXNnO2DprNrXNOJPkzE-15" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="BHXNnO2DprNrXNOJPkzE-14" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="QpSfiPSOI_3kDt8jnSOE-2" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="QpSfiPSOI_3kDt8jnSOE-1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="BHXNnO2DprNrXNOJPkzE-12" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="Funkcja: Analiza intencji użytkownika" vertex="1">
+          <mxGeometry height="60" width="120" x="515" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-30" edge="1" parent="1" source="BHXNnO2DprNrXNOJPkzE-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="Uq7As5gmzwwlNb1xTZ3C-29" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="BHXNnO2DprNrXNOJPkzE-14" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="Narzędzie analizy intencji: Model Jev wykonujący analizy na bieżąco" vertex="1">
+          <mxGeometry height="60" width="120" x="376.5" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-2" edge="1" parent="1" source="QpSfiPSOI_3kDt8jnSOE-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="Uq7As5gmzwwlNb1xTZ3C-1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-5" edge="1" parent="1" source="QpSfiPSOI_3kDt8jnSOE-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="Uq7As5gmzwwlNb1xTZ3C-4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-7" edge="1" parent="1" source="QpSfiPSOI_3kDt8jnSOE-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="Uq7As5gmzwwlNb1xTZ3C-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-9" edge="1" parent="1" source="QpSfiPSOI_3kDt8jnSOE-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" target="Uq7As5gmzwwlNb1xTZ3C-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-11" edge="1" parent="1" source="QpSfiPSOI_3kDt8jnSOE-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="Uq7As5gmzwwlNb1xTZ3C-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-15" edge="1" parent="1" source="QpSfiPSOI_3kDt8jnSOE-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="Uq7As5gmzwwlNb1xTZ3C-14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="QpSfiPSOI_3kDt8jnSOE-1" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="Stany użytkownika" vertex="1">
+          <mxGeometry height="60" width="120" x="740" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="QpSfiPSOI_3kDt8jnSOE-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Stan: Exit Intent" vertex="1">
+          <mxGeometry height="60" width="120" x="785" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-1" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;b&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Intencja zakupowa&lt;/font&gt;&lt;/b&gt;&lt;div&gt;&lt;b style=&quot;&quot;&gt;Sygnały na stronie:&amp;nbsp;&lt;/b&gt;przeglądane kategorie, Search na stronie, filtry, karta produktu, dodanie do koszyka;&lt;/div&gt;&lt;div&gt;&lt;b&gt;Wpływa na:&lt;/b&gt; gotowość zakupu&lt;/div&gt;" vertex="1">
+          <mxGeometry height="95" width="260" x="965" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-27" edge="1" parent="1" source="Uq7As5gmzwwlNb1xTZ3C-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="Uq7As5gmzwwlNb1xTZ3C-26" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-4" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;b&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Moc sygnału&lt;/font&gt;&lt;/b&gt;&lt;div&gt;- Search Samsung -&amp;gt; mocny sygnał o szukanym producencie&lt;/div&gt;&lt;div&gt;- Oglądanie produktów z różnymi parametrami -&amp;gt; średni sygnał o niepewności co do parametrów (użytkownik nie wie czego potrzebuje)&lt;/div&gt;&lt;div&gt;- Oglądanie produktów o podobnych parametrach -&amp;gt; średni sygnał o Decision Fatigue (użytkownik wie czego potrzebuje, ale ma zbyt wiele opcji wyboru)&lt;/div&gt;&lt;div&gt;- Kategoria lodówki -&amp;gt; słaby sygnał o budżecie&lt;/div&gt;" vertex="1">
+          <mxGeometry height="130" width="375" x="530" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-6" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;Potrzeba doradztwa&lt;/b&gt;&lt;/span&gt;&lt;br&gt;&lt;div&gt;&lt;b style=&quot;&quot;&gt;Sygnały na stronie:&amp;nbsp;&lt;/b&gt;otwieranie opisów, pytania w agencie, oglądanie produktów z różnymi parametrami;&lt;/div&gt;&lt;div&gt;&lt;b&gt;Wpływa na: &lt;/b&gt;gotowość zakupu&lt;/div&gt;" vertex="1">
+          <mxGeometry height="95" width="260" x="965" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-8" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;Ograniczenia i preferencje&lt;/b&gt;&lt;/span&gt;&lt;br&gt;&lt;div&gt;&lt;b style=&quot;&quot;&gt;Sygnały na stronie: &lt;/b&gt;ustawianie filtrów, dane z przeglądanych produktów;&lt;br&gt;&lt;b&gt;Wpływa na:&lt;/b&gt;&amp;nbsp;&lt;span style=&quot;background-color: transparent;&quot;&gt;budżet, wymiary, sposób zabudowy, marka, energooszczędność, kolor&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="110" width="260" x="965" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-10" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;Tarcie lub problem&lt;/b&gt;&lt;/span&gt;&lt;br&gt;&lt;div&gt;&lt;b style=&quot;&quot;&gt;Sygnały na stronie:&amp;nbsp;&lt;/b&gt;pusty wynik Searcha, wielokrotne zmiany filtrów, błędy na stronie, porzucone kroki / cofanie decyzji&lt;/div&gt;&lt;div&gt;&lt;b&gt;Wpływa na:&lt;/b&gt; możliwość zakupu&lt;/div&gt;" vertex="1">
+          <mxGeometry height="95" width="260" x="965" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-14" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;span style=&quot;font-size: 18px;&quot;&gt;&lt;b&gt;Etap relacji&lt;/b&gt;&lt;/span&gt;&lt;br&gt;&lt;div&gt;&lt;b style=&quot;&quot;&gt;Sygnały na stronie:&amp;nbsp;&lt;/b&gt;historia sesji i zakupów, data założenia konta,&lt;/div&gt;&lt;div&gt;&lt;b&gt;Wpływa na:&lt;/b&gt; łatwość obsługi strony, znajomość filtrów i funkcji&lt;/div&gt;" vertex="1">
+          <mxGeometry height="95" width="260" x="965" y="720" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-23" edge="1" parent="1" source="Uq7As5gmzwwlNb1xTZ3C-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="Uq7As5gmzwwlNb1xTZ3C-22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-16" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;b&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Stany boxa:&lt;/font&gt;&lt;/b&gt;&lt;div&gt;- &lt;b&gt;ukryty&lt;/b&gt;&lt;/div&gt;&lt;div&gt;- &lt;b&gt;dyskretny &lt;/b&gt;(tylko zachęta)&lt;/div&gt;&lt;div&gt;- &lt;b&gt;porada kontekstowa &lt;/b&gt;(przy suszarce sprawdź ...)&lt;/div&gt;&lt;div&gt;- &lt;b&gt;rekomendacja &lt;/b&gt;(polecenie X produktów z filtrów)&lt;/div&gt;&lt;div&gt;- &lt;b&gt;porównanie modeli&lt;/b&gt;&lt;/div&gt;&lt;div&gt;- &lt;b&gt;pytania doprecyzowujące&lt;/b&gt; (brakujący kontekst, który faktycznie zmieni rekomendacje)&lt;/div&gt;&lt;div&gt;- &lt;b&gt;przekierowania do działania&lt;/b&gt;&amp;nbsp;(np. filtry)&lt;/div&gt;&lt;div&gt;- &lt;b&gt;cofanie filtrów&lt;/b&gt;&amp;nbsp;(gdy search + filtry zwróciły 0 wyników pomoc w cofnięciu określonych)&lt;/div&gt;&lt;div&gt;&lt;b&gt;- cross-selling&lt;/b&gt; (zobacz jaki filtr pasuje do tego modelu)&lt;/div&gt;&lt;div&gt;&lt;b&gt;- wyciszony&lt;/b&gt;&amp;nbsp;(respektuje zamknięcie)&lt;/div&gt;&lt;div&gt;&lt;b&gt;- ładowanie &lt;/b&gt;(animacja nie przeszkadzająca w przeglądaniu - lub jej brak)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="245" width="275" x="50" y="127.5" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-22" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;b&gt;&lt;font style=&quot;font-size: 18px;&quot;&gt;Unikanie irytacji:&lt;/font&gt;&lt;/b&gt;&lt;div&gt;- &lt;b&gt;Respektuj moc sygnału: &lt;/b&gt;najpierw używaj sygnałów o wysokiej pewności&lt;/div&gt;&lt;div&gt;- &lt;b&gt;Jedna propozycja na raz&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;- Priorytet propozycji: &lt;/b&gt;pomoc w koszyku ma większy priorytet niż nowa inspiracja&lt;/div&gt;&lt;div&gt;-&lt;b&gt; Pamiętaj o odrzuceniu: &lt;/b&gt;Zamknięcie boxa powinno wyciszać propozycje przed określony czas&lt;/div&gt;&lt;div&gt;&lt;b&gt;- Nie pytaj kilka razy o te same informacje&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;- Pozwól łatwo poprawić założenie:&lt;/b&gt; np. zmiana decyzji co do rozmiaru&lt;/div&gt;&lt;div&gt;&lt;b&gt;- Nie udawaj pewności przy słabym sygnale.&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="245" width="310" x="32.5" y="412.5" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-24" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="&lt;b&gt;Cele:&lt;/b&gt;&lt;div&gt;- mniej porzuceń&lt;/div&gt;&lt;div&gt;- wyższa wartość koszyka&lt;/div&gt;&lt;div&gt;- powrót użytkownika&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="179" x="485.5" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-26" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="Sygnały uzasadniające przerwanie przeglądania:&lt;div&gt;- ???&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="283" x="576" y="600" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-33" edge="1" parent="1" source="Uq7As5gmzwwlNb1xTZ3C-29" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="Uq7As5gmzwwlNb1xTZ3C-32" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-29" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="Na prawdę posiadane dane:&lt;div&gt;- filtry&lt;/div&gt;&lt;div&gt;- ???&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="155" x="359" y="475" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-32" parent="1" style="whiteSpace=wrap;html=1;rounded=0;" value="Funkcje personalizacji na stronie:&lt;div&gt;- ??? (np. ulubione marki)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="203" x="347" y="645" as="geometry" />
+        </mxCell>
+        <mxCell id="Uq7As5gmzwwlNb1xTZ3C-36" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="&lt;b&gt;Gdzie agent ma się zatrzymać?&lt;/b&gt;&lt;div&gt;- czy może dobierać zestaw? ???&lt;/div&gt;&lt;div&gt;- czy może dodawać do koszyka? ???&lt;/div&gt;&lt;div&gt;- czy może inicjować kontakt z obsługą? ???&lt;/div&gt;" vertex="1">
+          <mxGeometry height="70" width="310" x="785" y="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="h4vQV3dBPn90pVBm1vDd" name="Projekt">
+    <mxGraphModel dx="683" dy="865" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

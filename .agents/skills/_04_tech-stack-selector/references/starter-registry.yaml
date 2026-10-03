@@ -1,0 +1,899 @@
+# Starter Registry (canonical source of truth)
+#
+# Owned by: tech-stack-selector
+# Consumed by: bootstrapper
+# Validator: scripts/validate-starter-registry-sync.mjs (one-way: bootstrapper-references ⊆ this registry)
+#
+# Two top-level keys:
+#   recommended_defaults — small map naming the lead starter for each (product_type, language_family) cell.
+#                           Cells with no vetted default carry "<none>" — Q0 forces custom path.
+#   starters             — keyed-by-starter_id set of cards. Each card carries narrative fields the LLM
+#                           reasons over plus quality-gate booleans plus CLI execution data plus deployment
+#                           defaults plus bootstrapper_confidence.
+#
+# Stars and last_updated are snapshots at registry write date (2026-05-04).
+# bootstrapper_confidence values: verified | first-class | best-effort
+#   verified    — bootstrapper has been run end-to-end on this stack.
+#   first-class — registered with a valid CLI; expected to work but not battle-tested.
+#   best-effort — limited support; manual steps likely.
+
+recommended_defaults:
+  web:
+    js: astro-starter
+    python: django
+    ruby: rails
+    java: spring
+    php: laravel
+    dotnet: dotnet
+    go: go
+    rust: <none>
+    dart: <none>
+  api:
+    js: hono
+    python: fastapi
+    ruby: rails-api
+    java: spring
+    go: go
+    rust: axum
+    dotnet: dotnet
+    php: laravel
+  saas:
+    js: astro-starter
+    python: django
+    ruby: rails
+    java: spring
+    php: laravel
+  mobile:
+    dart: flutter
+    js: expo
+  desktop:
+    rust: tauri
+    js: <none>
+    dart: flutter
+  cli:
+    rust: rust
+    go: go
+    js: <none>
+    python: <none>
+
+starters:
+  # === JS / TypeScript family ===
+
+  astro-starter:
+    name: "Astro Starter (Astro + Supabase + Cloudflare)"
+    language_family: js
+    description: >
+      Astro 6 (meta-framework + API routes) + React 19 (UI components / interactive islands) +
+      TypeScript (project-wide explicit contracts) + Tailwind CSS 4 (utility-class styling) +
+      Supabase (PostgreSQL + auth + storage + TypeScript SDK) + Cloudflare Pages/Workers/KV
+      (deployment + edge runtime via @astrojs/cloudflare). Opinionated full-stack starter
+      pinned to a single agent-friendly stack across UI, data, auth, and deploy.
+    fit:
+      - "solo learner with weak preference; web/SaaS product type"
+      - "auth + database + edge deploy out of the box"
+      - "<3-month timeline with shipping-first discipline"
+      - "TypeScript-first; explicit Zod schemas at boundaries"
+    gotchas:
+      - "edge runtime constrains long-running tasks; queue or external worker for heavy jobs"
+      - "Supabase RLS must be configured early or auth gaps creep in"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 50000
+    last_updated: 2026-05-01
+    docs_url: "https://github.com/przeprogramowani/astro-starter"
+    for: [web-app, saas, full-stack, website]
+    tags: [astro, react, typescript, supabase, cloudflare, opinionated]
+    toolchain:
+      package_manager: npm
+      runtime_version: "node 22"
+    cmd_template: "git clone https://github.com/przeprogramowani/astro-starter {name} && cd {name} && {pm} install"
+    deployment_defaults: [cloudflare-pages, vercel, fly]
+    bootstrapper_confidence: first-class
+    alternatives_to_consider: [astro, next, t3]
+
+  next:
+    name: "Next.js"
+    language_family: js
+    description: >
+      Vercel's full-stack React meta-framework with App Router, server components, server actions,
+      and tight Vercel deployment integration. The mainstream JS/SaaS choice.
+    fit:
+      - "general-purpose web/SaaS in JS"
+      - "team comfortable with React server components"
+      - "Vercel deployment as default expectation"
+    gotchas:
+      - "App Router complexity; client/server boundaries surprise newcomers"
+      - "Vercel-flavored APIs may not port cleanly to other hosts"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 130000
+    last_updated: 2026-04-15
+    docs_url: "https://nextjs.org/docs"
+    for: [web-app, full-stack, saas]
+    tags: [react, ssr, popular]
+    toolchain:
+      package_manager: npm
+    cmd_template: 'npx create-next-app@latest {name} --ts --tailwind --eslint --app --src-dir --import-alias "@/*" --use-{pm}'
+    deployment_defaults: [vercel, cloudflare-pages, fly, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [astro-starter, t3, react-router]
+
+  astro:
+    name: "Astro"
+    language_family: js
+    description: >
+      Content-first meta-framework with island architecture. Ships zero JS by default; opt in to
+      interactive islands (React, Vue, Svelte, etc.). Fast for content sites, blogs, docs.
+    fit:
+      - "marketing site, blog, documentation"
+      - "content-heavy with selective interactivity"
+    gotchas:
+      - "not a SPA — full SaaS apps fit better in Next/T3"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 50000
+    last_updated: 2026-04-10
+    docs_url: "https://docs.astro.build"
+    for: [website, blog, docs, landing]
+    tags: [astro, content, islands, fast]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npm create astro@latest -- {name} --template basics --install --git --yes"
+    deployment_defaults: [cloudflare-pages, vercel, netlify]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [astro-starter, next]
+
+  vite-react:
+    name: "Vite + React"
+    language_family: js
+    description: >
+      Minimal Vite + React TS template. Pure SPA — no SSR, no routing baked in. For dashboards,
+      admin panels, and apps where you bring your own backend.
+    fit:
+      - "SPA dashboard with separate API"
+      - "fast iteration; minimal opinions"
+    gotchas:
+      - "no SSR/routing/data layer included"
+      - "you assemble the rest of the stack"
+    agent_friendly:
+      typed: true
+      convention_based: false
+      popular_in_training: true
+      well_documented: true
+    stars: 70000
+    last_updated: 2026-04-12
+    docs_url: "https://vitejs.dev/guide/"
+    for: [spa, dashboard, web-app]
+    tags: [react, spa, lightweight]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npm create vite@latest {name} -- --template react-ts"
+    deployment_defaults: [cloudflare-pages, vercel, netlify, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [vite-vue, next]
+
+  vite-vue:
+    name: "Vite + Vue"
+    language_family: js
+    description: >
+      Vite + Vue 3 TS template. SPA shell for Vue projects. Bring your own backend and routing.
+    fit:
+      - "SPA dashboard with Vue preference"
+    gotchas:
+      - "no SSR/routing/data layer included"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 12000
+    last_updated: 2026-04-12
+    docs_url: "https://vuejs.org"
+    for: [spa, dashboard, web-app]
+    tags: [vue, spa]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npm create vite@latest {name} -- --template vue-ts"
+    deployment_defaults: [cloudflare-pages, vercel, netlify, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [nuxt, vite-react]
+
+  sveltekit:
+    name: "SvelteKit"
+    language_family: js
+    description: >
+      Svelte's full-stack meta-framework with file-based routing, server endpoints, and adapter-based
+      deploy. Smaller bundle and simpler reactivity than React.
+    fit:
+      - "performance-sensitive web apps"
+      - "team comfortable with Svelte"
+    gotchas:
+      - "smaller training-data corpus than React; agents stumble more often"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: false
+      well_documented: true
+    stars: 18000
+    last_updated: 2026-04-12
+    docs_url: "https://kit.svelte.dev"
+    for: [web-app, full-stack]
+    tags: [svelte, ssr, performant]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx sv create {name} --template minimal --types ts --no-add-ons --install {pm}"
+    deployment_defaults: [vercel, cloudflare-pages, netlify, fly]
+    bootstrapper_confidence: first-class
+    alternatives_to_consider: [next, nuxt]
+
+  nuxt:
+    name: "Nuxt"
+    language_family: js
+    description: >
+      Vue's full-stack meta-framework with file-based routing, server engine (Nitro), and broad
+      deployment adapters. The Vue analog to Next.js.
+    fit:
+      - "Vue team building full-stack web app"
+    gotchas:
+      - "smaller plugin ecosystem than Next"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 53000
+    last_updated: 2026-04-15
+    docs_url: "https://nuxt.com"
+    for: [web-app, full-stack]
+    tags: [vue, ssr]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx nuxi init {name} --packageManager {pm} --install --gitInit"
+    deployment_defaults: [vercel, cloudflare-pages, netlify, fly]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [vite-vue, next]
+
+  react-router:
+    name: "React Router (formerly Remix)"
+    language_family: js
+    description: >
+      React Router v7+ as a full-stack framework (the Remix evolution). File-based routes,
+      data loaders, server actions; multi-host deployment.
+    fit:
+      - "full-stack React without Vercel lock-in"
+    gotchas:
+      - "naming churn — older Remix tutorials may not apply cleanly"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 55000
+    last_updated: 2026-04-20
+    docs_url: "https://reactrouter.com"
+    for: [web-app, full-stack]
+    tags: [react, ssr, routing]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx create-react-router@latest {name} --yes --package-manager {pm}"
+    deployment_defaults: [cloudflare-pages, vercel, fly, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [astro-starter, next, t3]
+
+  t3:
+    name: "T3 Stack"
+    language_family: js
+    description: >
+      Opinionated TypeScript-first SaaS starter: Next.js + Tailwind + tRPC + Drizzle + NextAuth.
+      Type-safe end-to-end. The default JS+SaaS recommendation.
+    fit:
+      - "solo SaaS with auth + database from day 1"
+      - "TypeScript-end-to-end discipline"
+    gotchas:
+      - "tRPC binds the client to the backend's TypeScript; harder to swap out"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 27000
+    last_updated: 2026-04-25
+    docs_url: "https://create.t3.gg"
+    for: [saas, full-stack, web-app]
+    tags: [react, trpc, typesafe, opinionated]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx create-t3-app@latest {name} --CI --tailwind --trpc --drizzle --appRouter --biome --dbProvider sqlite"
+    deployment_defaults: [vercel, cloudflare-pages, fly]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [astro-starter, next]
+
+  expo:
+    name: "Expo (React Native)"
+    language_family: js
+    description: >
+      React Native with Expo's managed workflow. Cross-platform mobile + web from a single codebase.
+      The default JS mobile recommendation.
+    fit:
+      - "iOS + Android from a JS/React team"
+      - "cross-platform mobile MVP"
+    gotchas:
+      - "ejecting to bare workflow is a one-way door"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 36000
+    last_updated: 2026-04-20
+    docs_url: "https://docs.expo.dev"
+    for: [mobile-app, cross-platform]
+    tags: [react-native, mobile]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx create-expo-app {name} --yes --template default"
+    deployment_defaults: [appstore-via-eas, testflight, expo-go]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [flutter]
+
+  angular:
+    name: "Angular"
+    language_family: js
+    description: >
+      Google's enterprise-flavored TypeScript framework with strong opinions on DI, modules,
+      and tooling. Heavyweight; pays off in large codebases.
+    fit:
+      - "enterprise team with Angular standards"
+      - "large codebase with strict module discipline"
+    gotchas:
+      - "steep ramp; overkill for solo MVP"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 96000
+    last_updated: 2026-04-18
+    docs_url: "https://angular.dev"
+    for: [enterprise, web-app, dashboard]
+    tags: [angular, enterprise]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx @angular/cli new {name} --defaults --routing --style scss --skip-tests --ssr false"
+    deployment_defaults: [self-host, vercel, cloudflare-pages]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [next, vite-react]
+
+  nestjs:
+    name: "NestJS"
+    language_family: js
+    description: >
+      Angular-flavored backend: TypeScript + decorators + DI + modules. Enterprise-shaped Node.js
+      backend with strong conventions.
+    fit:
+      - "enterprise team building Node.js backend"
+      - "team comfortable with decorators / Angular patterns"
+    gotchas:
+      - "heavier than Hono/Fastify for simple APIs"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 67000
+    last_updated: 2026-04-18
+    docs_url: "https://docs.nestjs.com"
+    for: [api, backend, microservice]
+    tags: [node, enterprise, decorators]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx @nestjs/cli new {name} -p {pm} --strict --skip-git"
+    deployment_defaults: [fly, railway, render, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [hono, fastify]
+
+  hono:
+    name: "Hono"
+    language_family: js
+    description: >
+      Tiny, fast, multi-runtime web framework (Node, Bun, Deno, Cloudflare Workers). The default
+      JS API recommendation when "edge-deployable" matters.
+    fit:
+      - "edge-deployable JS API"
+      - "Cloudflare Workers as deployment target"
+    gotchas:
+      - "smaller plugin ecosystem than Express/Fastify"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 22000
+    last_updated: 2026-04-22
+    docs_url: "https://hono.dev"
+    for: [api, backend, edge, serverless]
+    tags: [lightweight, multi-runtime, fast]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npm create hono@latest {name} -- --template nodejs --pm {pm} --install"
+    deployment_defaults: [cloudflare-workers, fly, railway, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [fastify, nestjs]
+
+  fastify:
+    name: "Fastify"
+    language_family: js
+    description: >
+      Performant Node.js HTTP framework with schema-based validation and strong plugin ecosystem.
+    fit:
+      - "Node.js API with JSON schema validation"
+      - "Express-shaped team wanting modern perf"
+    gotchas:
+      - "no built-in edge support — Node-only"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 33000
+    last_updated: 2026-04-15
+    docs_url: "https://fastify.dev"
+    for: [api, backend]
+    tags: [node, performant]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx fastify-cli generate {name} --lang=ts --esm"
+    deployment_defaults: [fly, railway, render, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [hono, nestjs]
+
+  express:
+    name: "Express"
+    language_family: js
+    description: >
+      The classic Node.js HTTP framework. Massive training corpus; thin abstractions. Consider
+      Hono or Fastify for new projects.
+    fit:
+      - "legacy compatibility with Express middleware"
+      - "minimal Node.js API"
+    gotchas:
+      - "untyped by default; conventions vary by project"
+      - "no first-class schema validation"
+    agent_friendly:
+      typed: false
+      convention_based: false
+      popular_in_training: true
+      well_documented: true
+    stars: 65000
+    last_updated: 2026-03-15
+    docs_url: "https://expressjs.com"
+    for: [api, backend]
+    tags: [node, minimal, classic]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx express-generator {name} --git"
+    deployment_defaults: [fly, railway, render, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [hono, fastify]
+
+  # === Python family ===
+
+  django:
+    name: "Django"
+    language_family: python
+    description: >
+      Batteries-included Python web framework: ORM, admin, auth, migrations, templating. The
+      default Python web/SaaS recommendation.
+    fit:
+      - "Python team building full-stack web app"
+      - "admin UI required out of the box"
+      - "PostgreSQL + auth + migrations from day 1"
+    gotchas:
+      - "DRF or Ninja needed if API-only (consider FastAPI for pure APIs)"
+    agent_friendly:
+      typed: false
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 80000
+    last_updated: 2026-04-20
+    docs_url: "https://docs.djangoproject.com"
+    for: [api, backend, web-app, admin, saas]
+    tags: [python, batteries-included]
+    toolchain:
+      package_manager: uv
+    pre: "pip install django"
+    cmd_template: "django-admin startproject {name} ."
+    deployment_defaults: [fly, railway, render, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [fastapi]
+
+  fastapi:
+    name: "FastAPI"
+    language_family: python
+    description: >
+      Modern Python web framework with type hints, Pydantic schemas, and auto-generated OpenAPI
+      docs. The default Python API recommendation.
+    fit:
+      - "Python API with explicit Pydantic schemas"
+      - "auto-generated OpenAPI docs"
+      - "ML/data team exposing inference endpoints"
+    gotchas:
+      - "no built-in admin or ORM — pair with SQLAlchemy/SQLModel"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 75000
+    last_updated: 2026-04-22
+    docs_url: "https://fastapi.tiangolo.com"
+    for: [api, backend, microservice]
+    tags: [python, async, typed]
+    toolchain:
+      package_manager: uv
+    pre: "uv pip install fastapi uvicorn"
+    cmd_template: "uv init {name} && uv add fastapi uvicorn"
+    deployment_defaults: [fly, railway, render, self-host]
+    bootstrapper_confidence: first-class
+    alternatives_to_consider: [django]
+
+  # === Ruby family ===
+
+  rails:
+    name: "Ruby on Rails"
+    language_family: ruby
+    description: >
+      Convention-over-configuration full-stack web framework. The default Ruby web/SaaS
+      recommendation; ships with ActiveRecord, ActionCable, ActionMailer, etc.
+    fit:
+      - "Ruby team building full-stack web app"
+      - "convention-over-configuration discipline"
+    gotchas:
+      - "monolith-by-default; trim with --api or --skip-* flags for smaller scope"
+    agent_friendly:
+      typed: false
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 56000
+    last_updated: 2026-04-15
+    docs_url: "https://guides.rubyonrails.org"
+    for: [api, backend, web-app, saas]
+    tags: [ruby, convention-over-config]
+    toolchain:
+      package_manager: bundle
+    pre: "gem install rails"
+    cmd_template: "rails new {name} --database postgresql --skip-bundle --skip-test"
+    deployment_defaults: [fly, render, heroku, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [rails-api]
+
+  rails-api:
+    name: "Ruby on Rails (API mode)"
+    language_family: ruby
+    description: >
+      Rails generated with --api: no views, no asset pipeline. The default Ruby API recommendation
+      when you don't want a full monolith.
+    fit:
+      - "Ruby team building API-only backend"
+      - "mobile or SPA frontend with Ruby backend"
+    gotchas:
+      - "harder to add views back later if scope shifts"
+    agent_friendly:
+      typed: false
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 56000
+    last_updated: 2026-04-15
+    docs_url: "https://guides.rubyonrails.org/api_app.html"
+    for: [api, backend]
+    tags: [ruby, api-only]
+    toolchain:
+      package_manager: bundle
+    pre: "gem install rails"
+    cmd_template: "rails new {name} --api --database postgresql --skip-bundle --skip-test"
+    deployment_defaults: [fly, render, heroku, self-host]
+    bootstrapper_confidence: first-class
+    alternatives_to_consider: [rails]
+
+  # === Java family ===
+
+  spring:
+    name: "Spring Boot"
+    language_family: java
+    description: >
+      The default Java backend framework. Spring Boot bundles Spring's DI, web, data, and security
+      modules with autoconfiguration. Enterprise-grade.
+    fit:
+      - "Java team building enterprise backend"
+      - "JVM expertise on the team"
+    gotchas:
+      - "heavier startup than non-JVM peers; cold-start matters for serverless"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 75000
+    last_updated: 2026-04-18
+    docs_url: "https://docs.spring.io/spring-boot/"
+    for: [api, backend, enterprise, microservice, web-app, saas]
+    tags: [java, enterprise]
+    toolchain:
+      package_manager: maven
+    cmd_template: "curl -s https://start.spring.io/starter.tgz -d dependencies=web,devtools -d type=maven-project -d javaVersion=21 -d groupId=com.example -d artifactId={name} | tar -xzf -"
+    deployment_defaults: [fly, render, aws-ecs, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: []
+
+  # === PHP family ===
+
+  laravel:
+    name: "Laravel"
+    language_family: php
+    description: >
+      Elegant PHP web framework with Eloquent ORM, Blade templating, queues, broadcasting, and a
+      strong package ecosystem. The default PHP web/SaaS recommendation.
+    fit:
+      - "PHP team building full-stack web app"
+      - "elegant developer experience priority"
+    gotchas:
+      - "shared-hosting deploys differ from modern containerized flows"
+    agent_friendly:
+      typed: false
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 78000
+    last_updated: 2026-04-15
+    docs_url: "https://laravel.com/docs"
+    for: [api, backend, web-app, saas]
+    tags: [php, elegant]
+    toolchain:
+      package_manager: composer
+    cmd_template: "composer create-project laravel/laravel {name} --no-interaction --prefer-dist"
+    deployment_defaults: [fly, render, forge, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: []
+
+  # === Go family ===
+
+  go:
+    name: "Go (standard library)"
+    language_family: go
+    description: >
+      Minimal Go module setup. The standard library covers most web/API needs; bring chi/gorilla
+      for routing if needed. Compiles to a single binary.
+    fit:
+      - "Go team building API or CLI"
+      - "low-cost self-host with single-binary deploy"
+      - "performance-sensitive backend"
+    gotchas:
+      - "no scaffold CLI; you assemble routing/middleware manually"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 130000
+    last_updated: 2026-04-22
+    docs_url: "https://go.dev/doc/"
+    for: [api, backend, cli-tool, microservice, web-app]
+    tags: [go, minimal, performant]
+    toolchain: {}
+    cmd_template: "mkdir {name} && cd {name} && go mod init github.com/user/{name}"
+    deployment_defaults: [self-host, fly, aws-ecs, google-cloud-run]
+    bootstrapper_confidence: first-class
+    alternatives_to_consider: []
+
+  # === Rust family ===
+
+  rust:
+    name: "Rust (binary crate)"
+    language_family: rust
+    description: >
+      Cargo-managed binary Rust crate. Default for Rust CLIs and systems work; pair with axum
+      or actix for web/APIs.
+    fit:
+      - "CLI tool with strong correctness needs"
+      - "performance-sensitive systems work"
+    gotchas:
+      - "compile times; choose nightly carefully"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 95000
+    last_updated: 2026-04-20
+    docs_url: "https://doc.rust-lang.org/book/"
+    for: [cli-tool, backend, systems]
+    tags: [rust, performant, safe]
+    toolchain:
+      package_manager: cargo
+    cmd_template: "cargo new {name} --bin --edition 2024"
+    deployment_defaults: [self-host, fly, aws-ecs]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [axum]
+
+  axum:
+    name: "Axum (Rust web framework)"
+    language_family: rust
+    description: >
+      Tokio-flavored Rust web framework. Type-safe, async, performant. The default Rust API
+      recommendation.
+    fit:
+      - "Rust team building API or web service"
+      - "async Rust comfort on the team"
+    gotchas:
+      - "Tokio mental model required; harder ramp than synchronous Go"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 22000
+    last_updated: 2026-04-20
+    docs_url: "https://docs.rs/axum/latest/axum/"
+    for: [api, backend, microservice]
+    tags: [rust, async, performant]
+    toolchain:
+      package_manager: cargo
+    cmd_template: "cargo new {name} --bin --edition 2024 && cd {name} && cargo add axum tokio --features tokio/full"
+    deployment_defaults: [self-host, fly, aws-ecs]
+    bootstrapper_confidence: first-class
+    alternatives_to_consider: [rust]
+
+  # === Monorepo ===
+
+  turborepo:
+    name: "Turborepo"
+    language_family: js
+    description: >
+      Vercel's monorepo orchestrator: incremental builds, remote caching, task pipelines.
+      The mainstream JS monorepo recommendation.
+    fit:
+      - "JS team with multiple packages sharing build steps"
+    gotchas:
+      - "remote caching needs Vercel account or self-hosted cache server"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 27000
+    last_updated: 2026-04-18
+    docs_url: "https://turbo.build/repo/docs"
+    for: [monorepo]
+    tags: [monorepo, vercel]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx create-turbo@latest {name} --package-manager {pm} --skip-install"
+    deployment_defaults: [vercel, cloudflare-pages, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [nx]
+
+  nx:
+    name: "Nx"
+    language_family: js
+    description: >
+      Enterprise-flavored monorepo orchestrator with code generation, task graphs, and AI-mode
+      (CLAUDECODE=1). Strong opinions; deep tooling.
+    fit:
+      - "enterprise JS team with many packages"
+      - "AI-driven scaffolding via Nx generators"
+    gotchas:
+      - "heavier learning curve than Turborepo"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 24000
+    last_updated: 2026-04-15
+    docs_url: "https://nx.dev"
+    for: [monorepo, enterprise]
+    tags: [monorepo, enterprise, ai-mode]
+    toolchain:
+      package_manager: npm
+    cmd_template: "npx create-nx-workspace {name} --preset react-monorepo --interactive=false --packageManager {pm} --nxCloud skip"
+    deployment_defaults: [self-host, vercel, cloudflare-pages]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [turborepo]
+
+  # === Desktop / Cross-platform ===
+
+  tauri:
+    name: "Tauri"
+    language_family: rust
+    description: >
+      Lightweight desktop app shell: Rust backend + web frontend (any framework). Smaller and
+      faster than Electron.
+    fit:
+      - "cross-platform desktop with web UI"
+      - "Rust comfort on the team"
+    gotchas:
+      - "platform-specific gotchas (codesigning, installers) still required"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 80000
+    last_updated: 2026-04-22
+    docs_url: "https://tauri.app"
+    for: [desktop-app]
+    tags: [rust, lightweight, desktop]
+    toolchain:
+      package_manager: cargo
+    cmd_template: "npm create tauri-app@latest {name} -- --template react-ts --manager {pm} --yes"
+    deployment_defaults: [self-host, github-releases]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: []
+
+  flutter:
+    name: "Flutter"
+    language_family: dart
+    description: >
+      Google's cross-platform UI toolkit: iOS, Android, web, desktop from a single Dart codebase.
+      The default Dart mobile/desktop recommendation.
+    fit:
+      - "Dart team shipping cross-platform UI"
+      - "shared codebase across mobile + web + desktop"
+    gotchas:
+      - "Dart ecosystem smaller than JS; some libraries thin"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 165000
+    last_updated: 2026-04-20
+    docs_url: "https://flutter.dev/docs"
+    for: [mobile-app, cross-platform, desktop-app]
+    tags: [dart, cross-platform]
+    toolchain:
+      package_manager: pub
+    cmd_template: "flutter create -e {name} --org com.example --platforms android,ios,web"
+    deployment_defaults: [appstore, playstore, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: [expo]
+
+  dotnet:
+    name: ".NET (ASP.NET Core webapi)"
+    language_family: dotnet
+    description: >
+      Microsoft's enterprise backend stack. ASP.NET Core webapi template ships strong typing,
+      DI, OpenAPI, and Entity Framework integration.
+    fit:
+      - ".NET team building enterprise API or web"
+      - "C# expertise on the team"
+    gotchas:
+      - "Microsoft-stack-heavy; weaker fit on Linux-only deploys though improving"
+    agent_friendly:
+      typed: true
+      convention_based: true
+      popular_in_training: true
+      well_documented: true
+    stars: 35000
+    last_updated: 2026-04-18
+    docs_url: "https://learn.microsoft.com/aspnet/core"
+    for: [api, backend, enterprise, web-app, saas]
+    tags: [csharp, enterprise, microsoft]
+    toolchain:
+      package_manager: dotnet
+    cmd_template: "dotnet new webapi -n {name} --no-restore"
+    deployment_defaults: [azure-app-service, fly, self-host]
+    bootstrapper_confidence: verified
+    alternatives_to_consider: []
