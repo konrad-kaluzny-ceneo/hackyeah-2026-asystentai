@@ -6,23 +6,12 @@
  * into module state from tests.
  */
 
+import { generateId } from "../id";
+
 const SESSION_ID_KEY = "behavior.sessionId.v1";
 
 let cachedSessionId: string | null = null;
 let currentPageViewId: string | null = null;
-
-function generateId(): string {
-  // crypto.randomUUID is broadly available in modern browsers and Node 20+.
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-  // Fallback for very old environments; not cryptographically strong but
-  // only used as a session identifier in demo contexts.
-  return `sid-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
-}
 
 export function getSessionId(): string {
   if (cachedSessionId !== null) {
@@ -37,7 +26,7 @@ export function getSessionId(): string {
     }
   }
   if (id === null || id.length === 0) {
-    id = generateId();
+    id = generateId("sid");
     if (typeof window !== "undefined") {
       try {
         window.sessionStorage.setItem(SESSION_ID_KEY, id);
@@ -52,7 +41,7 @@ export function getSessionId(): string {
 
 export function getCurrentPageViewId(): string {
   if (currentPageViewId === null) {
-    currentPageViewId = generateId();
+    currentPageViewId = generateId("page");
   }
   return currentPageViewId;
 }
@@ -66,7 +55,7 @@ export function rotatePageViewId(): {
   current: string;
 } {
   const previous = currentPageViewId;
-  currentPageViewId = generateId();
+  currentPageViewId = generateId("page");
   return { previous, current: currentPageViewId };
 }
 

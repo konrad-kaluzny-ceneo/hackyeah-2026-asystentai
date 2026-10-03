@@ -1,27 +1,49 @@
-import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
+import CatalogListing from "@/components/catalog/catalog-listing";
+import { categories, products } from "@/lib/catalog-data";
 
 export const metadata: Metadata = {
-  title: "Demo katalogu",
-  description:
-    "Pusta trasa demo katalogu AGD. Mock produktów i zdarzenia sygnałów powstaną w kolejnym slice.",
+  title: "Katalog AGD",
+  description: "Wybierz kategorię i znajdź urządzenie AGD dla swojego domu.",
 };
 
-export default function KatalogPage() {
+type CatalogPageProps = {
+  searchParams: Promise<{ q?: string | string[] }>;
+};
+
+export default async function CatalogPage({
+  searchParams,
+}: CatalogPageProps) {
+  const params = await searchParams;
+  const query = (Array.isArray(params.q) ? params.q[0] : params.q)?.trim() ?? "";
+
+  if (query) {
+    return <CatalogListing category={null} products={products} initialQuery={query} />;
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-16">
-      <p className="text-sm font-medium text-zinc-500">Trasa /katalog</p>
-      <h1 className="text-3xl font-semibold tracking-tight">Demo katalogu</h1>
-      <p className="max-w-2xl text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-        Tu kupujący będzie przeglądał mock produktów AGD. Na tym etapie jest
-        tylko trasa: brak listy produktów, filtrów i zdarzeń zachowania.
-      </p>
-      <Link
-        href="/"
-        className="text-sm font-medium text-zinc-950 underline dark:text-zinc-50"
-      >
-        Wróć do opisu szkieletu
-      </Link>
+    <main className="mx-auto w-full max-w-7xl flex-1 px-5 pb-16 pt-10 sm:px-8">
+      <div className="mb-9 max-w-2xl">
+        <p className="text-xs font-bold uppercase tracking-[.16em] text-[#718779]">Wybierz dział</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-.035em] sm:text-4xl">Katalog sprzętu AGD</h1>
+        <p className="mt-3 text-sm leading-6 text-[#718078]">Przejdź do wybranej kategorii, aby zobaczyć modele i zawęzić wyniki według parametrów.</p>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {categories.map((category, index) => (
+          <Link key={category.id} href={`/katalog/${category.slug}`} className="group relative min-h-72 overflow-hidden rounded-3xl bg-[#e3ebe4]">
+            <Image src={category.imageUrl} alt="" fill sizes="(max-width: 640px) 95vw, (max-width: 1024px) 45vw, 380px" className="object-cover transition duration-700 group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#10271c]/75 via-[#10271c]/10 to-transparent" />
+            <div className="absolute inset-x-6 bottom-6 text-white">
+              <p className="text-xs font-semibold uppercase tracking-[.15em] text-white/70">0{index + 1} · 24 modele</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight">{category.name}</h2>
+              <p className="mt-1 max-w-sm text-sm leading-5 text-white/80">{category.description}</p>
+              <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold">Przeglądaj <span aria-hidden="true" className="transition group-hover:translate-x-1">→</span></span>
+            </div>
+          </Link>
+        ))}
+      </div>
     </main>
   );
 }

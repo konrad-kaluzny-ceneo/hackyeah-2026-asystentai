@@ -1,31 +1,87 @@
+import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
+import { categories, products } from "@/lib/catalog-data";
+import { CatalogSearchForm } from "@/components/catalog/catalog-search-form";
+
+export const metadata: Metadata = {
+  title: "Katalog AGD",
+  description: "Znajdź sprzęt AGD dopasowany do swojej kuchni i codziennych potrzeb.",
+};
+
+const featuredProducts = products.slice(0, 4);
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 px-6 py-16">
-      <p className="text-sm font-medium text-zinc-500">Hackathon MVP · szkielet</p>
-      <div className="flex flex-col gap-4">
-        <h1 className="text-4xl font-semibold tracking-tight">
-          Asystent AI — intencje na bieżąco
-        </h1>
-        <p className="max-w-2xl text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-          Kupujący AGD przegląda wiele produktów o podobnych parametrach i nie
-          podejmuje decyzji. Szkielet demo jest uruchomiony: sesja anonimowa,
-          pusta trasa katalogu i miejsce na co najwyżej jedną propozycję
-          następnego kroku.
-        </p>
-      </div>
-      <ul className="flex flex-col gap-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-        <li>Bez logowania i bez akcji na koszyku.</li>
-        <li>Katalog nie emituje jeszcze faktów zakupowych.</li>
-        <li>Klasyfikacja intencji i propozycja asystenta nie są jeszcze zbudowane.</li>
-      </ul>
-      <Link
-        href="/katalog"
-        className="inline-flex h-12 w-fit items-center rounded-full bg-foreground px-5 text-sm font-medium text-background"
-      >
-        Otwórz demo katalogu
-      </Link>
+    <main className="flex-1 bg-[#f7f8f6] text-[#17211d]">
+      <section className="mx-auto grid w-full max-w-7xl gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:py-20">
+        <div className="max-w-2xl">
+          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d9e4dc] bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[.16em] text-[#42634f]">
+            <span className="h-2 w-2 rounded-full bg-[#77a783]" />
+            Domowe wybory, prostsze
+          </p>
+          <h1 className="text-4xl font-semibold leading-[1.08] tracking-[-.04em] sm:text-6xl">
+            Wybierz sprzęt, który <span className="text-[#63856c]">pasuje do Ciebie.</span>
+          </h1>
+          <p className="mt-6 max-w-xl text-base leading-7 text-[#637069] sm:text-lg">
+            Odkryj lodówki, pralki i zmywarki. Przejrzyste parametry pomogą Ci szybko znaleźć model do Twojego domu.
+          </p>
+          <CatalogSearchForm className="mt-8 flex max-w-xl gap-2 rounded-2xl border border-[#e0e6e1] bg-white p-2 shadow-[0_12px_35px_rgba(30,54,38,.08)]" placeholder="Np. cicha pralka do małej łazienki" />
+          <p className="mt-3 text-xs text-[#89958e]">Katalog demonstracyjny · marki i produkty mają charakter przykładowy</p>
+        </div>
+
+        <div className="relative mx-auto w-full max-w-lg">
+          <div className="absolute -inset-5 rounded-[2.5rem] bg-[#e7eee7]" />
+          <div className="relative overflow-hidden rounded-[2rem] bg-[#dde8df] p-4 sm:p-6">
+            <div className="grid grid-cols-2 gap-3">
+              {categories.map((category, index) => (
+                <Link
+                  key={category.id}
+                  href={`/katalog/${category.slug}`}
+                  className={`group relative overflow-hidden rounded-2xl bg-white ${index === 0 ? "col-span-2 aspect-[2.15/1]" : "aspect-square"}`}
+                >
+                  <Image src={category.imageUrl} alt="" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 640px) 80vw, 360px" className="object-cover transition duration-500 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-transparent" />
+                  <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-2 text-white">
+                    <span className="text-lg font-semibold">{category.name}</span>
+                    <span aria-hidden="true" className="grid h-8 w-8 place-items-center rounded-full bg-white/20 backdrop-blur">↗</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="mx-1 mt-4 flex items-center justify-between rounded-2xl bg-white/75 px-4 py-3 text-sm text-[#526257]">
+              <span>Wybrane urządzenia do domu</span>
+              <span className="font-semibold">72 modele</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-5 pb-16 sm:px-8">
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[.16em] text-[#718779]">Na początek</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Poznaj wybrane modele</h2>
+          </div>
+          <Link href="/katalog" className="text-sm font-semibold text-[#42634f] hover:underline">Cały katalog →</Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {featuredProducts.map((product) => (
+            <Link key={product.id} href={`/produkt/${product.slug}`} className="group rounded-2xl border border-[#e5eae6] bg-white p-3 transition hover:-translate-y-0.5 hover:shadow-lg">
+              <div className="relative aspect-[1.15/1] overflow-hidden rounded-xl bg-[#f4f6f4]">
+                <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 640px) 90vw, 280px" className="object-cover transition duration-500 group-hover:scale-105" />
+              </div>
+              <p className="mt-4 text-xs font-medium text-[#87948b]">{product.brand}</p>
+              <h3 className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5">{product.name}</h3>
+              <p className="mt-3 text-lg font-bold">{formatPrice(product.price)}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
     </main>
   );
+}
+
+function formatPrice(price: number) {
+  return new Intl.NumberFormat("pl-PL", { style: "currency", currency: "PLN", maximumFractionDigits: 0 }).format(price);
 }

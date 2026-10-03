@@ -17,6 +17,7 @@ import {
   type SentBatch,
 } from "../dispatcher/dispatcher";
 import { createTransport } from "../dispatcher/transport";
+import { generateId as generateUniqueId } from "../id";
 import type { MetaEvent } from "../types";
 
 export interface BehaviorTrackerOptions {
@@ -55,7 +56,7 @@ export function initBehaviorTracker(
   const now = options.now ?? Date.now;
   const generateId =
     options.generateId ??
-    (() => crypto.randomUUID());
+    (() => generateUniqueId("meta"));
 
   const buffer = new RawEventBuffer({
     maxEvents: THRESHOLDS.buffer.maxEvents,
