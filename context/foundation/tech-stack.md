@@ -26,4 +26,4 @@ hints:
 
 ## Why this stack
 
-A small team building an after-hours web app with a two-week MVP benefits from predictable conventions and quick scaffolding. Next.js matches the chosen TypeScript and Vercel direction, is widely documented, and has verified scaffolding. PostgreSQL remains the database preference, with Supabase or Neon to be selected during bootstrap. The MVP uses session-level heuristic signals and does not require authentication, payments, realtime updates, LLM integration, or background jobs. CI uses GitHub Actions with automatic deployment on merge to main.
+A small team building an after-hours web app with a two-week MVP benefits from predictable conventions and quick scaffolding. Next.js matches the chosen TypeScript and Vercel direction, is widely documented, and has verified scaffolding. PostgreSQL is hosted on Supabase. The MVP uses session-level heuristic signals and does not require Supabase Auth, payments, realtime updates, LLM integration, or background jobs. CI uses GitHub Actions with automatic deployment on merge to main.

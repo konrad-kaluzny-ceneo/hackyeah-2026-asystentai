@@ -20,6 +20,20 @@ Hackathon web app for one contextual next step while someone browses an applianc
 - Do not invent catalog products or signal events on `/katalog`. That route is an empty placeholder until the demo-catalog slice.
 - Do not commit `.env*` files. `@.gitignore` ignores them.
 
+## Working a slice
+
+Type the next sentence. Each step stops and waits. Do not start the next step in the same turn.
+
+Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can do>. Cel: <why>.` Appends one item to `@context/foundation/roadmap.md` and `@context/foundation/prd.md` on branch `features/<change-id>`, in a separate worktree, then stops. `@.agents/skills/roadmap-add/SKILL.md`
+
+1. `co dalej` — rank ready slices, wait for a choice, mark it active, and create `context/changes/<change-id>/`. `@.agents/skills/1-next-slice-selector/SKILL.md` then `@.agents/skills/1b_next-slice-init/SKILL.md`
+2. `zbadaj kod <change-id>` — optional, when the path is unclear. Writes `research.md`. `@.agents/skills/2-research/SKILL.md`
+3. `zaplanuj <change-id>` — ask, then write `plan.md`. Do not write app code in this step. `@.agents/skills/3-plan/SKILL.md`
+4. `sprawdź plan <change-id>` — check the plan before any code. `@.agents/skills/4-plan-review/SKILL.md`
+5. `zaimplementuj <change-id> phase 1` — build that phase and commit it. Ask before the next phase. `@.agents/skills/5a-implement/SKILL.md`
+6. `sprawdź implementację <change-id>` — compare the code to the plan. `@.agents/skills/6-impl-review/SKILL.md`
+7. `archiwizuj <change-id>` — move the folder under `context/archive/` and set the matching roadmap item to done. `@.agents/skills/7-archive/SKILL.md`
+
 ## Project structure
 
 - `src/app/page.tsx` — shell description.
