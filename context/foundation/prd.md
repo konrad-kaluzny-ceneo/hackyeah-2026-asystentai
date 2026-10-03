@@ -106,6 +106,7 @@ Value: przy popularnym i pewnym przypadku wystarcza Jev, a mocniejszy model ukł
 - FR-010: Dla demo serwer może przygotować jedną propozycję po wyjściu Jev z `DECISION_FATIGUE` i pewnością `> 0.75`, używając deterministycznego lokalnego stubu. Przy pewności `0.75` lub niższej nie pokazuje propozycji. Prawdziwa integracja z mocniejszym modelem pozostaje przyszłą pracą. Priority: must-have
 - FR-011: System obserwacji zapisuje meta eventy opisujące zainteresowanie produktami i kategoriami oraz dynamikę przeglądania: `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`. Meta eventy opisują wzorzec zachowania, nie emocje ani intencje. Priority: should-have
 - FR-012: System obserwacji zapisuje meta eventy o sygnałach bliskich decyzji i feedbacku do asystenta: `price_focus`, `search_refinement_loop`, `assistant_proposal_dismissed`. Priority: could-have
+- FR-013: System zapisuje prawdopodobieństwa intencji zakupowych określone przez Jev per anonimowa sesja z timestampem: `exploring`, `researching`, `comparing`, `deciding`, `ready_to_buy`, `price_sensitive`, `overloaded`, `hesitant`. Timeline zwraca wartości `0..1` i wypełnia brakujące sekundy ostatnim znanym stanem. Priority: should-have
 
 ## Non-Functional Requirements
 

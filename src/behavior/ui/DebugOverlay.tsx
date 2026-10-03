@@ -122,10 +122,10 @@ export function DebugOverlay() {
           <section className="flex min-w-0 flex-col rounded border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="font-semibold text-zinc-700 dark:text-zinc-300">
-                Emocje użytkownika w czasie
+                Intencje zakupowe użytkownika w czasie
               </h3>
               <span className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-zinc-400">
-                mock · 30 s
+                JEV · 30 s
               </span>
             </div>
             <div className="mt-2 flex-none">

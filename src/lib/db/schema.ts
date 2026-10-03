@@ -1,5 +1,9 @@
 import { sql } from "drizzle-orm";
 import type { CategoryFilter } from "@/lib/catalog-types";
+import type {
+  IntentEventWindow,
+  IntentProbabilities,
+} from "@/domain/shopping-intent";
 import {
   bigint,
   boolean,
@@ -140,5 +144,42 @@ export const metaEvents = pgTable(
   ],
 );
 
+export const sessionIntentSnapshots = pgTable(
+  "session_intent_snapshots",
+  {
+    id: bigint("id", { mode: "bigint" })
+      .primaryKey()
+      .generatedAlwaysAsIdentity(),
+    snapshotId: text("snapshot_id").notNull().unique(),
+    sessionId: text("session_id").notNull(),
+    computedAt: timestamp("computed_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    serverReceivedAt: timestamp("server_received_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    model: varchar("model", { length: 64 }).notNull(),
+    intents: jsonb("intents").$type<IntentProbabilities>().notNull(),
+    inputEventWindow: jsonb("input_event_window")
+      .$type<IntentEventWindow>()
+      .notNull(),
+    algorithmVersion: varchar("algorithm_version", { length: 32 }).notNull(),
+  },
+  (table) => [
+    index("session_intent_snapshots_session_computed_at_idx").on(
+      table.sessionId,
+      table.computedAt,
+    ),
+    index("session_intent_snapshots_computed_at_idx").on(table.computedAt),
+  ],
+);
+
 export type MetaEventRow = typeof metaEvents.$inferSelect;
 export type NewMetaEventRow = typeof metaEvents.$inferInsert;
+export type SessionIntentSnapshotRow = typeof sessionIntentSnapshots.$inferSelect;
+export type NewSessionIntentSnapshotRow =
+  typeof sessionIntentSnapshots.$inferInsert;

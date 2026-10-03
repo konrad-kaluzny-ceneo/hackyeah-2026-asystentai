@@ -42,14 +42,16 @@ export function AssistantInline({
     () => EMPTY_META_EVENT_HISTORY,
   );
   const recentMetaEventsRef = useRef(recentMetaEvents);
-  recentMetaEventsRef.current = recentMetaEvents;
-
   const decisionRef = useRef(decision);
-  decisionRef.current = decision;
   const mutedRef = useRef(muted);
-  mutedRef.current = muted;
   const requestedFatigueIdsRef = useRef(new Set<string>());
   const hasMetaEvents = recentMetaEvents.length > 0;
+
+  useEffect(() => {
+    recentMetaEventsRef.current = recentMetaEvents;
+    decisionRef.current = decision;
+    mutedRef.current = muted;
+  }, [decision, muted, recentMetaEvents]);
 
   useEffect(() => {
     let muteTimer: number | undefined;
@@ -87,16 +89,11 @@ export function AssistantInline({
 
   useEffect(() => {
     if (decision === null) {
-      setProposal(null);
       return;
     }
 
-    if (decision.kind === "search_friction") {
-      setProposal(decision);
-      return;
-    }
+    if (decision.kind === "search_friction") return;
 
-    setProposal(null);
     if (
       muted ||
       !hasMetaEvents ||
@@ -176,7 +173,13 @@ export function AssistantInline({
     setProposal(null);
   };
 
-  if (!proposal) return null;
+  const visibleProposal =
+    decision?.kind === "search_friction"
+      ? decision
+      : proposal?.id === decision?.id
+        ? proposal
+        : null;
+  if (!visibleProposal) return null;
 
   return (
     <aside
@@ -198,17 +201,17 @@ export function AssistantInline({
         Podpowiedź asystenta
       </p>
       <h2 id="assistant-proposal-title" className="text-base font-semibold">
-        {proposal.title}
+        {visibleProposal.title}
       </h2>
-      <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
-      {proposal.kind === "search_friction" ? (
+      <p className="mt-1 text-sm leading-6 text-slate-700">{visibleProposal.message}</p>
+      {visibleProposal.kind === "search_friction" ? (
         <button
           type="button"
           onClick={onClearSearchAndFilters}
           data-element-id="assistant-action"
           className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
         >
-          {proposal.actionLabel}
+          {visibleProposal.actionLabel}
         </button>
       ) : (
         <a
@@ -216,7 +219,7 @@ export function AssistantInline({
           data-element-id="assistant-action"
           className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
         >
-          {proposal.actionLabel}
+          {visibleProposal.actionLabel}
         </a>
       )}
     </aside>

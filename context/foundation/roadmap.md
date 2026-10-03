@@ -39,6 +39,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-05 | assistant-proposal-box | … (UI) zobaczyć box po wysłaniu MetaEvents albo brak boxa przy decision fatigue | S-04 | US-01, FR-007, FR-010 | ready |
 | S-06 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
 | S-07 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-06 | FR-012 | active |
+| S-08 | intent-timeline | … zespół oglądał realne prawdopodobieństwa 8 intencji JEV per sesja w debug overlay | S-04 | FR-013 | done |
 
 ## Streams
 
@@ -245,7 +246,30 @@ Source / Lineage:
 - **Unknowns:**
   - Progi dwell dla `price_focus` na stronie produktu — kalibracja. Block: no.
 - **Risk:** Asystent może być rzadko pokazywany na demo, więc `assistant_proposal_dismissed` będzie rzadki. Akceptowalne — to czysty feedback negatywny.
+- **Status:** done
+
+### S-08: Timeline intencji JEV per sesja
+
+- **Outcome:** system zapisuje atomowe snapshoty ośmiu prawdopodobieństw intencji JEV per anonimowa sesja z timestampem, a `GET /api/emotions-timeline?sessionId=...` zwraca realną oś czasu z forward-fill ostatniego znanego stanu. Debug overlay pokazuje intencje zamiast mockowanych emocji.
+- **Change ID:** intent-timeline
+- **PRD refs:** FR-013
+- **Prerequisites:** S-04
+- **Parallel with:** S-05, S-07
+- **Blockers:** trigger inferencji JEV dostarcza osobna lane; ten slice udostępnia kontrakt zapisu i odczytu.
+- **Acceptance:**
+  - tabela `session_intent_snapshots` przechowuje osiem wartości `0..1`, model, wersję algorytmu i czas obliczenia;
+  - klient JEV przekazuje maksymalnie 10 ostatnich bezpiecznych meta-eventów i wymaga wszystkich ośmiu probabilistyk;
+  - endpoint dla poprawnego `sessionId` zwraca 8 serii i uzupełnia sekundy ostatnim stanem, bez mocka;
+  - wykres odświeża dane co sekundę i pokazuje `jev` albo `empty`;
+  - wywołanie bez `sessionId` zachowuje mock tylko dla kompatybilności dev-demo.
+- **Unknowns:** częstotliwość triggera JEV i polityka retencji snapshotów — Owner: lane inferencji. Block: no.
+- **Risk:** brak triggera oznacza pustą oś czasu; `source: "empty"` odróżnia ten stan od danych modelu.
 - **Status:** active
+
+Source / Lineage:
+
+- Added on 2026-10-03 after merge of `feature/jev-session-proposal`.
+- Trigger JEV and production scheduling remain outside this slice.
 
 Source / Lineage:
 
@@ -266,6 +290,7 @@ Source / Lineage:
 | S-05 | assistant-proposal-box | Wire listing box to MetaEvents-only Jev proposal flow | yes | Lane: Michał. Po kontrakcie S-04. Plan w `context/changes/assistant-proposal-box/`. |
 | S-06 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | no | Done (`7d9e7bc`) |
 | S-07 | behavior-meta-events-2 | Price focus, search refinement loop, proposal dismissed | yes | Tagi na cenie/boxie asystenta + raw search_submitted |
+| S-08 | intent-timeline | Persist JEV intent probabilities and render session timeline | yes | Eight intents, forward-fill, same timeline URL; trigger is a separate lane. |
 
 ## Open Roadmap Questions
 
