@@ -94,11 +94,18 @@ export function AssistantInline({
 
   if (muted || !proposal) return null;
 
+  const recommendsFilters = proposal.action === "narrow-choice";
+
   return (
     <aside
       aria-labelledby="assistant-proposal-title"
       data-element-id="assistant-proposal"
-      className="relative my-6 rounded-xl border border-sky-200 bg-sky-50 p-5 pr-12 text-slate-900 shadow-sm"
+      data-assistant-popover={recommendsFilters ? "filters" : undefined}
+      className={
+        recommendsFilters
+          ? "fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-sky-200 bg-white p-5 pr-12 text-slate-900 shadow-2xl ring-1 ring-slate-900/5"
+          : "relative my-6 rounded-xl border border-sky-200 bg-sky-50 p-5 pr-12 text-slate-900 shadow-sm"
+      }
       role="status"
     >
       <button

@@ -20,29 +20,26 @@ function output(
 }
 
 describe("routeJevOutput", () => {
-  it("uses a confident, unhedged decision-fatigue draft as a shortcut", () => {
-    expect(routeJevOutput(output("DECISION_FATIGUE", 0.9))).toEqual({
+  it("uses a confident, unhedged fatigue draft as a shortcut", () => {
+    expect(routeJevOutput(output("DECISION_FATIGUE", 0.75))).toEqual({
       decision: "shortcut",
       message: "Zawęź wybór według ważnego parametru.",
     });
   });
 
-  it("uses OpenAI when confidence is below the shortcut threshold", () => {
-    expect(routeJevOutput(output("DECISION_FATIGUE", 0.7))).toEqual({
+  it("uses OpenAI when confidence is below the threshold", () => {
+    expect(routeJevOutput(output("DECISION_FATIGUE", 0.74))).toEqual({
       decision: "needs_openai",
     });
   });
 
-  it("uses OpenAI when Jev requires hedging or has no draft", () => {
+  it("uses OpenAI for hedged, empty-draft, or non-fatigue output", () => {
+    expect(routeJevOutput(output("DECISION_FATIGUE", 0.9, true))).toEqual({
+      decision: "needs_openai",
+    });
     expect(
-      routeJevOutput(output("DECISION_FATIGUE", 0.9, true)),
+      routeJevOutput(output("DECISION_FATIGUE", 0.9, false, "  ")),
     ).toEqual({ decision: "needs_openai" });
-    expect(
-      routeJevOutput(output("DECISION_FATIGUE", 0.9, false, null)),
-    ).toEqual({ decision: "needs_openai" });
-  });
-
-  it("uses OpenAI for other valid situations", () => {
     expect(routeJevOutput(output("PRODUCT_HESITATION", 0.95))).toEqual({
       decision: "needs_openai",
     });

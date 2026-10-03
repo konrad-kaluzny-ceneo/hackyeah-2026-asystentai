@@ -5,7 +5,7 @@
 
 ## What & Why
 
-Serwer analizuje minimalne podsumowanie MetaEvents przez Jev (Typesafe). Pewny, niehedgowany wynik `DECISION_FATIGUE` kończy się skrótem `hide`; pozostałe poprawne wyniki przechodzą do OpenAI, które może zwrócić akcję i dane. Copy pozostaje lokalne w UI.
+Serwer analizuje minimalne podsumowanie MetaEvents przez Jev (Typesafe). Pewny, niehedgowany wynik `DECISION_FATIGUE` z niepustym draftem zwraca skrót Jev; pozostałe poprawne wyniki przechodzą do OpenAI, które zwraca wyłącznie `title` i `message`. Akcja przejścia do filtrów pozostaje lokalna w UI.
 
 ## Desired End State
 
@@ -16,8 +16,8 @@ Route przyjmuje 1–10 MetaEvents w body do 64 KiB i zwraca JSON zgodny z `inter
 | Decision | Choice | Why |
 | --- | --- | --- |
 | Request | `{ metaEvents }`, 1–10 elementów | Bez stanu i eventów katalogu w payloadzie |
-| Jev shortcut | Pewny, niehedgowany fatigue z niepustym szkicem | Zwraca `hide` i pomija drugie wywołanie modelu |
-| OpenAI | Strukturalna decyzja `action` + `data` | Model nie generuje tytułu, wiadomości ani etykiety UI |
+| Jev shortcut | `DECISION_FATIGUE`, confidence `>= 0.75`, brak hedgingu i niepusty draft | Zwraca `show` z draftem Jev i pomija drugie wywołanie modelu |
+| OpenAI | Zwalidowane wyjście Jev → `{ title, message }` | Model tworzy treść, ale nie wybiera akcji ani filtrów |
 | Filtry | Klucze sanityzowane do dostępnych filtrów kategorii | Nieznane filtry nie przechodzą do UI |
 | Czas | 3 s dla Jev, 5 s dla OpenAI | Osobne deadline’y; retry OpenAI SDK wyłączone |
 | Błąd providera | `{ status: "hide" }` poza developmentem | Bezpieczny kontrakt UI; development ujawnia wyjątek |

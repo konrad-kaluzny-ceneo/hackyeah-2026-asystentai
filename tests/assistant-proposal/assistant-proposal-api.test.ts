@@ -9,32 +9,31 @@ import { makeMetaEvent, resetFixtureSeed } from "../behavior/fixtures";
 
 describe("assistant-proposal-api contract", () => {
   describe("AssistantProposalResponseSchema", () => {
-    it("accepts a valid 'show' response with action data", () => {
+    it("accepts a valid 'show' response with title and message", () => {
       const payload = {
         status: "show",
-        action: "narrow-choice",
-        data: { target: "filters", filterKeys: ["capacity"] },
+        title: "Pomóc zawęzić wybór?",
+        message: "Zawęź wybór według jednego ważnego parametru.",
       };
 
       const parsed = parseAssistantProposalResponse(payload);
       expect(parsed).toEqual(payload);
     });
 
-    it("rejects 'show' with invalid action data", () => {
-      const badAction = {
+    it("rejects 'show' with missing or empty copy", () => {
+      const missingMessage = {
         status: "show",
-        action: "other-action",
-        data: { target: "filters", filterKeys: [] },
+        title: "Pomóc zawęzić wybór?",
       };
 
-      const badTarget = {
+      const emptyTitle = {
         status: "show",
-        action: "narrow-choice",
-        data: { target: "unknown", filterKeys: [] },
+        title: "  ",
+        message: "Wybierz parametr.",
       };
 
-      expect(safeParseAssistantProposalResponse(badAction).success).toBe(false);
-      expect(safeParseAssistantProposalResponse(badTarget).success).toBe(false);
+      expect(safeParseAssistantProposalResponse(missingMessage).success).toBe(false);
+      expect(safeParseAssistantProposalResponse(emptyTitle).success).toBe(false);
     });
 
     it("accepts a valid 'hide' response", () => {

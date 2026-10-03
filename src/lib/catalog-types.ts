@@ -1,8 +1,11 @@
 import type { ImplementedSignalKind } from "@/domain/shopping-signal";
-import type {
-  AssistantAction,
-  AssistantActionData,
-} from "@/lib/assistant-proposal-api";
+
+export type AssistantAction = "narrow-choice" | "clear-search-and-filters";
+
+export type AssistantActionData = {
+  target: "filters" | "catalog";
+  filterKeys: string[];
+};
 
 export type CategoryFilter = {
   key: string;

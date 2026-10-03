@@ -2,7 +2,7 @@
 
 ## Overview
 
-Connect the existing behavior MetaEvent pipeline to the assistant proposal flow. The client keeps a bounded window of successfully dispatched MetaEvents and queues a request after five unique events, then after each new event while no proposal is visible. The server asks Jev to classify the event summary, then uses a confident Jev shortcut or OpenAI to return only an action and its data. Failures produce no box; presentation copy remains local to the UI.
+Connect the existing behavior MetaEvent pipeline to the assistant proposal flow. The client keeps a bounded window of successfully dispatched MetaEvents and queues a request after the first unique event, then after each new event while no proposal is visible. The server asks Jev to classify the event summary, then uses a confident Jev text shortcut or asks OpenAI for `{ title, message }`. Failures produce no box; the filter action remains local to the UI.
 
 ## Current State Analysis
 
@@ -10,7 +10,7 @@ Connect the existing behavior MetaEvent pipeline to the assistant proposal flow.
 - The full MetaEvent batch is available after a successful HTTP response through the dispatcher's `onBatchSent` callback (`src/behavior/dispatcher/dispatcher.ts:87-105`). The production tracker shell currently sends that callback only to the dev debug summary store (`src/app/behavior-debug-shell.tsx:33-43`). That store retains summaries, not full events (`src/behavior/ui/debug-store.ts:89-124`), and is not an assistant data source.
 - `AssistantInline` currently uses `DecisionEngine` to render fixed local copy. It does not call `/api/assistant-proposal` (`src/components/assistant/assistant-inline.tsx:28-48`). The existing mute lasts 15 minutes (`:52-55`).
 - The shared proposal request accepts `{ metaEvents }` only. The Jev prompt minimizes event data and excludes raw events, session/page-view identifiers, and paths.
-- A confident, unhedged Jev fatigue result can use the shortcut; other valid outputs use OpenAI and return the same action/data contract.
+- A confident, unhedged Jev fatigue result with a non-empty draft can use the shortcut; other valid outputs use OpenAI and return the same title/message contract.
 - `DecisionEngine` still supplies local empty-search recovery and a fatigue copy candidate, but the S-05 server request cadence is now event-count based. Catalog events never enter the request.
 
 ### Key Discoveries:
@@ -21,7 +21,7 @@ Connect the existing behavior MetaEvent pipeline to the assistant proposal flow.
 
 ## Desired End State
 
-After five unique MetaEvents from successful `/api/meta-events` batches, the client queues one `POST /api/assistant-proposal` per new event while unmuted and without a visible proposal. Each request contains only a bounded array of recent MetaEvents. The server validates and summarizes those events for Jev without sending raw events or catalog state. Jev may provide a confident shortcut; other valid results go to OpenAI. The API returns `show` with an action and data, or `hide`; the UI combines a valid action with local presentation copy.
+After one unique MetaEvent from a successful `/api/meta-events` batch, the client queues one `POST /api/assistant-proposal` per new event while unmuted and without a visible proposal. Each request contains only a bounded array of recent MetaEvents. The server validates and summarizes those events for Jev without sending raw events or catalog state. Jev may provide a confident shortcut; other valid results go to OpenAI. The API returns `show` with a title and message, or `hide`; the UI applies its local filter action.
 
 The existing single-box behavior remains: local `search_friction` stays local, the fatigue proposal has no loader, stale requests are ignored, and dismissal mutes the assistant for 15 minutes. OpenAI has a separate short deadline with SDK retries disabled.
 
@@ -29,13 +29,13 @@ The existing single-box behavior remains: local `search_friction` stays local, t
 
 - Sending raw events, raw-event checkpoints, catalog state, or `CatalogEvent[]` to Jev.
 - Reusing `src/behavior/ui/debug-store.ts` as an assistant data source.
-- Calling Jev before five unique events, for local `search_friction`, while muted, or when the behavior tracker is disabled.
+- Calling Jev before the first unique event, for local `search_friction`, while muted, or when the behavior tracker is disabled.
 - Sending raw events or catalog facts to Jev/OpenAI, or adding a second proposal box.
 - Changing detector definitions, thresholds, or `DecisionEngine` criteria.
 
 ## Implementation Approach
 
-An application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and queues snapshots beginning at event five. The root-mounted `AssistantProposalCoordinator` serially drains queued snapshots while unmuted and without a visible proposal, including while the listing box is unmounted; an interrupted request is requeued on coordinator unmount. `AssistantInline` renders from shared proposal state and retains local empty-search recovery. The route validates `{ metaEvents }`, gives Jev a server-built summary, then uses the Jev shortcut or OpenAI. It sanitizes filter keys before returning the action/data contract.
+An application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and queues snapshots beginning at event one. The root-mounted `AssistantProposalCoordinator` serially drains queued snapshots while unmuted and without a visible proposal, including while the listing box is unmounted; an interrupted request is requeued on coordinator unmount. `AssistantInline` renders from shared proposal state and retains local empty-search recovery. The route validates `{ metaEvents }`, gives Jev a server-built summary, then uses the Jev shortcut or OpenAI. The API returns status/title/message and the UI supplies the local filter action.
 
 ## Phase 1: Retain Recent MetaEvents for the Assistant
 
@@ -81,7 +81,7 @@ Expose a bounded, production-safe snapshot of full MetaEvents without involving 
 
 **Implementation Note**: After automated checks pass, pause for the manual check before starting Phase 2.
 
-## Phase 2: MetaEvents-Only Jev Route and OpenAI Action
+## Phase 2: MetaEvents-Only Jev Route and OpenAI Copy
 
 ### Overview
 
@@ -111,11 +111,11 @@ Replace the catalog-event request contract with bounded MetaEvents and connect t
 
 **File**: `context/changes/assistant-proposal-box/interface.md`
 
-**Intent**: Document the revised request, Jev/OpenAI behavior, action/data response, and hide cases for both S-04 and S-05.
+**Intent**: Document the revised request, Jev/OpenAI behavior, title/message response, and hide cases for both S-04 and S-05.
 
-**Contract**: State explicitly that only aggregated MetaEvents are sent, raw/catalog events are excluded, Jev may use a confident shortcut, and OpenAI returns only action/data.
+**Contract**: State explicitly that only aggregated MetaEvents are sent, raw/catalog events are excluded, Jev may use a confident shortcut, and OpenAI returns only title/message.
 
-#### 2. Jev prompt, gate, and OpenAI action
+#### 2. Jev prompt, gate, and OpenAI copy
 
 **File**: `src/server/assistant-proposal/prompt.ts`
 
@@ -127,7 +127,7 @@ Replace the catalog-event request contract with bounded MetaEvents and connect t
 
 **Intent**: Apply the requested strict confidence gate for the existing fatigue proposal path.
 
-**Contract**: Only a confident, unhedged fatigue result with a non-empty Jev draft takes the shortcut; other valid outputs use OpenAI. The OpenAI response is a structured action and data payload, not UI copy.
+**Contract**: Only `DECISION_FATIGUE` with confidence `>= 0.75`, no hedging, and a non-empty Jev draft takes the shortcut; other valid outputs use OpenAI. OpenAI returns structured `{ title, message }`, not an action or filter payload.
 
 #### 3. Route orchestration and documentation alignment
 
@@ -135,11 +135,11 @@ Replace the catalog-event request contract with bounded MetaEvents and connect t
 
 **Intent**: Validate MetaEvents and call the shared Jev/OpenAI composition.
 
-**Contract**: Preserve body/rate limits and Jev's three-second timeout. OpenAI has its own deadline with retries disabled. The API returns only status/action/data and sanitizes filter keys; invalid input and provider failures return `{ status: "hide" }`.
+**Contract**: Preserve body/rate limits and Jev's three-second timeout. OpenAI has its own deadline with retries disabled. The API returns only status/title/message; invalid input and provider failures return `{ status: "hide" }`.
 
 **File**: `context/changes/jev-session-proposal/plan.md` and `context/changes/jev-session-proposal/plan-brief.md`
 
-**Intent**: Align the S-04 server notes with the shared MetaEvents request and OpenAI action/data response.
+**Intent**: Align the S-04 server notes with the shared MetaEvents request and OpenAI title/message response.
 
 **Contract**: Document the shortcut/OpenAI flow, timeout and retry behavior, and the minimal response contract.
 
@@ -147,7 +147,7 @@ Replace the catalog-event request contract with bounded MetaEvents and connect t
 
 **Intent**: Align FR-010 and S-04/S-05 acceptance text with the agreed confidence-gated demo flow.
 
-**Contract**: Preserve the one-proposal guardrail and document that OpenAI may decide action/data for valid non-shortcut outputs.
+**Contract**: Preserve the one-proposal guardrail and document that OpenAI generates copy for valid non-shortcut outputs while the UI owns the action.
 
 ### Phase Success Criteria
 
@@ -158,7 +158,7 @@ Replace the catalog-event request contract with bounded MetaEvents and connect t
 
 #### Manual Verification:
 
-- A confident, unhedged Jev shortcut returns a valid `show`; uncertain output uses OpenAI and returns validated action/data.
+- A confident, unhedged Jev shortcut returns a valid `show`; other valid outputs use OpenAI and return validated title/message.
 - Invalid Jev output, timeout, rate limit, or provider failure returns `hide`.
 - Invalid/raw-event payloads and more than 10 events are rejected before Jev is called.
 
@@ -168,7 +168,7 @@ Replace the catalog-event request contract with bounded MetaEvents and connect t
 
 ### Overview
 
-Call the revised endpoint from the serialized event-trigger queue and combine the validated action/data with local UI copy.
+Call the revised endpoint from the serialized event-trigger queue and combine validated title/message with the local filter action.
 
 ### Changes Required:
 
@@ -178,7 +178,7 @@ Call the revised endpoint from the serialized event-trigger queue and combine th
 
 **Intent**: Keep the serialized request worker mounted with the behavior shell so it continues across category/product navigation.
 
-**Contract**: Observe the bounded MetaEvent trigger queue and shared UI state; process one request at a time while unmuted, without a server proposal or local recovery, and abort/requeue an interrupted trigger on unmount. Convert the validated response action/data into local presentation copy.
+**Contract**: Observe the bounded MetaEvent trigger queue and shared UI state; process one request at a time while unmuted, without a server proposal or local recovery, and abort/requeue an interrupted trigger on unmount. Combine validated response title/message with the local filter action.
 
 **File**: `src/lib/assistant-proposal-state.ts` (new)
 
@@ -194,14 +194,14 @@ Call the revised endpoint from the serialized event-trigger queue and combine th
 
 - Do not own the request queue or call the endpoint; that lifecycle belongs to the root coordinator.
 - `search_friction`: render the existing local recovery proposal and do not call Jev.
-- `show`: render one proposal from shared state using local presentation copy and parsed server action/data; `hide`, HTTP failure, or invalid response renders nothing.
+- `show`: render one proposal from shared state using parsed server title/message and the local filter action; `hide`, HTTP failure, or invalid response renders nothing.
 - Keep the 15-minute mute, abort in-flight requests on mute/unmount, requeue an interrupted trigger, and do not add a loader or a second box.
 
 **File**: `tests/components/assistant/assistant-inline.test.tsx` (new)
 
 **Intent**: Cover the event threshold, queued request lifecycle, and the existing single-box behavior.
 
-**Contract**: Verify four events send nothing, the fifth and later events queue bounded events-only requests, mute/friction stop the queue, hide responses allow later queued triggers to proceed, and show responses render only one box with local copy.
+**Contract**: Verify the first event and later events queue bounded events-only requests, mute/friction stop the queue, hide responses allow later queued triggers to proceed, and show responses render one box with server copy and a local action.
 
 ### Phase Success Criteria
 
@@ -212,8 +212,8 @@ Call the revised endpoint from the serialized event-trigger queue and combine th
 
 #### Manual Verification:
 
-- With tracking enabled, confirm the first four unique MetaEvents do not trigger the proposal route; event five starts classification and subsequent events queue one bounded request each until a proposal is visible.
-- Confirm the server calls Jev and then either uses a confident shortcut or calls OpenAI; the UI displays local copy with the returned action.
+- With tracking enabled, confirm the first unique MetaEvent starts classification and subsequent events queue one bounded request each until a proposal is visible.
+- Confirm the server calls Jev and then either uses a confident shortcut or calls OpenAI; the UI displays the returned copy with its local filter action.
 - Confirm empty-search recovery stays local, dismissal mutes for 15 minutes, and another proposal cannot appear at the same time.
 
 ## Testing Strategy
@@ -222,8 +222,8 @@ Call the revised endpoint from the serialized event-trigger queue and combine th
 
 - MetaEvent history ordering, deduplication, max-10 bound, and clear behavior.
 - Shared MetaEvent validation and request count/body-size limits.
-- Jev shortcut boundary, OpenAI fallback, action/data validation, filter-key sanitization, and provider failure paths.
-- Five-event threshold, queue ordering, mute, abort/requeue, and single-box UI behavior.
+- Jev shortcut boundary, OpenAI fallback, title/message validation, and provider failure paths.
+- First-event threshold, queue ordering, mute, abort/requeue, and single-box UI behavior.
 
 ### Integration Tests:
 
@@ -234,9 +234,9 @@ Call the revised endpoint from the serialized event-trigger queue and combine th
 
 1. Enable `NEXT_PUBLIC_BEHAVIOR_TRACKING=true` and browse between product pages and a category listing.
 2. Confirm raw events remain in the local debug overlay and MetaEvents continue to post to `/api/meta-events`.
-3. Generate at least five unique MetaEvents from successfully sent batches; verify a request is queued for the fifth and later events.
+3. Generate unique MetaEvents from successfully sent batches; verify each event can queue a request while the assistant is available.
 4. Inspect `/api/assistant-proposal`: it contains no raw events, catalog state, or catalog events, only the bounded MetaEvent array.
-5. Use mocked Jev/OpenAI output to verify the shortcut and OpenAI paths return the same action/data shape.
+5. Use mocked Jev/OpenAI output to verify the shortcut and OpenAI paths return the same title/message shape.
 6. Dismiss the proposal and confirm the 15-minute mute; verify empty-search recovery remains local.
 
 ## Performance Considerations

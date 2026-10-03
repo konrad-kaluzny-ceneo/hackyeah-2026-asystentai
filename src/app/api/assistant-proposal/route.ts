@@ -1,12 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import type { MetaEvent } from "@/behavior/types";
 import {
   AssistantProposalRequestSchema,
   type AssistantProposalResponse,
 } from "@/lib/assistant-proposal-api";
-import type { CategoryFilter } from "@/lib/catalog-types";
-import { getCategoryFiltersById } from "@/server/assistant-proposal/category-filters";
 import { composeProposal } from "@/server/assistant-proposal/compose";
 import { buildAssistantPrompt } from "@/server/assistant-proposal/prompt";
 import { InMemoryRateLimiter } from "@/server/meta-events/rate-limit";
@@ -39,39 +36,6 @@ export function extractClientKey(request: NextRequest): string {
   return "anonymous";
 }
 
-function categoryIdFromEvents(events: readonly MetaEvent[]): string | null {
-  const categoryIds = new Set<string>();
-  for (const event of events) {
-    if (event.subject?.categoryId) categoryIds.add(event.subject.categoryId);
-    const metricCategoryId = event.metrics.categoryId;
-    if (typeof metricCategoryId === "string") categoryIds.add(metricCategoryId);
-  }
-  return categoryIds.size === 1 ? [...categoryIds][0]! : null;
-}
-
-async function readAvailableFilters(
-  events: readonly MetaEvent[],
-): Promise<CategoryFilter[]> {
-  const categoryId = categoryIdFromEvents(events);
-  if (!categoryId) return [];
-
-  try {
-    return await getCategoryFiltersById(categoryId);
-  } catch (error) {
-    console.warn(
-      JSON.stringify({
-        component: "assistant-proposal",
-        action: "category_filters_unavailable",
-        error: error instanceof Error ? error.message : "unknown",
-      }),
-    );
-    if (process.env.NODE_ENV === "development") {
-      throw error;
-    }
-    return [];
-  }
-}
-
 export async function POST(request: NextRequest): Promise<Response> {
   const clientKey = extractClientKey(request);
   const ipRate = ipLimiter.check(clientKey);
@@ -90,15 +54,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   const parsedRequest = AssistantProposalRequestSchema.safeParse(bodyUnknown);
   if (!parsedRequest.success) return hide();
 
-  const availableFilters = await readAvailableFilters(
-    parsedRequest.data.metaEvents,
-  );
-  const prompt = buildAssistantPrompt(parsedRequest.data, availableFilters);
+  const prompt = buildAssistantPrompt(parsedRequest.data);
   const jevSignal = AbortSignal.timeout(JEV_TIMEOUT_MS);
   const proposal = await composeProposal(
     prompt,
     jevSignal,
-    availableFilters,
     request.signal,
   );
   return NextResponse.json(proposal, { status: 200 });

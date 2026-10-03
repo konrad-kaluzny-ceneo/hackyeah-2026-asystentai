@@ -8,26 +8,11 @@ export const MAX_ASSISTANT_PROPOSAL_EVENTS = 10;
 // Response Contract (context/changes/assistant-proposal-box/interface.md)
 // ============================================================================
 
-export const ASSISTANT_ACTIONS = [
-  "narrow-choice",
-  "clear-search-and-filters",
-] as const;
-
-export const AssistantActionSchema = z.enum(ASSISTANT_ACTIONS);
-
-export const AssistantActionDataSchema = z.object({
-  target: z.enum(["filters", "catalog"]),
-  filterKeys: z.array(z.string().min(1)).max(3),
-});
-
-export type AssistantAction = z.infer<typeof AssistantActionSchema>;
-export type AssistantActionData = z.infer<typeof AssistantActionDataSchema>;
-
 export const AssistantProposalShowSchema = z.object({
   status: z.literal("show"),
-  action: AssistantActionSchema,
-  data: AssistantActionDataSchema,
-});
+  title: z.string().trim().min(1),
+  message: z.string().trim().min(1),
+}).strict();
 
 export const AssistantProposalHideSchema = z.object({
   status: z.literal("hide"),

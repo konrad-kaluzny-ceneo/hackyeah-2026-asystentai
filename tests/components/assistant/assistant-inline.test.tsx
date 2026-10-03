@@ -38,8 +38,8 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const SHOW_PROPOSAL = {
   status: "show",
-  action: "narrow-choice",
-  data: { target: "filters", filterKeys: ["capacity"] },
+  title: "Pomóc zawęzić wybór?",
+  message: "Na podstawie ostatniej aktywności warto zawęzić wybór.",
 } as const;
 
 const fatigueProposal: AssistantProposal = {
@@ -168,11 +168,19 @@ describe("assistant proposal coordinator and listing UI", () => {
     expect(init.method).toBe("POST");
     const body = JSON.parse(String(init.body)) as { metaEvents: unknown[] };
     expect(body.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
-    expect(getAssistantProposalUiState().proposal?.data).toEqual(SHOW_PROPOSAL.data);
+    expect(getAssistantProposalUiState().proposal?.data).toEqual({
+      target: "filters",
+      filterKeys: [],
+    });
 
     await renderAssistant();
     expect(container.querySelector("h2")?.textContent).toBe("Pomóc zawęzić wybór?");
-    expect(container.querySelector('[data-element-id="assistant-action"]')?.tagName).toBe("A");
+    expect(container.querySelector('[data-assistant-popover="filters"]')).not.toBeNull();
+    const filtersLink = container.querySelector<HTMLAnchorElement>(
+      '[data-element-id="assistant-action"]',
+    );
+    expect(filtersLink?.tagName).toBe("A");
+    expect(filtersLink?.getAttribute("href")).toBe("#filters");
   });
 
   it("does not call the server while muted", async () => {
@@ -201,12 +209,12 @@ describe("assistant proposal coordinator and listing UI", () => {
     expect(container.querySelector('[data-element-id="assistant-action"]')?.tagName).toBe("BUTTON");
   });
 
-  it("maps the server clear action to local copy and a button", async () => {
+  it("uses server copy while keeping the filter action local", async () => {
     fetchMock.mockResolvedValue(
       response({
         status: "show",
-        action: "clear-search-and-filters",
-        data: { target: "catalog", filterKeys: [] },
+        title: "Pomogę zawęzić wybór",
+        message: "Wskaż parametr, który ma dla Ciebie największe znaczenie.",
       }),
     );
     await renderCoordinatorOnly();
@@ -214,10 +222,10 @@ describe("assistant proposal coordinator and listing UI", () => {
     await flushRequestTasks();
     await renderAssistant();
 
-    expect(container.querySelector("h2")?.textContent).toBe("Zacznij od pełnego katalogu");
-    expect(container.querySelector('[data-element-id="assistant-action"]')?.tagName).toBe("BUTTON");
+    expect(container.querySelector("h2")?.textContent).toBe("Pomogę zawęzić wybór");
+    expect(container.querySelector('[data-element-id="assistant-action"]')?.tagName).toBe("A");
     expect(container.querySelector('[data-element-id="assistant-action"]')?.textContent).toBe(
-      "Wyczyść wyszukiwanie i filtry",
+      "Przejdź do filtrów",
     );
   });
 

@@ -4,12 +4,7 @@ import { POST, resetLimitersForTest, MAX_REQUEST_BODY_BYTES } from "@/app/api/as
 import { parseAssistantProposalResponse } from "@/lib/assistant-proposal-api";
 import * as jevClient from "@/server/assistant-proposal/jev-client";
 import * as openaiClient from "@/server/assistant-proposal/openai-client";
-import * as categoryFilters from "@/server/assistant-proposal/category-filters";
 import { makeMetaEvent, resetFixtureSeed } from "../behavior/fixtures";
-
-vi.mock("@/server/assistant-proposal/category-filters", () => ({
-  getCategoryFiltersById: vi.fn(),
-}));
 
 function makeRequest(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://localhost/api/assistant-proposal", {
@@ -50,29 +45,19 @@ const validEvent = makeMetaEvent("rage_click", {
 });
 
 const validRequestBody = { metaEvents: [validEvent] };
-const capacityFilter = {
-  key: "capacity",
-  label: "Pojemność",
-  kind: "range" as const,
-  min: 100,
-  max: 500,
-};
-
 describe("POST /api/assistant-proposal", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     resetLimitersForTest();
     resetFixtureSeed();
-    vi.mocked(categoryFilters.getCategoryFiltersById).mockResolvedValue([
-      capacityFilter,
-    ]);
   });
 
-  it("uses a confident Jev shortcut and sends an anonymized prompt", async () => {
+  it("uses Jev's confident fatigue draft as a shortcut", async () => {
     const jevSpy = vi
       .spyOn(jevClient, "requestJev")
       .mockResolvedValue(jevOutput(0.88));
-    const openaiSpy = vi.spyOn(openaiClient, "requestStrongerReply");
+    const openaiSpy = vi
+      .spyOn(openaiClient, "requestStrongerReply")
 
     const response = await POST(
       makeRequest(validRequestBody, { "x-real-ip": "10.0.0.1" }),
@@ -82,8 +67,8 @@ describe("POST /api/assistant-proposal", () => {
     expect(response.status).toBe(200);
     expect(json).toEqual({
       status: "show",
-      action: "narrow-choice",
-      data: { target: "filters", filterKeys: [] },
+      title: "Pomóc zawęzić wybór?",
+      message: "Zawęź wybór według ważnego parametru.",
     });
     expect(parseAssistantProposalResponse(json)).toEqual(json);
     expect(jevSpy).toHaveBeenCalledOnce();
@@ -99,17 +84,14 @@ describe("POST /api/assistant-proposal", () => {
     expect(prompt).not.toContain("2026-10-03T14:00:00.000Z");
   });
 
-  it("uses OpenAI for uncertain Jev output and sanitizes returned filter keys", async () => {
+  it("uses OpenAI for uncertain Jev output and returns only title and message", async () => {
     const jev = jevOutput(0.7, { hedgingRequired: true });
     vi.spyOn(jevClient, "requestJev").mockResolvedValue(jev);
     const openaiSpy = vi
       .spyOn(openaiClient, "requestStrongerReply")
       .mockResolvedValue({
-        action: "narrow-choice",
-        data: {
-          target: "filters",
-          filterKeys: ["capacity", "not-a-real-filter"],
-        },
+        title: "Zawęź wybór",
+        message: "Wskaż najważniejszy parametr, aby łatwiej wybrać.",
       });
 
     const response = await POST(
@@ -120,13 +102,12 @@ describe("POST /api/assistant-proposal", () => {
     expect(response.status).toBe(200);
     expect(json).toEqual({
       status: "show",
-      action: "narrow-choice",
-      data: { target: "filters", filterKeys: ["capacity"] },
+      title: "Zawęź wybór",
+      message: "Wskaż najważniejszy parametr, aby łatwiej wybrać.",
     });
     expect(parseAssistantProposalResponse(json)).toEqual(json);
     expect(openaiSpy).toHaveBeenCalledWith(
       expect.objectContaining({ situation: "DECISION_FATIGUE" }),
-      [capacityFilter],
       expect.any(AbortSignal),
     );
   });

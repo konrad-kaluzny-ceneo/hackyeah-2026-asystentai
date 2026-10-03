@@ -106,7 +106,9 @@ export function AssistantProposalCoordinator() {
     workerActiveRef.current = true;
 
     try {
-      while (mountedRef.current && requestAllowedRef.current) {
+      while (mountedRef.current
+        // && requestAllowedRef.current
+      ) {
         const trigger = takeAssistantProposalTrigger();
         if (trigger === null) return;
 
@@ -134,22 +136,14 @@ export function AssistantProposalCoordinator() {
 
           requestAllowedRef.current = false;
           clearAssistantProposalTriggers();
-          const clearsCatalog =
-            parsed.data.action === "clear-search-and-filters";
           const proposal: AssistantProposal = {
             id: `jev-proposal:${trigger.eventId}`,
             kind: "jev_proposal",
-            title: clearsCatalog
-              ? "Zacznij od pełnego katalogu"
-              : "Pomóc zawęzić wybór?",
-            message: clearsCatalog
-              ? "Wyczyść wyszukiwanie i filtry, aby ponownie zobaczyć pełną ofertę."
-              : "Na podstawie ostatniej aktywności warto zawęzić wybór.",
-            actionLabel: clearsCatalog
-              ? "Wyczyść wyszukiwanie i filtry"
-              : "Przejdź do filtrów",
-            action: parsed.data.action,
-            data: parsed.data.data,
+            title: parsed.data.title,
+            message: parsed.data.message,
+            actionLabel: "Przejdź do filtrów",
+            action: "narrow-choice",
+            data: { target: "filters", filterKeys: [] },
             createdAt:
               trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
           };

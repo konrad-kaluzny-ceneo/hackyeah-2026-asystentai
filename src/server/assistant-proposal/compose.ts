@@ -1,5 +1,4 @@
 import type { AssistantProposalResponse } from "@/lib/assistant-proposal-api";
-import type { CategoryFilter } from "@/lib/catalog-types";
 
 import { requestJev } from "./jev-client";
 import {
@@ -10,11 +9,11 @@ import { routeJevOutput } from "./route-decision";
 import { JevAssistantOutputSchema } from "./schema";
 
 const HIDE_RESPONSE: AssistantProposalResponse = { status: "hide" };
+const SHORTCUT_TITLE = "Pomóc zawęzić wybór?";
 
 export async function composeProposal(
   prompt: string,
   jevSignal: AbortSignal,
-  availableFilters: readonly CategoryFilter[] = [],
   requestSignal?: AbortSignal,
 ): Promise<AssistantProposalResponse> {
   let rawJevOutput: unknown;
@@ -37,18 +36,17 @@ export async function composeProposal(
   if (decision.decision === "shortcut") {
     return {
       status: "show",
-      action: "narrow-choice",
-      data: { target: "filters", filterKeys: [] },
+      title: SHORTCUT_TITLE,
+      message: decision.message,
     };
   }
 
   try {
     const reply = await requestStrongerReply(
       parsedJev.data,
-      availableFilters,
       requestSignal,
     );
-    return toProposalResponse(reply, availableFilters);
+    return { status: "show", ...reply };
   } catch (error) {
     logFailure("openai_request", error);
     rethrowInDevelopment(error);
@@ -73,20 +71,3 @@ function logFailure(stage: string, error: unknown): void {
   );
 }
 
-function toProposalResponse(
-  reply: StrongerReply,
-  availableFilters: readonly CategoryFilter[],
-): AssistantProposalResponse {
-  const allowedFilterKeys = new Set(
-    availableFilters.map((filter) => filter.key),
-  );
-  const filterKeys = reply.data.filterKeys.filter((key) =>
-    allowedFilterKeys.has(key),
-  );
-
-  return {
-    status: "show",
-    action: reply.action,
-    data: { ...reply.data, filterKeys },
-  };
-}
