@@ -9,15 +9,63 @@ import { makeMetaEvent, resetFixtureSeed } from "../behavior/fixtures";
 
 describe("assistant-proposal-api contract", () => {
   describe("AssistantProposalResponseSchema", () => {
-    it("accepts a valid 'show' response with title and message", () => {
+    it("accepts a valid 'show' response with action payload", () => {
       const payload = {
         status: "show",
         title: "Pomóc zawęzić wybór?",
         message: "Zawęź wybór według jednego ważnego parametru.",
+        action: "narrow-choice",
+        actionLabel: "Przejdź do filtrów",
+        data: { target: "filters", filterKeys: ["capacityLiters"] },
       };
 
       const parsed = parseAssistantProposalResponse(payload);
       expect(parsed).toEqual(payload);
+    });
+
+    it("accepts show responses for every registered skill action", () => {
+      const samples = [
+        {
+          status: "show",
+          title: "Wyczyść wyszukiwanie",
+          message: "Brak wyników — spróbuj ponownie z pustymi filtrami.",
+          action: "clear-search-and-filters",
+          actionLabel: "Wyczyść filtry",
+          data: { target: "catalog" as const, filterKeys: [] },
+        },
+        {
+          status: "show",
+          title: "Otwórz produkt",
+          message: "Chcesz wrócić do ostatnio oglądanego modelu?",
+          action: "go-to-product",
+          actionLabel: "Otwórz produkt",
+          data: {
+            target: "product" as const,
+            filterKeys: [],
+            productSlug: "lodowka-x",
+          },
+        },
+        {
+          status: "show",
+          title: "Posortuj po cenie",
+          message: "Zobacz najtańsze modele w tej kategorii.",
+          action: "sort-by-price",
+          actionLabel: "Cena rosnąco",
+          data: { target: "catalog" as const, filterKeys: [], sort: "price_asc" as const },
+        },
+        {
+          status: "show",
+          title: "Sama wskazówka",
+          message: "Zwróć uwagę na wysokość urządzenia.",
+          action: "explain-choice",
+          actionLabel: "Pokaż wskazówkę",
+          data: { target: "catalog" as const, filterKeys: [] },
+        },
+      ];
+
+      for (const payload of samples) {
+        expect(safeParseAssistantProposalResponse(payload).success).toBe(true);
+      }
     });
 
     it("rejects 'show' with missing or empty copy", () => {
@@ -42,6 +90,31 @@ describe("assistant-proposal-api contract", () => {
           status: "show",
           title: "Krótki tytuł",
           message: "x".repeat(181),
+          action: "narrow-choice",
+          actionLabel: "OK",
+          data: { target: "filters", filterKeys: [] },
+        }).success,
+      ).toBe(false);
+    });
+
+    it("rejects unknown action values and missing actionLabel", () => {
+      expect(
+        safeParseAssistantProposalResponse({
+          status: "show",
+          title: "t",
+          message: "m",
+          action: "go-to-compare",
+          actionLabel: "OK",
+          data: { target: "catalog", filterKeys: [] },
+        }).success,
+      ).toBe(false);
+      expect(
+        safeParseAssistantProposalResponse({
+          status: "show",
+          title: "t",
+          message: "m",
+          action: "narrow-choice",
+          data: { target: "filters", filterKeys: [] },
         }).success,
       ).toBe(false);
     });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import {
   INTENT_TIMELINE_WINDOW_SECONDS,
@@ -10,6 +11,7 @@ import {
   type IntentTimelineResponse,
 } from "@/lib/intent-timeline";
 import { getSessionId } from "../collector/session";
+import { getDebugState, subscribeDebug } from "./debug-store";
 
 const CHART_WIDTH = 900;
 const CHART_HEIGHT = 240;
@@ -18,6 +20,7 @@ const PLOT_RIGHT = CHART_WIDTH - 10;
 const PLOT_TOP = 28;
 const PLOT_BOTTOM = 204;
 const POLL_INTERVAL_MS = 1_000;
+const SERVER_DEBUG_SNAPSHOT = getDebugState();
 
 export function chartX(
   second: number,
@@ -43,6 +46,11 @@ export function shortenComment(comment: string, maxLength = 34): string {
 export function EmotionTimelineChart() {
   const [timeline, setTimeline] = useState<IntentTimelineResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const debugState = useSyncExternalStore(
+    subscribeDebug,
+    getDebugState,
+    () => SERVER_DEBUG_SNAPSHOT,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -117,17 +125,6 @@ export function EmotionTimelineChart() {
             role="img"
           >
           <rect x="0" y={PLOT_TOP} width={CHART_WIDTH} height={PLOT_BOTTOM - PLOT_TOP} fill="transparent" />
-          <text
-            x={PLOT_LEFT / 2}
-            y={(PLOT_TOP + PLOT_BOTTOM) / 2}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            transform={`rotate(-90 ${PLOT_LEFT / 2} ${(PLOT_TOP + PLOT_BOTTOM) / 2})`}
-            fontSize="10"
-            className="fill-zinc-500"
-          >
-            Suma prawdopodobieństw
-          </text>
           {[0, stackedMax / 2, stackedMax].map((value) => (
             <line
               key={value}
@@ -161,6 +158,39 @@ export function EmotionTimelineChart() {
           >
             teraz {timeline.currentSecond}s
           </text>
+          {debugState.assistantProposalRequests.map((request, index) => {
+            const second = requestSecond(request.requestedAt, timeline);
+            if (second === null) return null;
+            const x = chartX(second, timeline.windowStartSecond);
+            const textAnchor = x > CHART_WIDTH - 65 ? "end" : "start";
+            const textX = textAnchor === "end" ? x - 4 : x + 4;
+            return (
+              <g key={`${request.requestedAt}-${index}`}>
+                <line
+                  x1={x}
+                  x2={x}
+                  y1={PLOT_TOP}
+                  y2={PLOT_BOTTOM}
+                  stroke="#f59e0b"
+                  strokeDasharray="2 3"
+                  strokeWidth="2"
+                  opacity="0.85"
+                />
+                <circle cx={x} cy={PLOT_TOP + 8} r="3" fill="#f59e0b">
+                  <title>Request do OpenAI o {formatRequestTime(request.requestedAt)}</title>
+                </circle>
+                <text
+                  x={textX}
+                  y={index % 2 === 0 ? 11 : 23}
+                  textAnchor={textAnchor}
+                  fontSize="10"
+                  className="fill-amber-600 dark:fill-amber-400"
+                >
+                  OpenAI
+                </text>
+              </g>
+            );
+          })}
           {stackedSeries.map((intent) => (
             <path
               key={intent.id}
@@ -279,4 +309,26 @@ function buildAreaPath(
     .join(" L ");
 
   return `M ${upperPath} L ${lowerPath} Z`;
+}
+
+function requestSecond(
+  requestedAt: string,
+  timeline: IntentTimelineResponse,
+): number | null {
+  const requestedMs = Date.parse(requestedAt);
+  const generatedMs = Date.parse(timeline.generatedAt);
+  if (Number.isNaN(requestedMs) || Number.isNaN(generatedMs)) return null;
+
+  const second =
+    timeline.currentSecond - (generatedMs - requestedMs) / 1_000;
+  if (second < timeline.windowStartSecond || second > timeline.windowEndSecond) {
+    return null;
+  }
+  return second;
+}
+
+function formatRequestTime(requestedAt: string): string {
+  const timestamp = Date.parse(requestedAt);
+  if (Number.isNaN(timestamp)) return requestedAt;
+  return new Date(timestamp).toLocaleTimeString("pl-PL", { hour12: false });
 }

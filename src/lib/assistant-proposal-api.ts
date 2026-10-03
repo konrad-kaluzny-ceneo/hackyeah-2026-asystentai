@@ -5,15 +5,41 @@ import { MetaEventSchema } from "@/behavior/meta-event-schema";
 export const MAX_ASSISTANT_PROPOSAL_EVENTS = 10;
 export const MAX_ASSISTANT_PROPOSAL_TITLE_LENGTH = 80;
 export const MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH = 180;
+export const MAX_ASSISTANT_PROPOSAL_ACTION_LABEL_LENGTH = 40;
+
+export const ASSISTANT_PROPOSAL_ACTIONS = [
+  "narrow-choice",
+  "clear-search-and-filters",
+  "go-to-product",
+  "sort-by-price",
+  "explain-choice",
+  "none",
+] as const;
+export type AssistantProposalAction =
+  (typeof ASSISTANT_PROPOSAL_ACTIONS)[number];
+
+export const ASSISTANT_PROPOSAL_SORTS = ["price_asc", "price_desc"] as const;
 
 // ============================================================================
 // Response Contract (context/changes/assistant-proposal-box/interface.md)
 // ============================================================================
 
+export const AssistantProposalActionDataSchema = z
+  .object({
+    target: z.enum(["filters", "catalog", "product"]),
+    filterKeys: z.array(z.string()).default([]),
+    productSlug: z.string().min(1).optional(),
+    sort: z.enum(ASSISTANT_PROPOSAL_SORTS).optional(),
+  })
+  .strict();
+
 export const AssistantProposalShowSchema = z.object({
   status: z.literal("show"),
   title: z.string().trim().min(1).max(MAX_ASSISTANT_PROPOSAL_TITLE_LENGTH),
   message: z.string().trim().min(1).max(MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH),
+  action: z.enum(ASSISTANT_PROPOSAL_ACTIONS),
+  actionLabel: z.string().trim().min(1).max(MAX_ASSISTANT_PROPOSAL_ACTION_LABEL_LENGTH),
+  data: AssistantProposalActionDataSchema,
 }).strict();
 
 export const AssistantProposalHideSchema = z.object({

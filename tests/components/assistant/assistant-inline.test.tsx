@@ -9,8 +9,19 @@ const decisionEngineMock = vi.hoisted(() => ({
     title: string;
     message: string;
     actionLabel: string;
-    action: "narrow-choice" | "clear-search-and-filters";
-    data: { target: "filters" | "catalog"; filterKeys: string[] };
+    action:
+      | "narrow-choice"
+      | "clear-search-and-filters"
+      | "go-to-product"
+      | "sort-by-price"
+      | "explain-choice"
+      | "none";
+    data: {
+      target: "filters" | "catalog" | "product";
+      filterKeys: string[];
+      productSlug?: string;
+      sort?: "price_asc" | "price_desc";
+    };
     createdAt: string;
   },
 }));
@@ -30,7 +41,6 @@ import {
 import { clearAssistantProposalUiState, getAssistantProposalUiState } from "@/lib/assistant-proposal-state";
 import {
   muteAssistantFor,
-  readAssistantMutedUntil,
 } from "@/lib/assistant-events";
 import type { AssistantProposal, CatalogState } from "@/lib/catalog-types";
 import { makeMetaEvent, resetFixtureSeed } from "../../behavior/fixtures";
@@ -41,6 +51,9 @@ const SHOW_PROPOSAL = {
   status: "show",
   title: "Pomóc zawęzić wybór?",
   message: "Na podstawie ostatniej aktywności warto zawęzić wybór.",
+  action: "narrow-choice",
+  actionLabel: "Przejdź do filtrów",
+  data: { target: "filters" as const, filterKeys: [] },
 } as const;
 
 const fatigueProposal: AssistantProposal = {
@@ -51,17 +64,6 @@ const fatigueProposal: AssistantProposal = {
   actionLabel: "Przejdź do filtrów",
   action: "narrow-choice",
   data: { target: "filters", filterKeys: [] },
-  createdAt: "2026-10-03T12:00:00.000Z",
-};
-
-const frictionProposal: AssistantProposal = {
-  id: "empty-results:search-1",
-  kind: "search_friction",
-  title: "Nie znaleźliśmy produktów",
-  message: "Wyczyść wyszukiwanie i filtry, aby zobaczyć cały katalog w tej kategorii.",
-  actionLabel: "Wyczyść wyszukiwanie i filtry",
-  action: "clear-search-and-filters",
-  data: { target: "catalog", filterKeys: [] },
   createdAt: "2026-10-03T12:00:00.000Z",
 };
 
@@ -218,7 +220,7 @@ describe("assistant proposal coordinator and listing UI", () => {
       '[data-element-id="assistant-action"]',
     );
     expect(filtersLink?.tagName).toBe("A");
-    expect(filtersLink?.getAttribute("href")).toBe("/katalog#filters");
+    expect(filtersLink?.getAttribute("href")).toBe("#filters");
   });
 
   it("does not call the server while muted", async () => {
@@ -231,20 +233,17 @@ describe("assistant proposal coordinator and listing UI", () => {
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
   });
 
-  it("keeps empty-search recovery local and prevents coordinator requests", async () => {
-    decisionEngineMock.current = frictionProposal;
+  it("does not show a predefined proposal for an empty search", async () => {
     const emptySearchState = {
       ...catalogState,
       query: "no-matching-product",
       resultCount: 0,
     };
-    await renderAssistant(frictionProposal, emptySearchState);
-    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
-    await flushRequestTasks();
+    await renderAssistant(null, emptySearchState);
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(container.querySelector("h2")?.textContent).toBe(frictionProposal.title);
-    expect(container.querySelector('[data-element-id="assistant-action"]')?.tagName).toBe("BUTTON");
+    expect(container.querySelector("h2")).toBeNull();
+    expect(container.textContent).not.toContain("Nie znaleźliśmy produktów");
   });
 
   it("uses server copy while keeping the filter action local", async () => {
@@ -253,6 +252,9 @@ describe("assistant proposal coordinator and listing UI", () => {
         status: "show",
         title: "Pomogę zawęzić wybór",
         message: "Wskaż parametr, który ma dla Ciebie największe znaczenie.",
+        action: "narrow-choice",
+        actionLabel: "Przejdź do filtrów",
+        data: { target: "filters", filterKeys: [] },
       }),
     );
     await renderCoordinatorOnly();
@@ -296,22 +298,25 @@ describe("assistant proposal coordinator and listing UI", () => {
     expect(secondBody.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL + 1);
   });
 
-  it("dismissal mutes for 15 minutes and clears the shared proposal", async () => {
+  it("dismissal clears the shared proposal without blocking later requests", async () => {
     await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     await flushRequestTasks();
     await renderAssistant();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).not.toBeNull();
 
-    const mutedAt = Date.now();
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-element-id="assistant-dismiss"]')?.click();
     });
 
-    expect(readAssistantMutedUntil()).toBeGreaterThanOrEqual(mutedAt + 15 * 60 * 1000);
-    expect(readAssistantMutedUntil()).toBeLessThanOrEqual(mutedAt + 15 * 60 * 1000 + 5);
     expect(getAssistantProposalUiState().proposal).toBeNull();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-element-id="assistant-proposal"]')).not.toBeNull();
   });
 });

@@ -1,10 +1,18 @@
 import type { ImplementedSignalKind } from "@/domain/shopping-signal";
 
-export type AssistantAction = "narrow-choice" | "clear-search-and-filters";
+export type AssistantAction =
+  | "narrow-choice"
+  | "clear-search-and-filters"
+  | "go-to-product"
+  | "sort-by-price"
+  | "explain-choice"
+  | "none";
 
 export type AssistantActionData = {
-  target: "filters" | "catalog";
+  target: "filters" | "catalog" | "product";
   filterKeys: string[];
+  productSlug?: string;
+  sort?: "price_asc" | "price_desc";
 };
 
 export type CategoryFilter = {

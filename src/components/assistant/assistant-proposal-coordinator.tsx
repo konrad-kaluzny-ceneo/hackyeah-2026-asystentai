@@ -10,6 +10,7 @@ import {
   takeAssistantProposalTrigger,
 } from "@/behavior/assistant-meta-event-history";
 import type { MetaEvent } from "@/behavior/types";
+import { recordAssistantProposalRequest } from "@/behavior/ui/debug-store";
 import { safeParseAssistantProposalResponse } from "@/lib/assistant-proposal-api";
 import type { AssistantProposal } from "@/lib/catalog-types";
 import {
@@ -120,6 +121,7 @@ export function AssistantProposalCoordinator() {
         activeControllerRef.current = controller;
         setAssistantRequestInFlight(true);
         try {
+          recordAssistantProposalRequest();
           const response = await fetch("/api/assistant-proposal", {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -145,15 +147,13 @@ export function AssistantProposalCoordinator() {
             kind: "jev_proposal",
             title: parsed.data.title,
             message: parsed.data.message,
-            actionLabel: "Przejdź do filtrów",
-            action: "narrow-choice",
-            data: { target: "filters", filterKeys: [] },
+            actionLabel: parsed.data.actionLabel,
+            action: parsed.data.action,
+            data: parsed.data.data,
             createdAt:
               trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
           };
-          setAssistantServerProposal({
-            ...proposal,
-          });
+          setAssistantServerProposal(proposal);
           return;
         } catch {
           // Network failures and aborted requests leave the proposal hidden.

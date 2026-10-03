@@ -68,6 +68,10 @@ describe("requestJev", () => {
     );
     expect(result).toEqual({
       situation: "DECISION_FATIGUE",
+      intent_probabilities: {
+        DECISION_FATIGUE: 0.94,
+        PRODUCT_HESITATION: 0.06,
+      },
       signal_strength: 0.91,
       proposal: {
         action_type: "NARROW_BY_SPEC",

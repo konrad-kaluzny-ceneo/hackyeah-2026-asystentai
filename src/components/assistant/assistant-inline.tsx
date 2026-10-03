@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 import {
   CATALOG_SESSION_CHANGED,
-  muteAssistantFor,
   readAssistantMutedUntil,
   readCatalogEvents,
 } from "@/lib/assistant-events";
@@ -15,7 +14,6 @@ import {
 } from "@/lib/assistant-proposal-state";
 import type { AssistantProposal, CatalogState, Category, Product } from "@/lib/catalog-types";
 
-const MUTE_DURATION_MS = 15 * 60 * 1000;
 type AssistantInlineProps = {
   state: CatalogState;
   catalog: { categories: Category[]; products: Product[] };
@@ -73,10 +71,9 @@ export function AssistantInline({
   }, [catalog, state]);
 
   const dismiss = () => {
-    muteAssistantFor(MUTE_DURATION_MS);
     setAssistantServerProposal(null);
     setAssistantSearchRecoveryVisible(false);
-    setMuted(true);
+    setMuted(false);
     setLocalProposal(null);
   };
 
@@ -94,7 +91,7 @@ export function AssistantInline({
     >
       <button
         type="button"
-        aria-label="Zamknij podpowiedź na 15 minut"
+        aria-label="Zamknij podpowiedź"
         data-element-id="assistant-dismiss"
         className="absolute right-3 top-3 rounded p-1 text-slate-500 hover:bg-sky-100 hover:text-slate-900"
         onClick={dismiss}

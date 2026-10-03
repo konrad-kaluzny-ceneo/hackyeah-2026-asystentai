@@ -5,21 +5,92 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   CATALOG_SESSION_CHANGED,
-  muteAssistantFor,
   readAssistantMutedUntil,
 } from "@/lib/assistant-events";
 import {
+  dispatchAssistantCatalogAction,
   getAssistantProposalUiState,
   setAssistantServerProposal,
   subscribeAssistantProposalUiState,
 } from "@/lib/assistant-proposal-state";
+import type { AssistantProposal } from "@/lib/catalog-types";
 
-const MUTE_DURATION_MS = 15 * 60 * 1000;
 const EMPTY_PROPOSAL_UI_STATE = {
   proposal: null,
   searchRecoveryVisible: false,
   requestInFlight: false,
 } as const;
+
+function ProposalAction({ proposal }: { proposal: AssistantProposal }) {
+  if (proposal.action === "clear-search-and-filters") {
+    return (
+      <button
+        type="button"
+        data-element-id="assistant-action"
+        onClick={() => dispatchAssistantCatalogAction({ type: "clear-search-and-filters" })}
+        className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
+      >
+        {proposal.actionLabel}
+      </button>
+    );
+  }
+
+  if (proposal.action === "go-to-product" && proposal.data.productSlug) {
+    return (
+      <Link
+        href={`/produkt/${proposal.data.productSlug}`}
+        data-element-id="assistant-action"
+        className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
+      >
+        {proposal.actionLabel}
+      </Link>
+    );
+  }
+
+  if (proposal.action === "sort-by-price" && proposal.data.sort) {
+    return (
+      <button
+        type="button"
+        data-element-id="assistant-action"
+        onClick={() => dispatchAssistantCatalogAction({ type: "sort-by-price", sort: proposal.data.sort! })}
+        className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
+      >
+        {proposal.actionLabel}
+      </button>
+    );
+  }
+
+  if (proposal.action === "narrow-choice") {
+    const hash =
+      proposal.data.filterKeys.length > 0
+        ? `#filters`
+        : "#filters";
+    return (
+      <a
+        href={hash}
+        data-element-id="assistant-action"
+        onClick={() => dispatchAssistantCatalogAction({ type: "highlight-filters", filterKeys: proposal.data.filterKeys })}
+        className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
+      >
+        {proposal.actionLabel}
+      </a>
+    );
+  }
+
+  if (proposal.action === "explain-choice") {
+    return (
+      <a
+        href="#filters"
+        data-element-id="assistant-action"
+        className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
+      >
+        {proposal.actionLabel}
+      </a>
+    );
+  }
+
+  return null;
+}
 
 export function AssistantProposalWidget() {
   const proposalUiState = useSyncExternalStore(
@@ -55,9 +126,8 @@ export function AssistantProposalWidget() {
   if (muted || (!proposalUiState.requestInFlight && proposal === null)) return null;
 
   const dismiss = () => {
-    muteAssistantFor(MUTE_DURATION_MS);
     setAssistantServerProposal(null);
-    setMuted(true);
+    setMuted(false);
   };
 
   return (
@@ -72,7 +142,7 @@ export function AssistantProposalWidget() {
     >
       <button
         type="button"
-        aria-label="Zamknij podpowiedź na 15 minut"
+        aria-label="Zamknij podpowiedź"
         data-element-id="assistant-dismiss"
         className="absolute right-3 top-3 rounded p-1 text-slate-500 hover:bg-sky-100 hover:text-slate-900"
         onClick={dismiss}
@@ -101,13 +171,7 @@ export function AssistantProposalWidget() {
             {proposal.title}
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
-          <Link
-            href="/katalog#filters"
-            data-element-id="assistant-action"
-            className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
-          >
-            {proposal.actionLabel}
-          </Link>
+          <ProposalAction proposal={proposal} />
         </>
       ) : null}
     </aside>

@@ -6,9 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AssistantInline } from "@/components/assistant/assistant-inline";
 import { trackCatalogEvent } from "@/lib/assistant-events";
+import { subscribeAssistantCatalogAction } from "@/lib/assistant-proposal-state";
 import { CLEAR_GLOBAL_SEARCH_EVENT, CATALOG_SEARCH_SUBMITTED_EVENT } from "@/lib/catalog-ui-events";
 import type { ActiveFilter } from "@/behavior/types";
 import type { CatalogState, Category, Product } from "@/lib/catalog-types";
+import { useEffect } from "react";
 
 const PAGE_SIZE = 20;
 
@@ -25,7 +27,23 @@ export default function CatalogListing({ category, products, initialQuery = "" }
   const [previousInitialQuery, setPreviousInitialQuery] = useState(initialQuery);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+  const [sortOrder, setSortOrder] = useState<"price_asc" | "price_desc" | null>(null);
+  const [highlightedFilters, setHighlightedFilters] = useState<string[]>([]);
   const categorySlug = category?.slug ?? null;
+
+  useEffect(() => {
+    return subscribeAssistantCatalogAction((action) => {
+      if (action.type === "clear-search-and-filters") clearSearchAndFilters();
+      if (action.type === "sort-by-price") setSortOrder(action.sort);
+      if (action.type === "highlight-filters") {
+        setHighlightedFilters(action.filterKeys);
+        const target = document.querySelector(
+          `[data-filter-id="${action.filterKeys[0] ?? ""}"]`,
+        );
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }, []);
 
   if (initialQuery !== previousInitialQuery) {
     setPreviousInitialQuery(initialQuery);
@@ -57,9 +75,17 @@ export default function CatalogListing({ category, products, initialQuery = "" }
     return true;
   }), [category?.specFilters, filters, products, query]);
 
-  const totalPages = Math.max(1, Math.ceil(visibleProducts.length / PAGE_SIZE));
+  const sortedProducts = useMemo(() => {
+    if (sortOrder === null) return visibleProducts;
+    const direction = sortOrder === "price_asc" ? 1 : -1;
+    return [...visibleProducts].sort(
+      (a, b) => (a.price - b.price) * direction,
+    );
+  }, [visibleProducts, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pageProducts = visibleProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageProducts = sortedProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const state: CatalogState = { categorySlug, query, filters, resultCount: visibleProducts.length, page: safePage };
   const brands = [...new Set(products.map((product) => product.brand))].sort((a, b) => a.localeCompare(b, "pl-PL"));
   const activeFilters: ActiveFilter[] = [];
@@ -142,8 +168,8 @@ export default function CatalogListing({ category, products, initialQuery = "" }
             <h2 className="font-semibold">Filtry</h2>
             {visibleProducts.length > 0 && <button data-element-id="filter-clear" type="button" onClick={clearSearchAndFilters} className="text-xs font-semibold text-[#56725e] hover:underline">Wyczyść</button>}
           </div>
-          <div className="mt-5 border-t border-[#edf0ed] pt-4">
-            <p className="mb-3 text-sm font-semibold">Cena</p>
+          <div className="mt-5 border-t border-[#edf0ed] pt-4" data-highlighted={highlightedFilters.includes("price") || undefined}>
+            <p className={`mb-3 text-sm font-semibold ${highlightedFilters.includes("price") ? "text-sky-700" : ""}`}>Cena</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-[11px] text-[#87938b]">Od
                 <input data-element-id="filter-price-min" data-filter-id="price" aria-label="Cena od" inputMode="numeric" type="number" min="0" value={filters.priceMin ?? ""} onChange={(event) => updateFilter("priceMin", event.target.value)} placeholder="0 zł" className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
@@ -153,16 +179,16 @@ export default function CatalogListing({ category, products, initialQuery = "" }
               </label>
             </div>
           </div>
-          <div className="mt-5 border-t border-[#edf0ed] pt-4">
-            <label className="block text-sm font-semibold" htmlFor="brand-filter">Producent</label>
+          <div className="mt-5 border-t border-[#edf0ed] pt-4" data-highlighted={highlightedFilters.includes("brand") || undefined}>
+            <label className={`block text-sm font-semibold ${highlightedFilters.includes("brand") ? "text-sky-700" : ""}`} htmlFor="brand-filter">Producent</label>
             <select data-element-id="filter-brand" data-filter-id="brand" id="brand-filter" value={filters.brand ?? ""} onChange={(event) => updateFilter("brand", event.target.value)} className="mt-3 w-full rounded-lg border border-[#dfe6e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#72917b]">
               <option value="">Wszyscy producenci</option>
               {brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
             </select>
           </div>
           {category?.specFilters.map((spec) => (
-            <div key={spec.key} className="mt-5 border-t border-[#edf0ed] pt-4">
-              <p className="mb-3 text-sm font-semibold">{spec.label}</p>
+            <div key={spec.key} className={`mt-5 border-t border-[#edf0ed] pt-4 ${highlightedFilters.includes(spec.key) ? "rounded-xl ring-2 ring-sky-200" : ""}`}>
+              <p className={`mb-3 text-sm font-semibold ${highlightedFilters.includes(spec.key) ? "text-sky-700" : ""}`}>{spec.label}</p>
               {spec.kind === "select" ? (
                 <select data-element-id={`filter-${spec.key}`} data-filter-id={spec.key} aria-label={spec.label} value={filters[spec.key] ?? ""} onChange={(event) => updateFilter(spec.key, event.target.value)} className="w-full rounded-lg border border-[#dfe6e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#72917b]">
                   <option value="">Dowolna</option>
@@ -186,7 +212,19 @@ export default function CatalogListing({ category, products, initialQuery = "" }
         <section aria-label="Lista produktów">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-[#718078]">Znaleziono <strong className="text-[#24352b]">{visibleProducts.length}</strong> {plural(visibleProducts.length, "produkt", "produkty", "produktów")}</p>
-            <span className="text-xs text-[#98a39b]">Modele demonstracyjne</span>
+            <div className="flex items-center gap-3">
+              {sortOrder !== null && (
+                <button
+                  type="button"
+                  data-element-id="assistant-sort-clear"
+                  onClick={() => setSortOrder(null)}
+                  className="rounded-lg border border-[#dfe6e0] px-3 py-1.5 text-xs font-semibold text-[#56725e] hover:bg-[#edf3ee]"
+                >
+                  {sortOrder === "price_asc" ? "Cena: rosnąco ✕" : "Cena: malejąco ✕"}
+                </button>
+              )}
+              <span className="text-xs text-[#98a39b]">Modele demonstracyjne</span>
+            </div>
           </div>
           {visibleProducts.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
