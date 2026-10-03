@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
 import { THRESHOLDS } from "@/behavior/config/thresholds";
+import { AssistantProposalCoordinator } from "@/components/assistant/assistant-proposal-coordinator";
 import {
   clearAssistantMetaEventHistory,
   recordAssistantMetaEventBatch,
@@ -93,11 +94,12 @@ export function BehaviorDebugShell() {
     trackerRef.current?.collector.syncPathname();
   }, [pathname]);
 
-  if (process.env.NODE_ENV !== "development") {
-    return null;
-  }
-
-  return <DebugOverlay />;
+  return (
+    <>
+      <AssistantProposalCoordinator />
+      {process.env.NODE_ENV === "development" ? <DebugOverlay /> : null}
+    </>
+  );
 }
 
 function snapshotFromTracker(tracker: BehaviorTracker): Partial<DebugState> {

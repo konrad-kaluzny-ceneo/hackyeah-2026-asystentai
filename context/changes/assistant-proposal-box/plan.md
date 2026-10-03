@@ -8,9 +8,9 @@ Connect the behavior MetaEvent pipeline to assistant proposals without asking th
 
 - Raw behavior events are collected and analyzed in the browser. Detectors emit privacy-safe `MetaEvent`s; the dispatcher batches them to `POST /api/meta-events`. Raw events stay in the browser (`src/behavior/types.ts:54-57,171-173`).
 - The full MetaEvent batch is available after a successful HTTP response through the dispatcher's `onBatchSent` callback (`src/behavior/dispatcher/dispatcher.ts:87-105`). The tracker shell publishes full events into `assistant-meta-event-history` and separately records reduced summaries for the dev overlay; the assistant store is not the debug store.
-- `AssistantInline` currently gates requests on a local `DecisionEngine` fatigue result, then calls `/api/assistant-proposal` once per fatigue proposal ID when the history is non-empty. The existing mute lasts 15 minutes (`src/components/assistant/assistant-inline.tsx`).
+- Before Phase 3, `AssistantInline` gated requests on a local `DecisionEngine` fatigue result and called `/api/assistant-proposal` once per fatigue proposal ID when the history was non-empty. The existing mute lasts 15 minutes (`src/components/assistant/assistant-inline.tsx`).
 - The proposal endpoint already accepts only `{ metaEvents }` (1–10 strict MetaEvents) and the Jev prompt builds a minimized summary; raw/catalog events and catalog state are not part of this request (`src/lib/assistant-proposal-api.ts`; `src/server/assistant-proposal/prompt.ts`).
-- The route currently invokes the local stub only for `DECISION_FATIGUE` with confidence above 0.75; every other valid Jev situation returns `hide` (`src/server/assistant-proposal/route-decision.ts`; `src/app/api/assistant-proposal/route.ts`).
+- Before Phase 3, the route invoked the local stub only for `DECISION_FATIGUE` with confidence above 0.75; every other valid Jev situation returned `hide` (`src/server/assistant-proposal/route-decision.ts`; `src/app/api/assistant-proposal/route.ts`).
 - `DecisionEngine` currently supplies the client-side fatigue gate: three distinct pairwise-similar product views followed by a return to the listing, with no later route or catalog change (`src/lib/decision-engine.ts:104-183`). Phase 3 removes this gate from the Jev request path; catalog events remain local.
 
 ### Key Discoveries:
@@ -35,7 +35,7 @@ The existing single-box behavior remains: local `search_friction` stays local, t
 
 ## Implementation Approach
 
-The application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and notifies `AssistantInline`. The UI starts one request for each newly observed event once the history contains at least five events, provided no proposal is visible and the assistant is not muted. Each request carries the latest 10-event snapshot. The shared request remains `{ metaEvents: MetaEvent[] }`. The route validates that bounded request, gives Jev a server-built summary, validates Jev's situation against the known prompt vocabulary, then hides or invokes the deterministic demo stub based on the strict confidence threshold. Existing route rate limits and Jev's three-second timeout remain in force.
+The application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and queues one immutable snapshot when the fifth and each later distinct event arrives. A coordinator mounted in the root behavior shell drains these triggers in order while no proposal is visible and the assistant is not muted, including while the shopper is on a product page. Each request carries at most 10 MetaEvents. The shared request remains `{ metaEvents: MetaEvent[] }`. The route validates that bounded request, gives Jev a server-built summary, validates Jev's situation against the known prompt vocabulary, then hides or invokes the deterministic demo stub based on the strict confidence threshold. Existing route rate limits and Jev's three-second timeout remain in force.
 
 ## Phase 1: Retain Recent MetaEvents for the Assistant
 
@@ -178,22 +178,35 @@ Replace the client fatigue gate with a MetaEvent-count trigger and broaden the s
 
 ### Changes Required:
 
-#### 1. Client request lifecycle and rendering
+#### 1. Persistent client request lifecycle
+
+**File**: `src/components/assistant/assistant-proposal-coordinator.tsx` (new)
+
+**Intent**: Drain queued MetaEvent request triggers from the root behavior shell so classification continues while the listing box is unmounted on product pages.
+
+**Contract**: When the history first reaches five distinct events, call `POST /api/assistant-proposal` with the latest at most 10 events; send another request for each newly observed event thereafter while no proposal is visible and the assistant is not muted. Serialize requests in event order. `show` publishes one validated proposal; `hide`, HTTP failure, or invalid response leaves it hidden and proceeds to the next queued new-event trigger. A visible local search-recovery box or a mute clears queued triggers and aborts an in-flight request.
+
+**File**: `src/lib/assistant-proposal-state.ts` (new)
+
+**Intent**: Share the single server proposal and local search-recovery visibility between the persistent coordinator and the listing renderer.
+
+**Contract**: Keep at most one Jev proposal; local search recovery takes precedence and tells the coordinator to pause. The store contains proposal UI data only, not event or catalog context.
+
+#### 2. Existing assistant box rendering
 
 **File**: `src/components/assistant/assistant-inline.tsx`
 
-**Intent**: Subscribe to assistant MetaEvent history and trigger classification from event count, not a local fatigue decision, while retaining the existing local empty-search recovery.
+**Intent**: Render the server proposal published by the root coordinator while retaining the existing local empty-search recovery.
 
 **Contract**:
 
-- When the history first reaches five distinct events, call `POST /api/assistant-proposal` with the latest at most 10 events; send another request for each newly observed event thereafter while no proposal is visible and the assistant is not muted.
-- Do not use `DecisionEngine`'s `decision_fatigue` result as an assistant-request condition. Preserve `search_friction` as local recovery; when a proposal is already visible, do not request or show a competing proposal.
-- `show`: render one validated Jev proposal; `hide`, HTTP failure, or invalid response leaves the box hidden and allows the next new MetaEvent to trigger another classification request.
-- Keep the 15-minute mute, abort superseded requests, ignore stale responses, and do not add a loader or a second box.
+- Do not subscribe to MetaEvents to make Jev requests here; the root coordinator owns that lifecycle.
+- Do not use `DecisionEngine`'s `decision_fatigue` result as an assistant-request condition. Preserve `search_friction` as local recovery and give it priority over a Jev proposal.
+- Render one validated Jev proposal from shared state; keep the 15-minute mute, one-box behavior, and no-loader UI.
 
 **File**: `tests/components/assistant/assistant-inline.test.tsx`
 
-**Intent**: Cover the five-event threshold, event-by-event retries, and the existing single-box lifecycle.
+**Intent**: Cover the five-event threshold, event-by-event retries across page navigation, and the existing single-box lifecycle.
 
 **Contract**: Verify four events send nothing, the fifth sends one events-only request without a fatigue decision, each later event retries after a hide, a shown proposal stops further requests, mute and local visible search recovery suppress requests, invalid responses render no Jev box, and stale responses cannot replace newer state.
 
@@ -223,12 +236,12 @@ Replace the client fatigue gate with a MetaEvent-count trigger and broaden the s
 
 #### Automated Verification:
 
-- `npm test -- tests/components/assistant/assistant-inline.test.tsx tests/assistant-proposal/route-decision.test.ts tests/assistant-proposal/route.test.ts tests/assistant-proposal/assistant-proposal-api.test.ts tests/lib/assistant-events.test.ts`
+- `npm test -- tests/components/assistant/assistant-inline.test.tsx tests/behavior/assistant-meta-event-history.test.ts tests/assistant-proposal/schema.test.ts tests/assistant-proposal/route-decision.test.ts tests/assistant-proposal/route.test.ts tests/assistant-proposal/assistant-proposal-api.test.ts tests/lib/assistant-events.test.ts`
 - `npm run typecheck`
 
 #### Manual Verification:
 
-- With tracking enabled, send four distinct MetaEvents successfully and confirm no proposal request; send the fifth and confirm one `/api/assistant-proposal` request containing only the latest bounded `metaEvents`.
+- With tracking enabled, send four distinct MetaEvents successfully and confirm no proposal request; while on a product page, send the fifth and confirm one `/api/assistant-proposal` request containing only the latest bounded `metaEvents`.
 - Return `hide`, then add a sixth event and confirm another request. Return a high-confidence known non-fatigue Jev situation and confirm the generic demo proposal appears; further events must not create another box or request while it is visible.
 - Return confidence `0.75` or below and confirm no box; add a later event and confirm classification is retried. Confirm unknown Jev situations hide.
 - Confirm empty-search recovery remains local, dismissal mutes for 15 minutes, and the request contains no raw events, catalog state, or catalog events.
@@ -240,7 +253,7 @@ Replace the client fatigue gate with a MetaEvent-count trigger and broaden the s
 - MetaEvent history ordering, deduplication, max-10 bound, and clear behavior.
 - Shared MetaEvent validation and request count/body-size limits.
 - Jev confidence boundary (`0.75` hides; `0.76` invokes the stub for a known state), known-state allowlist, stub output validation, and failure paths.
-- UI gate, mute, abort, and stale-request handling.
+- Five-event threshold, per-event queued snapshots, mute, abort, and stale-response handling.
 
 ### Integration Tests:
 
@@ -307,10 +320,10 @@ The request contract remains `{ metaEvents: MetaEvent[] }`; this revision change
 
 #### Automated
 
-- [ ] 3.1 Replace the client fatigue gate with a five-event threshold and a new-event request trigger, stopping after a proposal is shown.
-- [ ] 3.2 Gate the server demo stub on any recognized Jev situation with confidence above 0.75 and update the response type so it is not fatigue-only.
-- [ ] 3.3 Align the S-04/S-05 interface, product requirements, roadmap, and domain notes.
-- [ ] 3.4 Run focused route/UI tests and typecheck.
+- [x] 3.1 Replace the client fatigue gate with a five-event threshold and a new-event request trigger, stopping after a proposal is shown.
+- [x] 3.2 Gate the server demo stub on any recognized Jev situation with confidence above 0.75 and update the response type so it is not fatigue-only.
+- [x] 3.3 Align the S-04/S-05 interface, product requirements, roadmap, and domain notes.
+- [x] 3.4 Run focused route/UI/history tests and typecheck.
 
 #### Manual
 
