@@ -6,8 +6,8 @@
  * They are not these kinds, and `MetaEvent.quality.strength` is detector
  * confidence, not `ShoppingSignal.strength`.
  *
- * Classification itself is slice S-01. This module only keeps the language
- * so a rage click cannot be treated as decision fatigue.
+ * `DecisionEngine` (`src/lib/decision-engine.ts`) classifies a catalog
+ * session into at most one implemented kind. It does not read meta events.
  */
 
 export const SHOPPING_SIGNAL_KINDS = [
@@ -19,6 +19,17 @@ export const SHOPPING_SIGNAL_KINDS = [
 ] as const;
 
 export type ShoppingSignalKind = (typeof SHOPPING_SIGNAL_KINDS)[number];
+
+/**
+ * Kinds `DecisionEngine` can emit today. The other kinds stay in the
+ * language so they are not reinvented under a second name.
+ */
+export const IMPLEMENTED_SIGNAL_KINDS = [
+  "decision_fatigue",
+  "search_friction",
+] as const satisfies readonly ShoppingSignalKind[];
+
+export type ImplementedSignalKind = (typeof IMPLEMENTED_SIGNAL_KINDS)[number];
 
 /**
  * How strongly the session supports this reading, from 0 to 1.

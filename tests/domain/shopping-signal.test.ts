@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { META_EVENT_NAMES } from "@/behavior/types";
 import {
+  IMPLEMENTED_SIGNAL_KINDS,
   SHOPPING_SIGNAL_KINDS,
   isShoppingSignalKind,
 } from "@/domain/shopping-signal";
@@ -22,5 +23,15 @@ describe("shopping signal language", () => {
       expect(isShoppingSignalKind(name)).toBe(false);
     }
     expect(isShoppingSignalKind("decision_fatigue")).toBe(true);
+  });
+
+  it("limits the live engine to decision fatigue and search friction", () => {
+    expect(IMPLEMENTED_SIGNAL_KINDS).toEqual([
+      "decision_fatigue",
+      "search_friction",
+    ]);
+    for (const kind of IMPLEMENTED_SIGNAL_KINDS) {
+      expect(SHOPPING_SIGNAL_KINDS).toContain(kind);
+    }
   });
 });

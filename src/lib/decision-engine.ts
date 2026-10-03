@@ -21,7 +21,7 @@ function emptyResultsProposal(events: CatalogEvent[], state: CatalogState): Assi
   const latestEvent = events.at(-1);
   return {
     id: `empty-results:${latestEvent?.id ?? `${state.categorySlug ?? "all"}:${state.query}`}`,
-    kind: "empty-results",
+    kind: "search_friction",
     title: "Nie znaleźliśmy produktów",
     message: "Wyczyść wyszukiwanie i filtry, aby zobaczyć cały katalog w tej kategorii.",
     actionLabel: "Wyczyść wyszukiwanie i filtry",
@@ -41,7 +41,7 @@ function decisionFatigueProposal(
 
   return {
     id: `decision-fatigue:${returnEvent.id}`,
-    kind: "decision-fatigue",
+    kind: "decision_fatigue",
     title: "Pomóc zawęzić wybór?",
     message:
       categoryAdvice[returnEvent.categorySlug] ??
