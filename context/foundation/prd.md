@@ -66,13 +66,13 @@ Osoba kupująca sprzęt AGD online, korzystająca z filtrów i wyszukiwarki na s
 - **When** system wykryje tarcie wyszukiwania
 - **Then** asystent proponuje jedno konkretne działanie (np. cofnięcie wybranego filtra lub zmiana frazy)
 
-### US-03: Kupujący dostaje propozycję ułożoną z faktów tej sesji
+### US-03: Kupujący dostaje jedną odpowiedź z Jev albo z mocniejszego modelu
 
-- **Given** w tej sesji są fakty przeglądania katalogu, a model jest już skonfigurowany
-- **When** asystent pokazuje propozycję
-- **Then** ta jedna propozycja ma treść ułożoną przez model z faktów katalogu tej sesji
+- **Given** dla sesji jest gotowy prompt do modelu Jev
+- **When** model Jev zwróci sprawdzone wyjście
+- **Then** przy najbardziej popularnym przypadku i największej pewności kupujący dostaje jedną odpowiedź ułożoną z tego wyjścia, a w pozostałych przypadkach jedną odpowiedź ułożoną przez mocniejszy model na podstawie tego wyjścia
 
-Value: treść jednej propozycji wynika z faktów bieżącej sesji katalogu
+Value: przy popularnym i pewnym przypadku wystarcza Jev, a mocniejszy model układa odpowiedź tylko poza tym
 
 ## Functional Requirements
 
@@ -103,7 +103,7 @@ Value: treść jednej propozycji wynika z faktów bieżącej sesji katalogu
 
 - FR-009: Asystent respektuje: jedna propozycja na raz, priorytet koszyka nad inspiracją, wyciszenie po zamknięciu, brak powtórek pytań, korekta założeń, honest uncertainty przy słabym sygnale. Priority: must-have
 
-- FR-010: Asystent może ułożyć treść jednej propozycji z faktów katalogu bieżącej sesji, korzystając ze skonfigurowanego modelu. Priority: must-have
+- FR-010: Asystent może ułożyć jedną odpowiedź dla kupującego z wyjścia modelu Jev, gdy przypadek jest wśród najbardziej popularnych i pewność jest największa, a w pozostałych przypadkach z mocniejszego modelu zasilonego tym wyjściem. Priority: must-have
 
 ## Non-Functional Requirements
 
