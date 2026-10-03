@@ -1,5 +1,3 @@
-import "server-only";
-
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
@@ -28,7 +26,6 @@ export function getDb(): Database {
       "DATABASE_URL is not set. Configure it (see .env.example) or disable persistence.",
     );
   }
-<<<<<<< HEAD
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(url);
@@ -41,14 +38,6 @@ export function getDb(): Database {
     );
   }
   pool = new Pool({ connectionString: url, max: 1 });
-=======
-  if (!/^postgres(?:ql)?:\/\//i.test(url)) {
-    throw new Error(
-      "DATABASE_URL must be a PostgreSQL connection string (postgresql://...).",
-    );
-  }
-  pool = new Pool({ connectionString: url });
->>>>>>> origin/main
   db = drizzle(pool, { schema });
   return db;
 }

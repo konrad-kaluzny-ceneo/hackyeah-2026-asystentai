@@ -33,7 +33,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <div className="border-b border-[#e7ebe8] bg-[#193b35] px-4 py-2 text-center text-xs font-medium tracking-wide text-white/90">
           DEMO KATALOGU AGD <span className="px-2 text-white/45">·</span> wybierz sprzęt w swoim tempie
         </div>
-        <BehaviorTracker />
         <SiteHeader categories={categories} />
         <CatalogSessionTracker />
         <div className="flex flex-1 flex-col">{children}</div>
@@ -43,10 +42,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <p>Katalog demonstracyjny · przykładowe modele i parametry</p>
           </div>
         </footer>
-<<<<<<< HEAD
-=======
         <BehaviorDebugShell />
->>>>>>> origin/main
       </body>
     </html>
   );
