@@ -35,9 +35,10 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-01 | signal-strength-engine | … system klasyfikuje rodzaj intencji zakupowej z faktów katalogu | F-02 | FR-001, FR-002 | done |
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
-| S-04 | jev-session-proposal | … dostać jedną propozycję ułożoną przez model z faktów katalogu tej sesji | S-02, S-03 | US-03, FR-010 | ready |
-| S-05 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
-| S-06 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-05 | FR-012 | active |
+| S-04 | jev-session-proposal | … (serwer) dostać JSON propozycji z Jev albo OpenAI dla decision fatigue | — | US-03, FR-010 | ready |
+| S-05 | assistant-proposal-box | … (UI) zobaczyć box z odpowiedzią API albo brak boxa przy decision fatigue | S-04 | US-01, FR-007, FR-010 | ready |
+| S-06 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
+| S-07 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-06 | FR-012 | active |
 
 ## Streams
 
@@ -46,7 +47,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | A | Sygnały → inferencja | `F-01` → `F-02` → `S-01` | Wspólna baza pod oba scenariusze użytkownika. |
 | B | Decision fatigue | `S-02` | Gwiazda przewodnia; dołącza do Stream A po `S-01`. |
 | C | Tarcie wyszukiwania | `S-03` | Równoległy z Stream B po `S-01`; ten sam box UX. |
-| D | Treść propozycji | `S-02` + `S-03` → `S-04` | Model układa tekst jednej propozycji z faktów katalogu. Lane: Edyta. |
+| D | Treść propozycji | `S-04` → `S-05` | S-04: route + Jev/OpenAI. S-05: box na listingu (Michał). Lane treści: Edyta; lane UI: Michał. |
 
 ## Baseline
 
@@ -160,29 +161,49 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 - **Risk:** Drugi must-have scenariusz tarcia; można odłożyć po S-02 przy skrajnej presji czasu.
 - **Status:** done
 
-### S-04: Propozycja ułożona z sesji
+### S-04: Odpowiedź z Jev albo z mocniejszego modelu (serwer)
 
-- **Outcome:** kupujący dostaje jedną propozycję, której treść model ułożył z faktów katalogu tej sesji.
+- **Outcome:** `POST /api/assistant-proposal` zwraca `{ status: "show", … }` albo `{ status: "hide" }` zgodnie z `context/changes/assistant-proposal-box/interface.md`. Prompt składany na serwerze z faktów katalogu; Jev klasyfikuje; skrót przy pewnym `DECISION_FATIGUE`; inaczej OpenAI. Pusty wynik nie woła route.
 - **Change ID:** jev-session-proposal
 - **PRD refs:** US-03, FR-010
-- **Prerequisites:** S-02, S-03
-- **Parallel with:** —
+- **Prerequisites:** —
+- **Parallel with:** S-05 (planowanie UI może iść równolegle; implementacja boxa po kontrakcie route)
 - **Blockers:** —
 - **Acceptance:**
-  - Asystent pokazuje jedną propozycję, a jej tekst pochodzi z odpowiedzi modelu.
-  - Model dostaje fakty katalogu bieżącej sesji.
-  - Wywołanie korzysta z konfiguracji modelu już obecnej w środowisku.
-- **Unknowns:** —
-- **Risk:** Odpowiedź modelu może nie zmieścić się w 3 sekundach albo zaproponować porównanie kilku modeli, które jest poza MVP.
+  - Wyjście Jev jest sprawdzone schematem, zanim powstanie odpowiedź HTTP.
+  - Skrót (pewny `DECISION_FATIGUE`) nie woła OpenAI.
+  - Poza skrótem OpenAI układa `title` + `message` lub route zwraca `hide`.
+  - Rate limit Jev; błędy → `hide`.
+- **Unknowns:**
+  - Adres HTTP Typesafe — Owner: team. Block: implementacja klienta Jev.
+- **Risk:** Za niski próg puści słabą odpowiedź; za wysoki — koszt OpenAI.
 - **Status:** ready
 
 Source / Lineage:
 
 - Added via `/roadmap-add` on 2026-10-03.
-- Goal: treść jednej propozycji wynika z faktów bieżącej sesji katalogu.
-- Lane: Edyta.
+- Scope split 2026-10-03: UI → S-05. Lane: Edyta.
 
-### S-05: Meta eventy zainteresowania i dynamiki
+### S-05: Box propozycji na listingu (UI)
+
+- **Outcome:** kupujący przy decision fatigue widzi jeden box z treścią z S-04 albo nie widzi boxa (`hide`). Pusty wynik nadal ze stałą propozycją S-03. Wyciszenie 15 min bez zmian. Bez loadera.
+- **Change ID:** assistant-proposal-box
+- **PRD refs:** US-01, FR-007, FR-010
+- **Prerequisites:** S-04 (route zgodny z `interface.md`)
+- **Parallel with:** —
+- **Blockers:** —
+- **Acceptance:**
+  - `DecisionEngine` → fatigue → fetch; friction → lokalnie; abort + numer żądania.
+  - Manual: trzy produkty + powrót; pusty wynik; zamknięcie boxa.
+- **Unknowns:** —
+- **Risk:** Wyścig odpowiedzi bez `requestId` pokaże starą treść.
+- **Status:** ready
+
+Source / Lineage:
+
+- Wydzielone z planu S-04 2026-10-03. Lane: Michał.
+
+### S-06: Meta eventy zainteresowania i dynamiki
 
 - **Outcome:** system zapisuje sześć dodatkowych meta eventów opisujących zainteresowanie produktami i kategoriami oraz dynamikę przeglądania: `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`.
 - **Change ID:** behavior-meta-events
@@ -206,12 +227,12 @@ Source / Lineage:
 - Goal: meta eventy mają opisywać zarówno pozytywne zainteresowanie, jak i dynamikę przeglądania.
 - Implemented: `7d9e7bc` (six detectors), `c877129` (close-out).
 
-### S-06: Meta eventy ceny, wyszukiwania i odrzucenia propozycji
+### S-07: Meta eventy ceny, wyszukiwania i odrzucenia propozycji
 
 - **Outcome:** system zapisuje trzy kolejne meta eventy: `price_focus` (uwaga na cenie), `search_refinement_loop` (wielokrotne uściślanie wyszukiwania) i `assistant_proposal_dismissed` (jawne odrzucenie propozycji asystenta).
 - **Change ID:** behavior-meta-events-2
 - **PRD refs:** FR-012
-- **Prerequisites:** S-05
+- **Prerequisites:** S-06
 - **Parallel with:** S-04
 - **Blockers:** —
 - **Acceptance:**
@@ -239,9 +260,10 @@ Source / Lineage:
 | S-01 | signal-strength-engine | Classify shopping signal strength | no | Done dla dwóch rodzajów; trzy nazwane bez klasyfikacji |
 | S-02 | decision-fatigue-box | One assistant proposal on decision fatigue | no | Done |
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |
-| S-04 | jev-session-proposal | One model-written proposal from catalog facts | yes | Lane: Edyta. Klucze modelu są w lokalnym środowisku, poza gitem. |
-| S-05 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | no | Done (`7d9e7bc`) |
-| S-06 | behavior-meta-events-2 | Price focus, search refinement loop, proposal dismissed | yes | Tagi na cenie/boxie asystenta + raw search_submitted |
+| S-04 | jev-session-proposal | POST /api/assistant-proposal (Jev + OpenAI) | yes | Lane: Edyta. Kontrakt: `assistant-proposal-box/interface.md`. |
+| S-05 | assistant-proposal-box | Wire listing box to assistant-proposal API | yes | Lane: Michał. Po S-04. Plan w `context/changes/assistant-proposal-box/`. |
+| S-06 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | no | Done (`7d9e7bc`) |
+| S-07 | behavior-meta-events-2 | Price focus, search refinement loop, proposal dismissed | yes | Tagi na cenie/boxie asystenta + raw search_submitted |
 
 ## Open Roadmap Questions
 
