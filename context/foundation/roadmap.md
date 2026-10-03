@@ -39,6 +39,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-05 | assistant-proposal-box | … (UI) zobaczyć jeden box po klasyfikacji ograniczonej historii MetaEvents | S-04 | US-01, FR-007, FR-010 | ready |
 | S-06 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
 | S-07 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-06 | FR-012 | active |
+| S-08 | intent-timeline | … zespół oglądał realne prawdopodobieństwa 8 intencji JEV per sesja w debug overlay | S-04 | FR-013 | done |
 
 ## Streams
 
@@ -72,7 +73,7 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 
 ### DDD correction
 
-`src/behavior` is an observation context, not the shopping-signal domain. `DecisionEngine` still uses `CatalogEvent` to trigger fatigue; S-05 sends a separate bounded MetaEvent summary to Jev. See `context/foundation/domain.md`.
+`src/behavior` is an observation context, not the shopping-signal domain. `DecisionEngine` still classifies `CatalogEvent`, but does not gate S-05 requests. S-05 sends a separate bounded MetaEvent summary to Jev after the first successfully sent event; the same accepted batch can trigger the separate intent-timeline lane. See `context/foundation/domain.md`.
 
 - `MetaEvent.quality.strength` is detector confidence. The decision engine does not use it.
 - `comparison_oscillation` and `product_revisit` are not `decision_fatigue`.
@@ -186,7 +187,7 @@ Source / Lineage:
 
 ### S-05: Box propozycji na listingu (UI)
 
-- **Outcome:** po pięciu unikalnych MetaEvents z poprawnie wysłanych batchy, a potem po każdym nowym evencie do pokazania propozycji, UI wysyła ograniczony snapshot do S-04 i może pokazać jeden box z lokalnym copy oraz akcją/data wybraną przez serwer. Błędy i brak propozycji ukrywają box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
+- **Outcome:** po pierwszym unikalnym MetaEvent z poprawnie wysłanego batcha, a potem po każdym nowym evencie do pokazania propozycji, UI wysyła ograniczony snapshot do S-04 i może pokazać jeden box z lokalnym copy oraz akcją/data wybraną przez serwer. Błędy i brak propozycji ukrywają box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
 - **Change ID:** assistant-proposal-box
 - **PRD refs:** US-01, FR-007, FR-010
 - **Prerequisites:** S-04 (route zgodny z `interface.md`)
@@ -194,8 +195,8 @@ Source / Lineage:
 - **Blockers:** —
 - **Acceptance:**
   - Sukcesy `/api/meta-events` zasilają ograniczoną historię 10 MetaEvents; request assistant nie dostaje `CatalogState`, `CatalogEvent[]` ani raw events.
-  - Pięć unikalnych MetaEvents → kolejka requestów po każdym nowym evencie; `search_friction` lokalnie i priorytetowo; requesty serializowane, abortowane lub wznawiane po odmontowaniu.
-  - Jev dostaje minimalne podsumowanie MetaEvents; odpowiedź korzysta ze skrótu Jev albo OpenAI i nie przesyła wygenerowanego copy do UI.
+  - Pierwszy unikalny MetaEvent → kolejka requestów po każdym nowym evencie; `search_friction` lokalnie i priorytetowo; requesty serializowane, abortowane lub wznawiane po odmontowaniu.
+  - Jev dostaje minimalne podsumowanie MetaEvents; pewny shortcut Jev ukrywa propozycję, a pozostałe poprawne wyniki rozstrzyga OpenAI; copy nie jest generowane przez model.
   - Manual: trzy produkty + powrót; pusty wynik; zamknięcie boxa.
 - **Unknowns:** —
 - **Risk:** Wyścig odpowiedzi bez `requestId` pokaże starą treść.
@@ -204,6 +205,19 @@ Source / Lineage:
 Source / Lineage:
 
 - Wydzielone z planu S-04 2026-10-03. Lane: Michał.
+
+### S-08: Timeline intencji JEV per sesja
+
+- **Outcome:** system zapisuje osiem prawdopodobieństw intencji JEV per anonimowa sesja, a `GET /api/emotions-timeline?sessionId=...` zwraca oś czasu z forward-fill ostatniego znanego stanu. Debug overlay pokazuje intencje zamiast mockowanych emocji.
+- **Change ID:** intent-timeline
+- **PRD refs:** FR-013
+- **Prerequisites:** S-04
+- **Parallel with:** — (trigger inferencji jest osobną lane)
+- **Blockers:** —
+- **Acceptance:** snapshoty są walidowane i zapisywane atomowo; endpoint zwraca wartości `0..1` w siatce sekundowej; debug overlay renderuje osiem serii.
+- **Unknowns:** —
+- **Risk:** błąd Jev nie może przerwać zapisu MetaEvents; trigger timeline jest best-effort.
+- **Status:** done
 
 ### S-06: Meta eventy zainteresowania i dynamiki
 

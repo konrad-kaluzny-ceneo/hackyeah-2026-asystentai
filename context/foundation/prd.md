@@ -103,9 +103,10 @@ Value: przy popularnym i pewnym przypadku wystarcza Jev, a mocniejszy model ukł
 
 - FR-009: Asystent respektuje: jedna propozycja na raz, priorytet koszyka nad inspiracją, wyciszenie po zamknięciu, brak powtórek pytań, korekta założeń, honest uncertainty przy słabym sygnale. Priority: must-have
 
-- FR-010: Dla demo serwer może przygotować jedną propozycję na podstawie bezpiecznego podsumowania MetaEvents przez Jev i OpenAI; pewny, niehedgowany wynik `DECISION_FATIGUE` może użyć skrótu Jev. Odpowiedź API zawiera akcję i jej dane, a copy pozostaje po stronie UI. Priority: must-have
+- FR-010: Dla demo serwer może przygotować jedną propozycję na podstawie bezpiecznego podsumowania MetaEvents przez Jev i OpenAI; pewny, niehedgowany wynik `DECISION_FATIGUE` kończy się `hide`, a pozostałe poprawne wyniki rozstrzyga OpenAI. Odpowiedź API zawiera wyłącznie akcję i jej dane, a copy pozostaje po stronie UI. Priority: must-have
 - FR-011: System obserwacji zapisuje meta eventy opisujące zainteresowanie produktami i kategoriami oraz dynamikę przeglądania: `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`. Meta eventy opisują wzorzec zachowania, nie emocje ani intencje. Priority: should-have
 - FR-012: System obserwacji zapisuje meta eventy o sygnałach bliskich decyzji i feedbacku do asystenta: `price_focus`, `search_refinement_loop`, `assistant_proposal_dismissed`. Priority: could-have
+- FR-013: System zapisuje prawdopodobieństwa intencji zakupowych określone przez Jev per anonimowa sesja z timestampem: `exploring`, `researching`, `comparing`, `deciding`, `ready_to_buy`, `price_sensitive`, `overloaded`, `hesitant`. Timeline zwraca wartości `0..1` i wypełnia brakujące sekundy ostatnim znanym stanem. Priority: should-have
 
 ## Non-Functional Requirements
 

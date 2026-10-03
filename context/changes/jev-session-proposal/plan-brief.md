@@ -5,7 +5,7 @@
 
 ## What & Why
 
-Serwer analizuje minimalne podsumowanie MetaEvents przez Jev (Typesafe). Pewny, niehedgowany wynik `DECISION_FATIGUE` może użyć skrótu Jev; pozostałe poprawne wyniki przechodzą do OpenAI. API zwraca wyłącznie status, akcję i dane, a copy pozostaje lokalne w UI.
+Serwer analizuje minimalne podsumowanie MetaEvents przez Jev (Typesafe). Pewny, niehedgowany wynik `DECISION_FATIGUE` kończy się skrótem `hide`; pozostałe poprawne wyniki przechodzą do OpenAI, które może zwrócić akcję i dane. Copy pozostaje lokalne w UI.
 
 ## Desired End State
 
@@ -16,7 +16,7 @@ Route przyjmuje 1–10 MetaEvents w body do 64 KiB i zwraca JSON zgodny z `inter
 | Decision | Choice | Why |
 | --- | --- | --- |
 | Request | `{ metaEvents }`, 1–10 elementów | Bez stanu i eventów katalogu w payloadzie |
-| Jev shortcut | Pewny, niehedgowany fatigue z niepustym szkicem | Pozwala pominąć drugie wywołanie modelu |
+| Jev shortcut | Pewny, niehedgowany fatigue z niepustym szkicem | Zwraca `hide` i pomija drugie wywołanie modelu |
 | OpenAI | Strukturalna decyzja `action` + `data` | Model nie generuje tytułu, wiadomości ani etykiety UI |
 | Filtry | Klucze sanityzowane do dostępnych filtrów kategorii | Nieznane filtry nie przechodzą do UI |
 | Czas | 3 s dla Jev, 5 s dla OpenAI | Osobne deadline’y; retry OpenAI SDK wyłączone |

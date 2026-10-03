@@ -15,7 +15,7 @@ To wzorce UI: `rage_click`, `dead_click_cluster`, `rapid_filter_churn`, `no_prog
 
 `MetaEvent.quality.strength` to pewność heurystyki detektora (0–1). To nie jest moc sygnału zakupowego z FR-002.
 
-Te zdarzenia nie są typami intencji zakupowej: `comparison_oscillation` i `product_revisit` same w sobie nie oznaczają decision fatigue. S-05 przekazuje Jev wyłącznie ograniczone podsumowanie zwalidowanych MetaEvents po osiągnięciu progu pięciu zdarzeń; serwer klasyfikuje sytuację i stosuje próg confidence. Lokalny `DecisionEngine` nadal klasyfikuje `CatalogEvent`, ale jego fatigue nie steruje requestem do S-04.
+Te zdarzenia nie są typami intencji zakupowej: `comparison_oscillation` i `product_revisit` same w sobie nie oznaczają decision fatigue. S-05 przekazuje Jev wyłącznie ograniczone podsumowanie zwalidowanych MetaEvents po pierwszym zdarzeniu; serwer klasyfikuje sytuację i stosuje próg confidence. Zaakceptowany batch uruchamia też intent JEV, którego osiem probabilistyk trafia do snapshotu timeline. Lokalny `DecisionEngine` nadal klasyfikuje `CatalogEvent`, ale jego fatigue nie steruje requestem do S-04.
 
 ## Intencja zakupowa
 

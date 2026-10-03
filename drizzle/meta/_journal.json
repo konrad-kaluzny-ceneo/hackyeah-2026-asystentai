@@ -15,6 +15,13 @@
       "when": 1791034874440,
       "tag": "0001_far_rockslide",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791055038504,
+      "tag": "0002_mysterious_rhodey",
+      "breakpoints": true
     }
   ]
 }

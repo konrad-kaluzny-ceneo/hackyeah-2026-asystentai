@@ -1,6 +1,6 @@
 # Kontrakt: propozycja asystenta z MetaEvents
 
-Wspólna umowa dla serverowego przepływu Jev/OpenAI i boxa S-05. UI wysyła snapshot po pięciu unikalnych MetaEvents z poprawnie wysłanych batchy, a potem po każdym nowym evencie, dopóki propozycja nie zostanie pokazana albo asystent nie zostanie wyciszony. Serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents. Przy pewnym, niehedgowanym wyniku fatigue Jev używa skrótu; w pozostałych poprawnych przypadkach decyzję podejmuje OpenAI.
+Wspólna umowa dla serverowego przepływu Jev/OpenAI i boxa S-05. UI wysyła snapshot od pierwszego unikalnego MetaEventu z poprawnie wysłanego batcha, a potem po każdym nowym evencie, dopóki propozycja nie zostanie pokazana albo asystent nie zostanie wyciszony. Serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents. Przy pewnym, niehedgowanym wyniku fatigue Jev używa skrótu, który kończy się `hide`; w pozostałych poprawnych przypadkach decyzję action/data podejmuje OpenAI.
 
 **Kontrakty w kodzie:** `src/lib/assistant-proposal-api.ts` zawiera request/response UI; `src/behavior/meta-event-schema.ts` jest współdzielonym, ścisłym schematem MetaEvent. `/api/meta-events` zachowuje dotychczasowy format batcha.
 
@@ -74,9 +74,9 @@ Root coordinator obsługuje próg i kolejkę także podczas nawigacji poza listi
 
 ## Request gate i zachowanie serwera
 
-- S-05 woła route po piątym unikalnym evencie z poprawnie wysłanych batchy, a następnie dla każdego nowego eventu, dopóki nie ma widocznej propozycji; `search_friction` pozostaje lokalne.
+- S-05 woła route od pierwszego unikalnego eventu z poprawnie wysłanego batcha, a następnie dla każdego nowego eventu, dopóki nie ma widocznej propozycji; `search_friction` pozostaje lokalne.
 - Jev jest wywoływany dopiero po walidacji requestu.
-- Pewny, niehedgowany `DECISION_FATIGUE` z niepustym szkicem Jev może użyć skrótu. Pozostałe poprawne wyniki przechodzą do OpenAI.
+- Pewny, niehedgowany `DECISION_FATIGUE` z niepustym szkicem Jev kończy się skrótem `hide`. Pozostałe poprawne wyniki przechodzą do OpenAI.
 - Nieprawidłowe body, błąd walidacji Jev, timeout, rate limit albo błąd OpenAI skutkują `{ status: "hide" }`.
 - Odpowiedź API zawiera wyłącznie status, akcję i jej dane; tekst prezentacyjny jest własnością UI.
 
@@ -103,7 +103,7 @@ type AssistantProposalResponse =
   "action": "narrow-choice",
   "data": {
     "target": "filters",
-    "filterKeys": ["capacity"]
+    "filterKeys": ["capacityLiters"]
   }
 }
 ```
@@ -133,10 +133,11 @@ OpenAI zwraca wyłącznie decyzję i jej dane:
 
 Reguły:
 
-- `status: "hide"` — brak boxa dla tego wywołania (błąd modelu, limit Jev, timeout Jev 3 s, zły JSON Jev, porażka OpenAI lub rate limit).
-- `action` jest decyzją OpenAI z zamkniętego enuma: `"narrow-choice"` albo `"clear-search-and-filters"`.
-- `data` jest obiektem payloadu akcji: `target` wskazuje obszar aplikacji, a `filterKeys` może wskazać maksymalnie trzy filtry.
-- Skrót Jev i OpenAI zwracają ten sam minimalny kształt `action` + `data`.
+- `status: "hide"` — brak boxa dla tego wywołania (w tym pewny Jev shortcut, błąd modelu, limit Jev, timeout Jev 3 s, zły JSON Jev, porażka OpenAI lub rate limit).
+- `action` jest decyzją OpenAI z zamkniętego enuma: `"narrow-choice"` albo `"clear-search-and-filters"`; Jev shortcut nie zwraca akcji.
+- Filtry kategorii są dobierane według najnowszego MetaEventu zawierającego kategorię, aby starsze zdarzenia z innych kategorii nie zerowały lookupu.
+- `data` jest obiektem payloadu akcji: `target` wskazuje obszar aplikacji, a `filterKeys` może wskazać maksymalnie trzy dozwolone filtry. Jeśli OpenAI nie wybierze żadnego poprawnego filtra dla `narrow-choice`, serwer używa pierwszego filtra dostępnego dla bieżącej kategorii.
+- Tylko odpowiedź `show` z OpenAI zwraca minimalny kształt `action` + `data`.
 - Wywołanie OpenAI ma osobny timeout 5 s; SDK nie ponawia requestu automatycznie.
 
 ## Semantyka `hide` vs pusty wynik

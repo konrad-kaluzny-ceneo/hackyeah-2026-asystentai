@@ -5,7 +5,7 @@
 
 ## What & Why
 
-Connect the existing behavior MetaEvent pipeline to the single assistant proposal box. The client sends its first bounded MetaEvent history after five unique successfully dispatched events, then queues one request per new event while no proposal is visible; Jev classifies that summary, and the server returns a minimal action/data decision using a confident Jev shortcut or OpenAI.
+Connect the existing behavior MetaEvent pipeline to the single assistant proposal box. The client sends its first bounded MetaEvent history after the first unique successfully dispatched event, then queues one request per new event while no proposal is visible; Jev classifies that summary, and the server returns a minimal action/data decision through OpenAI unless the confident Jev shortcut hides it.
 
 This broadens S-05 beyond its original UI-only boundary. Presentation copy remains local to the UI; model output is constrained to an action enum and validated action data.
 
@@ -17,7 +17,7 @@ The proposal route accepts only MetaEvents. Its Jev prompt is privacy-minimized;
 
 ## Desired End State
 
-The app retains the latest 10 unique MetaEvents in a production-purpose in-memory store, separate from the debug overlay and raw event buffer. Starting at event five, and while the user is not muted and no proposal is visible, the client serially sends `{ metaEvents }` snapshots to `/api/assistant-proposal` as new successful events arrive.
+The app retains the latest 10 unique MetaEvents in a production-purpose in-memory store, separate from the debug overlay and raw event buffer. Starting at the first event, and while the user is not muted and no proposal is visible, the client serially sends `{ metaEvents }` snapshots to `/api/assistant-proposal` as new successful events arrive.
 
 The server validates those events and builds a Jev prompt without raw events, session/page-view identifiers, or paths. A confident, unhedged fatigue result may use the Jev shortcut; other valid results go through OpenAI. The API returns only action/data, which the UI combines with local copy to show one box. Invalid output, timeout, rate limiting, or model failure hides the fatigue box.
 

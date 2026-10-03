@@ -61,31 +61,6 @@ export function DebugOverlay() {
                 </h3>
                 <span className="text-zinc-400">{state.lastRawEvents.length}</span>
               </div>
-              {state.lastRawEvents.length === 0 ? (
-                <p className="mt-2 text-zinc-500">none yet</p>
-              ) : (
-                <ul className="mt-2 max-h-36 space-y-1 overflow-y-auto pr-1">
-                  {state.lastRawEvents.map((event) => (
-                    <li
-                      key={event.eventId}
-                      className="rounded bg-zinc-100 px-2 py-1 dark:bg-zinc-800"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate font-semibold">{event.name}</span>
-                        <time className="shrink-0 text-zinc-500">
-                          {formatTimestamp(event.timestamp)}
-                        </time>
-                      </div>
-                      <div className="flex gap-2 text-zinc-500">
-                        <span>#{event.sequenceNumber}</span>
-                        <span className="truncate">
-                          {event.pageType} · {event.pathname}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
             </section>
             <section className="rounded border border-zinc-200 bg-zinc-50/70 p-2 dark:border-zinc-700 dark:bg-zinc-800/40">
               <div className="flex items-center justify-between gap-2">
@@ -97,7 +72,7 @@ export function DebugOverlay() {
               {state.lastSentMetaEvents.length === 0 ? (
                 <p className="mt-2 text-zinc-500">none yet</p>
               ) : (
-                <ul className="mt-2 max-h-36 space-y-1 overflow-y-auto pr-1">
+                <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
                   {state.lastSentMetaEvents.map((event) => (
                     <li
                       key={event.eventId}
@@ -119,16 +94,16 @@ export function DebugOverlay() {
               )}
             </section>
           </div>
-          <section className="flex min-w-0 flex-col rounded border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
+          <section className="flex h-full min-h-[180px] min-w-0 flex-col rounded border border-zinc-200 bg-zinc-50/70 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className="font-semibold text-zinc-700 dark:text-zinc-300">
-                Emocje użytkownika w czasie
+                Intencje zakupowe użytkownika w czasie
               </h3>
               <span className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-zinc-400">
-                mock · 30 s
+                JEV · 30 s
               </span>
             </div>
-            <div className="mt-2 flex-none">
+            <div className="mt-2 flex min-h-0 flex-1">
               <EmotionTimelineChart />
             </div>
           </section>
@@ -161,8 +136,4 @@ function formatTime(iso: string): string {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return iso;
   return new Date(t).toLocaleTimeString("pl-PL", { hour12: false });
-}
-
-function formatTimestamp(timestamp: number): string {
-  return formatTime(new Date(timestamp).toISOString());
 }
