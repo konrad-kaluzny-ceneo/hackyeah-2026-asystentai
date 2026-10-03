@@ -1,12 +1,21 @@
-"""Turn raw telemetry into semantically labelled events with friction summaries."""
+"""Turn raw telemetry events into validated MetaEvents adhering to the meta_events contract.
+
+Implements the 6 core behavior detectors in Python mirroring src/behavior/detectors:
+- rage_click
+- dead_click_cluster
+- rapid_filter_churn
+- no_progress_window
+- product_revisit
+- comparison_oscillation
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
-import math
-from collections import Counter
-from datetime import timedelta
+import uuid
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -16,387 +25,549 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT = PROJECT_ROOT / "data" / "raw_ecommerce_events.csv"
 DEFAULT_OUTPUT = PROJECT_ROOT / "data" / "preprocessed_ecommerce_events.csv"
 
-RAGE_WINDOW = timedelta(milliseconds=1500)
-RAGE_DISTANCE_PX = 30
-RAGE_MIN_CLICKS = 3
-POGO_MAX_SECONDS = 5
-RECENT_ERROR_WINDOW = timedelta(minutes=3)
-DEAD_CLICK_TAGS = {"DIV", "SPAN", "P", "IMG", "SECTION"}
-ERROR_EVENT_TYPES = {"ui_error", "api_error"}
+SCHEMA_VERSION = "1.0"
+ALGORITHM_VERSION = "1.0"
 
 PREPROCESSED_COLUMNS = [
     "event_id",
+    "batch_id",
+    "schema_version",
+    "event_name",
+    "detected_at",
+    "server_received_at",
+    "window_started_at",
+    "window_ended_at",
+    "window_duration_ms",
     "session_id",
-    "event_seq",
-    "timestamp",
-    "user_id",
-    "anonymous_id",
+    "page_view_id",
+    "journey_id",
     "page_type",
-    "page_title",
-    "action_type",
-    "dwell_time_seconds",
-    "idle_time_seconds",
-    "interaction_pace",
-    "is_rage_click",
-    "is_dead_click",
-    "is_exit_intent",
-    "friction_detected",
-    "session_error_count",
-    "recent_errors_count",
-    "consecutive_errors_count",
-    "rage_clicks_count",
-    "dead_clicks_count",
-    "form_errors_count",
-    "zero_result_searches",
-    "last_error_code",
-    "last_error_message",
-    "most_frequent_friction",
-    "active_filters",
-    "compared_products_count",
-    "current_product_name",
-    "current_product_price",
-    "cart_value",
-    "narrative_summary",
+    "previous_page_type",
+    "route_template",
+    "subject_type",
+    "subject_id",
+    "category_id",
+    "brand_id",
+    "ecommerce_context",
+    "metrics",
+    "strength",
+    "evidence_count",
+    "algorithm_version",
+    "partial_data",
+    "consent_version",
+    "created_at",
 ]
 
 
-def _parse_ts(series: pd.Series) -> pd.Series:
-    return pd.to_datetime(series, utc=True, format="ISO8601")
+def _iso(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
-def _payload(raw: Any) -> dict[str, Any]:
-    if raw is None or (isinstance(raw, float) and math.isnan(raw)) or raw == "":
-        return {}
-    if isinstance(raw, dict):
-        return raw
-    try:
-        parsed = json.loads(raw)
-    except (TypeError, json.JSONDecodeError):
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
+def _bucket_count(count: int | float | None) -> str | None:
+    if count is None or pd.isna(count):
+        return None
+    val = int(count)
+    if val == 0:
+        return "0"
+    if val <= 5:
+        return "1-5"
+    if val <= 20:
+        return "6-20"
+    return "21+"
 
 
-def _distance(a: pd.Series, b: pd.Series) -> float:
-    if pd.isna(a["pointer_x"]) or pd.isna(b["pointer_x"]):
-        return float("inf")
-    return math.hypot(float(a["pointer_x"]) - float(b["pointer_x"]), float(a["pointer_y"]) - float(b["pointer_y"]))
+def _route_template(page_type: str, product_id: str | None = None) -> str:
+    if page_type == "product":
+        return "/produkt/[id]"
+    if page_type == "category":
+        return "/katalog/[category]"
+    if page_type == "search":
+        return "/szukaj"
+    if page_type == "catalog":
+        return "/katalog"
+    if page_type == "home":
+        return "/"
+    return f"/{page_type}"
 
 
-def mark_rage_clicks(session: pd.DataFrame) -> pd.Series:
-    flags = pd.Series(False, index=session.index)
-    clicks = session[session["event_type"] == "click"]
-    indexes = list(clicks.index)
-    for i, idx in enumerate(indexes):
-        start = session.loc[idx, "timestamp"]
-        cluster = [idx]
-        for later_idx in indexes[i + 1 :]:
-            if session.loc[later_idx, "timestamp"] - start > RAGE_WINDOW:
-                break
-            if _distance(session.loc[idx], session.loc[later_idx]) <= RAGE_DISTANCE_PX:
-                cluster.append(later_idx)
-        if len(cluster) >= RAGE_MIN_CLICKS:
-            flags.loc[cluster] = True
-    return flags
+class SessionAnalyzer:
+    """Analyzes a chronological series of RawEvents for a single session."""
 
+    def __init__(self, session_id: str, events: list[dict[str, Any]]) -> None:
+        self.session_id = session_id
+        self.events = sorted(events, key=lambda e: e["timestamp_dt"])
+        self.meta_events: list[dict[str, Any]] = []
+        self.last_detection_time: dict[str, datetime] = {}
+        self.cooldown = timedelta(seconds=20)
 
-def mark_dead_clicks(session: pd.DataFrame) -> pd.Series:
-    tags = session["element_tag"].fillna("").str.upper()
-    return (session["event_type"] == "click") & tags.isin(DEAD_CLICK_TAGS)
+    def _can_emit(self, event_name: str, at: datetime) -> bool:
+        last = self.last_detection_time.get(event_name)
+        if last is None or (at - last) >= self.cooldown:
+            self.last_detection_time[event_name] = at
+            return True
+        return False
 
-
-def classify_action(row: pd.Series, prev_page_type: str | None, idle_s: float | None) -> str:
-    event_type = row["event_type"]
-    if row["is_rage_click"]:
-        return "RAGE_CLICK"
-    if row["is_dead_click"]:
-        return "DEAD_CLICK"
-    if event_type == "mouse_leave_viewport":
-        return "CART_ABANDON_EXIT" if row["page_type"] in {"cart", "checkout"} else "EXIT_INTENT"
-    if event_type in ERROR_EVENT_TYPES:
-        return "FORM_ERROR" if row.get("error_type") == "form_validation" else "API_ERROR"
-    if event_type == "search":
-        return "SEARCH_NO_RESULTS" if row.get("search_results_count") == 0 else "SEARCH_QUERY"
-    if event_type == "filter_apply":
-        return "FILTER_APPLIED"
-    if event_type == "filter_remove":
-        return "FILTER_REMOVED"
-    if event_type == "add_to_cart":
-        return "ADD_TO_CART"
-    if event_type == "remove_from_cart":
-        return "REMOVE_FROM_CART"
-    if event_type == "order_completed":
-        return "ORDER_COMPLETED"
-    if event_type == "tab_hidden":
-        return "TAB_HIDDEN"
-    if event_type == "tab_visible":
-        return "TAB_VISIBLE"
-    if event_type == "scroll_checkpoint":
-        return "SCROLL"
-    if event_type == "input":
-        return "FORM_INPUT"
-    if event_type == "page_view":
-        if row["page_type"] == "product_details":
-            return "PRODUCT_INSPECT"
-        if row["page_type"] in {"search", "category"} and prev_page_type == "product_details":
-            if idle_s is not None and idle_s <= POGO_MAX_SECONDS:
-                return "POGO_STICK_BOUNCE"
-            return "RETURN_TO_RESULTS"
-        if row["page_type"] == "cart":
-            return "CART_VIEW"
-        if row["page_type"] == "checkout":
-            return "CHECKOUT_START"
-        return "PAGE_VIEW"
-    if event_type == "click":
-        element_id = str(row.get("element_id") or "")
-        if "offer" in element_id:
-            return "PRICE_COMPARISON_CLICK"
-        return "CLICK"
-    if idle_s is not None and idle_s >= 15:
-        return "LONG_HESITATION"
-    return event_type.upper()
-
-
-def interaction_pace(idle_s: float | None) -> str:
-    if idle_s is None:
-        return "normal"
-    if idle_s < 0.5:
-        return "rapid"
-    if idle_s < 10:
-        return "normal"
-    if idle_s < 30:
-        return "hesitant"
-    return "stalled"
-
-
-def friction_kind(row: pd.Series) -> str | None:
-    if row["is_rage_click"]:
-        return "rage_click"
-    if row["is_dead_click"]:
-        return "dead_click"
-    if row["action_type"] == "SEARCH_NO_RESULTS":
-        return "no_search_results"
-    if row["action_type"] == "POGO_STICK_BOUNCE":
-        return "rapid_backtrack"
-    if row["event_type"] in ERROR_EVENT_TYPES:
-        return str(row.get("error_code") or row.get("error_type") or "error")
-    if row["is_exit_intent"]:
-        return "exit_intent"
-    return None
-
-
-def is_error_like(row: pd.Series) -> bool:
-    return bool(
-        row["is_rage_click"]
-        or row["is_dead_click"]
-        or row["event_type"] in ERROR_EVENT_TYPES
-        or row["action_type"] == "SEARCH_NO_RESULTS"
-    )
-
-
-def narrative_summary(row: pd.Series) -> str:
-    action = row["action_type"]
-    page = row["page_title"] or row["page_type"]
-    product = row["current_product_name"]
-    idle = row["idle_time_seconds"]
-
-    if action == "SEARCH_QUERY":
-        return f'Wyszukano "{row.get("_search_query")}" ({int(row.get("_search_results_count") or 0)} wyników).'
-    if action == "SEARCH_NO_RESULTS":
-        return f'Wyszukiwanie "{row.get("_search_query")}" nie zwróciło wyników.'
-    if action == "PRODUCT_INSPECT":
-        return f"Wejście w produkt {product}."
-    if action == "POGO_STICK_BOUNCE":
-        inspect_s = row.get("_inspect_seconds")
-        seconds = inspect_s if inspect_s not in (None, "") else idle
-        return f"Szybki powrót do listy po {seconds}s na karcie produktu."
-    if action == "FILTER_APPLIED":
-        payload = _payload(row.get("_payload"))
-        return f"Włączono filtr {payload.get('filter_category')} = {payload.get('value')}."
-    if action == "FILTER_REMOVED":
-        payload = _payload(row.get("_payload"))
-        return f"Usunięto filtr {payload.get('filter_category')}."
-    if action == "RAGE_CLICK":
-        return f"Seria szybkich kliknięć w '{row.get('_element_text') or row.get('_element_id')}'."
-    if action == "DEAD_CLICK":
-        return f"Kliknięcie w nieaktywny element {row.get('_element_id')}."
-    if action == "FORM_ERROR":
-        return f"Błąd formularza {row['last_error_code']}: {row['last_error_message']}."
-    if action == "API_ERROR":
-        return f"Błąd API {row['last_error_code']}: {row['last_error_message']}."
-    if action == "ADD_TO_CART":
-        return f"Dodano do koszyka: {product}."
-    if action == "ORDER_COMPLETED":
-        return f"Zakończono zamówienie na kwotę {row['cart_value']} PLN."
-    if action == "TAB_HIDDEN":
-        return "Karta przeglądarki została ukryta."
-    if action == "TAB_VISIBLE":
-        return "Użytkownik wrócił do karty."
-    if action == "SCROLL":
-        return f"Przewinięto stronę '{page}' do {int(row.get('_scroll_y') or 0)}px."
-    if action == "EXIT_INTENT":
-        return "Kursor opuścił viewport u góry okna (sygnał wyjścia)."
-    if action == "CART_ABANDON_EXIT":
-        return "Próba opuszczenia koszyka / kasy."
-    if action == "LONG_HESITATION":
-        return f"Długa pauza {idle}s przed kolejną akcją na '{page}'."
-    if action == "PRICE_COMPARISON_CLICK":
-        return f"Kliknięto ofertę {product}."
-    if action == "CLICK":
-        label = row.get("_element_text") or row.get("_element_id") or "element"
-        return f"Kliknięto '{label}' na stronie {page}."
-    if action == "PAGE_VIEW":
-        return f"Otwarto stronę {page}."
-    if action == "FORM_INPUT":
-        payload = _payload(row.get("_payload"))
-        return f"Wpisano wartość w pole {payload.get('field', 'input')}."
-    if action in {"CART_VIEW", "CHECKOUT_START", "RETURN_TO_RESULTS"}:
-        return f"{action} na stronie {page}."
-    return f"{action} na stronie {page}."
-
-
-def preprocess_session(session: pd.DataFrame) -> pd.DataFrame:
-    session = session.sort_values("timestamp").copy()
-    session["is_rage_click"] = mark_rage_clicks(session)
-    session["is_dead_click"] = mark_dead_clicks(session)
-    session["is_exit_intent"] = session["event_type"].eq("mouse_leave_viewport")
-
-    timestamps = session["timestamp"]
-    idle = timestamps.diff().dt.total_seconds()
-    session["idle_time_seconds"] = idle.round().astype("Int64")
-
-    page_started = timestamps.where(session["event_type"].eq("page_view"))
-    page_started = page_started.ffill()
-    dwell = (timestamps - page_started).dt.total_seconds()
-    session["dwell_time_seconds"] = dwell.fillna(0).round().astype(int)
-    session["interaction_pace"] = [interaction_pace(None if pd.isna(v) else float(v)) for v in idle]
-
-    prev_page = session["page_type"].where(session["event_type"].eq("page_view")).ffill().shift(1)
-    actions = []
-    for idx, row in session.iterrows():
-        idle_s = None if pd.isna(row["idle_time_seconds"]) else float(row["idle_time_seconds"])
-        actions.append(classify_action(row, prev_page.loc[idx] if idx in prev_page.index else None, idle_s))
-    hesitation_eligible = {"SCROLL", "PAGE_VIEW", "CLICK", "FORM_INPUT"}
-    session["action_type"] = [
-        "LONG_HESITATION"
-        if (not pd.isna(idle_s) and float(idle_s) >= 15 and action in hesitation_eligible)
-        else action
-        for action, idle_s in zip(actions, idle)
-    ]
-
-    active_filters: dict[str, Any] = {}
-    inspected: list[str] = []
-    cart_value = 0.0
-    last_error_code = None
-    last_error_message = None
-    last_inspect_ts = None
-    friction_history: list[str] = []
-    consecutive = 0
-    rows_out: list[dict[str, Any]] = []
-
-    for seq, (_, row) in enumerate(session.iterrows(), start=1):
-        payload = _payload(row.get("payload"))
-        if row["event_type"] == "filter_apply" and payload.get("filter_category"):
-            active_filters[payload["filter_category"]] = payload.get("value")
-        elif row["event_type"] == "filter_remove" and payload.get("filter_category"):
-            active_filters.pop(payload["filter_category"], None)
-        inspect_seconds = None
-        if row["action_type"] == "PRODUCT_INSPECT" and row.get("product_id"):
-            last_inspect_ts = row["timestamp"]
-            if row["product_id"] not in inspected:
-                inspected.append(str(row["product_id"]))
-        elif row["action_type"] == "POGO_STICK_BOUNCE" and last_inspect_ts is not None:
-            inspect_seconds = max(int((row["timestamp"] - last_inspect_ts).total_seconds()), 1)
-        if row["event_type"] == "add_to_cart" and pd.notna(row.get("unit_price")):
-            cart_value += float(row["unit_price"])
-        elif row["event_type"] == "remove_from_cart" and pd.notna(row.get("unit_price")):
-            cart_value = max(0.0, cart_value - float(row["unit_price"]))
-        elif row["event_type"] == "order_completed":
-            cart_value = float(payload.get("total_amount") or cart_value)
-
-        if pd.notna(row.get("error_code")):
-            last_error_code = row["error_code"]
-            last_error_message = row.get("error_message")
-
-        kind = friction_kind(row)
-        if kind:
-            friction_history.append(kind)
-        consecutive = consecutive + 1 if is_error_like(row) else 0
-
-        window_start = row["timestamp"] - RECENT_ERROR_WINDOW
-        recent_mask = (session["timestamp"] <= row["timestamp"]) & (session["timestamp"] >= window_start)
-        recent = session.loc[recent_mask]
-        recent_errors = int(
-            recent["is_rage_click"].sum()
-            + recent["is_dead_click"].sum()
-            + recent["event_type"].isin(ERROR_EVENT_TYPES).sum()
-            + ((recent["event_type"] == "search") & (recent["search_results_count"].fillna(-1) == 0)).sum()
-        )
-        history = session.loc[session["timestamp"] <= row["timestamp"]]
-        session_errors = int(
-            history["is_rage_click"].sum()
-            + history["is_dead_click"].sum()
-            + history["event_type"].isin(ERROR_EVENT_TYPES).sum()
-            + ((history["event_type"] == "search") & (history["search_results_count"].fillna(-1) == 0)).sum()
-        )
-
-        out = {
-            "event_id": row["event_id"],
-            "session_id": row["session_id"],
-            "event_seq": seq,
-            "timestamp": row["timestamp"].isoformat().replace("+00:00", "Z"),
-            "user_id": row.get("user_id"),
-            "anonymous_id": row.get("anonymous_id"),
-            "page_type": row.get("page_type"),
-            "page_title": row.get("page_title"),
-            "action_type": row["action_type"],
-            "dwell_time_seconds": int(row["dwell_time_seconds"]),
-            "idle_time_seconds": None if pd.isna(row["idle_time_seconds"]) else int(row["idle_time_seconds"]),
-            "interaction_pace": row["interaction_pace"],
-            "is_rage_click": bool(row["is_rage_click"]),
-            "is_dead_click": bool(row["is_dead_click"]),
-            "is_exit_intent": bool(row["is_exit_intent"]),
-            "friction_detected": bool(kind),
-            "session_error_count": session_errors,
-            "recent_errors_count": recent_errors,
-            "consecutive_errors_count": consecutive,
-            "rage_clicks_count": int(history["is_rage_click"].sum()),
-            "dead_clicks_count": int(history["is_dead_click"].sum()),
-            "form_errors_count": int(history["event_type"].eq("ui_error").sum()),
-            "zero_result_searches": int(
-                ((history["event_type"] == "search") & (history["search_results_count"].fillna(-1) == 0)).sum()
-            ),
-            "last_error_code": last_error_code,
-            "last_error_message": last_error_message,
-            "most_frequent_friction": Counter(friction_history).most_common(1)[0][0] if friction_history else None,
-            "active_filters": json.dumps(active_filters, ensure_ascii=False) if active_filters else None,
-            "compared_products_count": len(inspected),
-            "current_product_name": row.get("product_name"),
-            "current_product_price": row.get("unit_price"),
-            "cart_value": round(cart_value, 2) if cart_value else None,
-            "_search_query": row.get("search_query"),
-            "_search_results_count": row.get("search_results_count"),
-            "_element_text": row.get("element_text"),
-            "_element_id": row.get("element_id"),
-            "_payload": row.get("payload"),
-            "_scroll_y": row.get("scroll_y"),
-            "_inspect_seconds": inspect_seconds,
+    def build_ecommerce_context(self, event: dict[str, Any], active_filters: dict[str, list[str]]) -> dict[str, Any]:
+        filters_list = [{"id": fid, "valueIds": vals} for fid, vals in active_filters.items() if vals]
+        return {
+            "activeFilters": filters_list,
+            "activeFiltersCount": len(filters_list),
+            "sortingType": "popular",
+            "resultsCountBucket": _bucket_count(event.get("search_results_count")),
+            "priceVisible": True,
+            "deliveryVisible": True,
+            "availabilityVisible": True,
         }
-        out["narrative_summary"] = narrative_summary(pd.Series(out))
-        rows_out.append(out)
 
-    result = pd.DataFrame(rows_out)
-    return result[PREPROCESSED_COLUMNS]
+    def detect_rage_clicks(self) -> None:
+        """Min 3 clicks on same elementId in 2.5s window without UI reaction in 800ms."""
+        clicks = [e for e in self.events if e.get("event_name") == "element_click" and e.get("element_id")]
+        window_ms = 2500
+        grace_ms = 800
+
+        by_element: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for c in clicks:
+            by_element[c["element_id"]].append(c)
+
+        for element_id, el_clicks in by_element.items():
+            if len(el_clicks) < 3:
+                continue
+
+            for i in range(len(el_clicks) - 2):
+                c_first = el_clicks[i]
+                sub_clicks = [c for c in el_clicks[i:] if (c["timestamp_dt"] - c_first["timestamp_dt"]).total_seconds() * 1000 <= window_ms]
+                if len(sub_clicks) >= 3:
+                    detected_at = sub_clicks[-1]["timestamp_dt"]
+                    if not self._can_emit("rage_click", detected_at):
+                        continue
+
+                    # Check for UI change after first click
+                    grace_end = c_first["timestamp_dt"] + timedelta(milliseconds=grace_ms)
+                    has_ui_change = any(
+                        e["event_name"] in {"ui_state_changed", "page_enter", "url_changed"}
+                        and c_first["timestamp_dt"] < e["timestamp_dt"] <= grace_end
+                        for e in self.events
+                    )
+                    if has_ui_change:
+                        continue
+
+                    duration_ms = int((detected_at - c_first["timestamp_dt"]).total_seconds() * 1000)
+                    trigger_event = sub_clicks[-1]
+                    strength = min(1.0, round(len(sub_clicks) / 6.0, 2))
+
+                    self.meta_events.append({
+                        "event_id": f"meta_{uuid.uuid4().hex[:12]}",
+                        "batch_id": f"batch_{uuid.uuid4().hex[:10]}",
+                        "schema_version": SCHEMA_VERSION,
+                        "event_name": "rage_click",
+                        "detected_at": _iso(detected_at),
+                        "server_received_at": _iso(detected_at + timedelta(milliseconds=45)),
+                        "window_started_at": _iso(c_first["timestamp_dt"]),
+                        "window_ended_at": _iso(detected_at),
+                        "window_duration_ms": max(duration_ms, 50),
+                        "session_id": self.session_id,
+                        "page_view_id": trigger_event["page_view_id"],
+                        "journey_id": None,
+                        "page_type": trigger_event["page_type"],
+                        "previous_page_type": None,
+                        "route_template": _route_template(trigger_event["page_type"]),
+                        "subject_type": "form" if "filter" in element_id else "product",
+                        "subject_id": trigger_event.get("product_id"),
+                        "category_id": trigger_event.get("product_category"),
+                        "brand_id": trigger_event.get("product_brand"),
+                        "ecommerce_context": self.build_ecommerce_context(trigger_event, {}),
+                        "metrics": {
+                            "clickCount": len(sub_clicks),
+                            "windowMs": duration_ms,
+                            "elementId": str(element_id),
+                        },
+                        "strength": max(0.5, strength),
+                        "evidence_count": len(sub_clicks),
+                        "algorithm_version": ALGORITHM_VERSION,
+                        "partial_data": False,
+                        "consent_version": None,
+                        "created_at": _iso(detected_at),
+                    })
+                    break
+
+    def detect_dead_click_clusters(self) -> None:
+        """Min 2 clicks on same elementId in 2.0s window followed by 1.5s silence."""
+        clicks = [e for e in self.events if e.get("event_name") == "element_click" and e.get("element_id")]
+        window_ms = 2000
+        silence_ms = 1500
+
+        by_element: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for c in clicks:
+            by_element[c["element_id"]].append(c)
+
+        for element_id, el_clicks in by_element.items():
+            if len(el_clicks) < 2:
+                continue
+
+            for i in range(len(el_clicks) - 1):
+                c_first = el_clicks[i]
+                c_last = el_clicks[i + 1]
+                delta_ms = (c_last["timestamp_dt"] - c_first["timestamp_dt"]).total_seconds() * 1000
+                if delta_ms <= window_ms:
+                    silence_end = c_last["timestamp_dt"] + timedelta(milliseconds=silence_ms)
+                    # Check for effect events during silence window
+                    had_effect = any(
+                        e["event_name"] in {"ui_state_changed", "page_enter", "url_changed"}
+                        and c_last["timestamp_dt"] < e["timestamp_dt"] <= silence_end
+                        for e in self.events
+                    )
+                    if had_effect:
+                        continue
+
+                    detected_at = silence_end
+                    if not self._can_emit("dead_click_cluster", detected_at):
+                        continue
+
+                    duration_ms = int(delta_ms + silence_ms)
+                    trigger_event = c_last
+
+                    self.meta_events.append({
+                        "event_id": f"meta_{uuid.uuid4().hex[:12]}",
+                        "batch_id": f"batch_{uuid.uuid4().hex[:10]}",
+                        "schema_version": SCHEMA_VERSION,
+                        "event_name": "dead_click_cluster",
+                        "detected_at": _iso(detected_at),
+                        "server_received_at": _iso(detected_at + timedelta(milliseconds=45)),
+                        "window_started_at": _iso(c_first["timestamp_dt"]),
+                        "window_ended_at": _iso(detected_at),
+                        "window_duration_ms": duration_ms,
+                        "session_id": self.session_id,
+                        "page_view_id": trigger_event["page_view_id"],
+                        "journey_id": None,
+                        "page_type": trigger_event["page_type"],
+                        "previous_page_type": None,
+                        "route_template": _route_template(trigger_event["page_type"]),
+                        "subject_type": "offer",
+                        "subject_id": None,
+                        "category_id": trigger_event.get("product_category"),
+                        "brand_id": None,
+                        "ecommerce_context": self.build_ecommerce_context(trigger_event, {}),
+                        "metrics": {
+                            "clickCount": 2,
+                            "windowMs": duration_ms,
+                            "elementId": str(element_id),
+                        },
+                        "strength": 0.75,
+                        "evidence_count": 2,
+                        "algorithm_version": ALGORITHM_VERSION,
+                        "partial_data": False,
+                        "consent_version": None,
+                        "created_at": _iso(detected_at),
+                    })
+                    break
+
+    def detect_rapid_filter_churn(self) -> None:
+        """Min 6 filter changes in 30s window with >= 2 undone filters and no progress."""
+        filter_events = [e for e in self.events if e.get("event_name") in {"filter_added", "filter_removed"}]
+        if len(filter_events) < 6:
+            return
+
+        window_ms = 30000
+        for i in range(len(filter_events) - 5):
+            first = filter_events[i]
+            in_window = [e for e in filter_events[i:] if (e["timestamp_dt"] - first["timestamp_dt"]).total_seconds() * 1000 <= window_ms]
+            if len(in_window) < 6:
+                continue
+
+            last = in_window[-1]
+            detected_at = last["timestamp_dt"]
+
+            # Count undos (filter added then removed or removed then added)
+            added_by_filter: dict[str, int] = defaultdict(int)
+            removed_by_filter: dict[str, int] = defaultdict(int)
+            for fe in in_window:
+                fid = fe.get("filter_id")
+                if not fid:
+                    continue
+                if fe["event_name"] == "filter_added":
+                    added_by_filter[fid] += 1
+                else:
+                    removed_by_filter[fid] += 1
+
+            undone_count = sum(min(added_by_filter[fid], removed_by_filter[fid]) for fid in added_by_filter)
+            if undone_count < 2:
+                continue
+
+            # Check no progress (no product_viewed / search_submitted inside the window)
+            has_progress = any(
+                e["event_name"] in {"product_viewed", "search_submitted"}
+                and first["timestamp_dt"] <= e["timestamp_dt"] <= detected_at
+                for e in self.events
+            )
+            if has_progress:
+                continue
+
+            if not self._can_emit("rapid_filter_churn", detected_at):
+                continue
+
+            duration_ms = int((detected_at - first["timestamp_dt"]).total_seconds() * 1000)
+            strength = min(1.0, round((len(in_window) / 10.0) * 0.5 + (undone_count / 4.0) * 0.5, 2))
+
+            self.meta_events.append({
+                "event_id": f"meta_{uuid.uuid4().hex[:12]}",
+                "batch_id": f"batch_{uuid.uuid4().hex[:10]}",
+                "schema_version": SCHEMA_VERSION,
+                "event_name": "rapid_filter_churn",
+                "detected_at": _iso(detected_at),
+                "server_received_at": _iso(detected_at + timedelta(milliseconds=50)),
+                "window_started_at": _iso(first["timestamp_dt"]),
+                "window_ended_at": _iso(detected_at),
+                "window_duration_ms": duration_ms,
+                "session_id": self.session_id,
+                "page_view_id": last["page_view_id"],
+                "journey_id": None,
+                "page_type": last["page_type"],
+                "previous_page_type": None,
+                "route_template": _route_template(last["page_type"]),
+                "subject_type": "category",
+                "subject_id": None,
+                "category_id": last.get("product_category") or "pralki",
+                "brand_id": None,
+                "ecommerce_context": self.build_ecommerce_context(last, {}),
+                "metrics": {
+                    "filterChanges": len(in_window),
+                    "windowMs": duration_ms,
+                    "undoneCount": undone_count,
+                },
+                "strength": max(0.6, strength),
+                "evidence_count": len(in_window),
+                "algorithm_version": ALGORITHM_VERSION,
+                "partial_data": False,
+                "consent_version": None,
+                "created_at": _iso(detected_at),
+            })
+            break
+
+    def detect_no_progress_window(self) -> None:
+        """Active spanning >= 45s of 90s lookback without progress."""
+        window_ms = 90000
+        activity_names = {"element_click", "scroll_summary", "filter_added", "filter_removed", "page_enter"}
+
+        for i, curr in enumerate(self.events):
+            curr_ts = curr["timestamp_dt"]
+            window_start = curr_ts - timedelta(milliseconds=window_ms)
+            in_window = [e for e in self.events if window_start <= e["timestamp_dt"] <= curr_ts]
+
+            # Zero progress events
+            has_progress = any(e["event_name"] == "product_viewed" for e in in_window)
+            if has_progress:
+                continue
+
+            activities = [e for e in in_window if e["event_name"] in activity_names]
+            if len(activities) < 4:
+                continue
+
+            span_ms = (activities[-1]["timestamp_dt"] - activities[0]["timestamp_dt"]).total_seconds() * 1000
+            if span_ms >= (window_ms * 0.5):
+                if not self._can_emit("no_progress_window", curr_ts):
+                    continue
+
+                clicks = sum(1 for e in activities if e["event_name"] == "element_click")
+                scrolls = sum(1 for e in activities if e["event_name"] == "scroll_summary")
+                filters = sum(1 for e in activities if e["event_name"] in {"filter_added", "filter_removed"})
+                strength = min(1.0, round(span_ms / window_ms, 2))
+
+                self.meta_events.append({
+                    "event_id": f"meta_{uuid.uuid4().hex[:12]}",
+                    "batch_id": f"batch_{uuid.uuid4().hex[:10]}",
+                    "schema_version": SCHEMA_VERSION,
+                    "event_name": "no_progress_window",
+                    "detected_at": _iso(curr_ts),
+                    "server_received_at": _iso(curr_ts + timedelta(milliseconds=50)),
+                    "window_started_at": _iso(window_start),
+                    "window_ended_at": _iso(curr_ts),
+                    "window_duration_ms": window_ms,
+                    "session_id": self.session_id,
+                    "page_view_id": curr["page_view_id"],
+                    "journey_id": None,
+                    "page_type": curr["page_type"],
+                    "previous_page_type": None,
+                    "route_template": _route_template(curr["page_type"]),
+                    "subject_type": "category",
+                    "subject_id": None,
+                    "category_id": curr.get("product_category"),
+                    "brand_id": None,
+                    "ecommerce_context": self.build_ecommerce_context(curr, {}),
+                    "metrics": {
+                        "activeMs": int(span_ms),
+                        "clickCount": clicks,
+                        "scrollCount": scrolls,
+                        "filterChanges": filters,
+                    },
+                    "strength": max(0.5, strength),
+                    "evidence_count": len(activities),
+                    "algorithm_version": ALGORITHM_VERSION,
+                    "partial_data": False,
+                    "consent_version": None,
+                    "created_at": _iso(curr_ts),
+                })
+                break
+
+    def detect_product_revisit(self) -> None:
+        """Same product viewed again with >= 1 distinct other product viewed between."""
+        views = [e for e in self.events if e.get("event_name") == "product_viewed" and e.get("product_id")]
+        if len(views) < 3:
+            return
+
+        for i in range(len(views)):
+            for j in range(i + 1, len(views)):
+                v1, v2 = views[i], views[j]
+                if v1["product_id"] == v2["product_id"]:
+                    pid = v1["product_id"]
+                    intermediates = {v["product_id"] for v in views[i + 1:j] if v["product_id"] != pid}
+                    if len(intermediates) >= 1:
+                        detected_at = v2["timestamp_dt"]
+                        if not self._can_emit("product_revisit", detected_at):
+                            continue
+
+                        duration_ms = int((detected_at - v1["timestamp_dt"]).total_seconds() * 1000)
+                        strength = min(1.0, round(0.7 + len(intermediates) * 0.1, 2))
+
+                        self.meta_events.append({
+                            "event_id": f"meta_{uuid.uuid4().hex[:12]}",
+                            "batch_id": f"batch_{uuid.uuid4().hex[:10]}",
+                            "schema_version": SCHEMA_VERSION,
+                            "event_name": "product_revisit",
+                            "detected_at": _iso(detected_at),
+                            "server_received_at": _iso(detected_at + timedelta(milliseconds=45)),
+                            "window_started_at": _iso(v1["timestamp_dt"]),
+                            "window_ended_at": _iso(detected_at),
+                            "window_duration_ms": duration_ms,
+                            "session_id": self.session_id,
+                            "page_view_id": v2["page_view_id"],
+                            "journey_id": None,
+                            "page_type": "product",
+                            "previous_page_type": "catalog",
+                            "route_template": "/produkt/[id]",
+                            "subject_type": "product",
+                            "subject_id": pid,
+                            "category_id": v2.get("product_category"),
+                            "brand_id": v2.get("product_brand"),
+                            "ecommerce_context": self.build_ecommerce_context(v2, {}),
+                            "metrics": {
+                                "revisitCount": 2,
+                                "distinctIntermediates": len(intermediates),
+                                "productId": str(pid),
+                            },
+                            "strength": strength,
+                            "evidence_count": j - i + 1,
+                            "algorithm_version": ALGORITHM_VERSION,
+                            "partial_data": False,
+                            "consent_version": None,
+                            "created_at": _iso(detected_at),
+                        })
+                        return
+
+    def detect_comparison_oscillation(self) -> None:
+        """Transitions between 2-4 products without narrowing candidate set."""
+        views = [e for e in self.events if e.get("event_name") == "product_viewed" and e.get("product_id")]
+        window_ms = 180000  # 3 min
+
+        if len(views) < 5:
+            return
+
+        for i in range(len(views) - 4):
+            first = views[i]
+            in_window = [v for v in views[i:] if (v["timestamp_dt"] - first["timestamp_dt"]).total_seconds() * 1000 <= window_ms]
+            # Deduplicate consecutive views of same product
+            seq = []
+            for v in in_window:
+                pid = v["product_id"]
+                if not seq or seq[-1] != pid:
+                    seq.append(pid)
+
+            transitions = len(seq) - 1
+            candidates = set(seq)
+            if transitions >= 4 and 2 <= len(candidates) <= 4:
+                # Check set narrowing
+                mid = len(seq) // 2
+                first_half = set(seq[:mid])
+                second_half = set(seq[mid:])
+                if len(second_half) < len(first_half):
+                    continue  # narrowed
+
+                last = in_window[-1]
+                detected_at = last["timestamp_dt"]
+                if not self._can_emit("comparison_oscillation", detected_at):
+                    continue
+
+                duration_ms = int((detected_at - first["timestamp_dt"]).total_seconds() * 1000)
+                strength = min(1.0, round(transitions / 8.0 + (len(candidates) - 1) / 6.0, 2))
+
+                self.meta_events.append({
+                    "event_id": f"meta_{uuid.uuid4().hex[:12]}",
+                    "batch_id": f"batch_{uuid.uuid4().hex[:10]}",
+                    "schema_version": SCHEMA_VERSION,
+                    "event_name": "comparison_oscillation",
+                    "detected_at": _iso(detected_at),
+                    "server_received_at": _iso(detected_at + timedelta(milliseconds=45)),
+                    "window_started_at": _iso(first["timestamp_dt"]),
+                    "window_ended_at": _iso(detected_at),
+                    "window_duration_ms": duration_ms,
+                    "session_id": self.session_id,
+                    "page_view_id": last["page_view_id"],
+                    "journey_id": None,
+                    "page_type": "product",
+                    "previous_page_type": "catalog",
+                    "route_template": "/produkt/[id]",
+                    "subject_type": "product",
+                    "subject_id": last.get("product_id"),
+                    "category_id": last.get("product_category"),
+                    "brand_id": last.get("product_brand"),
+                    "ecommerce_context": self.build_ecommerce_context(last, {}),
+                    "metrics": {
+                        "candidateCount": len(candidates),
+                        "transitionCount": transitions,
+                    },
+                    "strength": max(0.65, strength),
+                    "evidence_count": len(in_window),
+                    "algorithm_version": ALGORITHM_VERSION,
+                    "partial_data": False,
+                    "consent_version": None,
+                    "created_at": _iso(detected_at),
+                })
+                break
+
+    def run_all(self) -> list[dict[str, Any]]:
+        self.detect_rage_clicks()
+        self.detect_dead_click_clusters()
+        self.detect_rapid_filter_churn()
+        self.detect_no_progress_window()
+        self.detect_product_revisit()
+        self.detect_comparison_oscillation()
+        return self.meta_events
 
 
 def preprocess(raw: pd.DataFrame) -> pd.DataFrame:
-    raw = raw.copy()
-    raw["timestamp"] = _parse_ts(raw["client_timestamp"])
-    frames = [preprocess_session(group) for _, group in raw.groupby("session_id", sort=False)]
-    return pd.concat(frames, ignore_index=True)
+    raw = raw.assign(timestamp_dt=pd.to_datetime(raw["client_timestamp"], utc=True))
+
+    all_meta_events: list[dict[str, Any]] = []
+
+    for session_id, group in raw.groupby("session_id", sort=False):
+        events = group.to_dict("records")
+        analyzer = SessionAnalyzer(str(session_id), events)
+        session_meta = analyzer.run_all()
+        all_meta_events.extend(session_meta)
+
+    if not all_meta_events:
+        return pd.DataFrame(columns=PREPROCESSED_COLUMNS)
+
+    df_out = pd.DataFrame(all_meta_events).copy()
+    # Serialize JSON fields
+    df_out = df_out.assign(
+        ecommerce_context=[json.dumps(v, ensure_ascii=False) for v in df_out["ecommerce_context"]],
+        metrics=[json.dumps(v, ensure_ascii=False) for v in df_out["metrics"]],
+    )
+    return df_out[PREPROCESSED_COLUMNS]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Preprocess raw ecommerce telemetry")
+    parser = argparse.ArgumentParser(description="Preprocess raw telemetry into MetaEvents")
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     return parser.parse_args()
@@ -405,19 +576,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     raw = pd.read_csv(args.input)
-    processed = preprocess(raw)
+    meta = preprocess(raw)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    processed.to_csv(args.output, index=False)
-    triggers = processed[
-        processed["friction_detected"]
-        | processed["is_rage_click"]
-        | processed["is_exit_intent"]
-        | (processed["recent_errors_count"] >= 2)
-    ]
-    print(f"Wrote {len(processed)} preprocessed events to {args.output}")
-    print(f"Sessions: {processed['session_id'].nunique()}")
-    print(f"Friction / trigger-like rows: {len(triggers)}")
-    print(processed["action_type"].value_counts().head(12).to_string())
+    meta.to_csv(args.output, index=False)
+    print(f"Wrote {len(meta)} meta events to {args.output}")
+    print(f"Sessions represented: {meta['session_id'].nunique()}")
+    print("Meta events by name:")
+    print(meta["event_name"].value_counts().to_string())
 
 
 if __name__ == "__main__":

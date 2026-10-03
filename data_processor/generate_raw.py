@@ -1,10 +1,10 @@
-"""Generate synthetic raw ecommerce telemetry sessions.
+"""Generate synthetic raw ecommerce telemetry sessions for AGD catalog.
 
-Four behavioural personas:
-- frustration: coupon / form failures and clustered clicks
-- decision_fatigue: pogo-sticking and filter thrashing
-- boredom: idle time, hidden tabs, mindless scrolling
-- satisfaction: a smooth search-to-purchase path
+Four behavioural personas aligned with PRD and the 6 behavior detectors:
+- decision_fatigue: comparison oscillation and rapid filter churn
+- product_hesitation: product revisit and no-progress stalling
+- technical_friction: rage clicks and dead click clusters
+- smooth_browsing: normal, smooth exploration of products and filters
 """
 
 from __future__ import annotations
@@ -27,128 +27,142 @@ DEFAULT_GROUND_TRUTH_OUTPUT = PROJECT_ROOT / "data" / "sessions_ground_truth.csv
 RAW_COLUMNS = [
     "event_id",
     "session_id",
+    "page_view_id",
+    "sequence_number",
     "client_timestamp",
     "server_timestamp",
     "event_date",
-    "user_id",
     "anonymous_id",
-    "event_type",
+    "event_name",
+    "event_type",  # alias for backward compatibility
     "page_type",
     "page_url",
     "page_path",
     "page_title",
     "referrer_url",
-    "element_tag",
     "element_id",
-    "element_text",
-    "element_selector",
-    "pointer_x",
-    "pointer_y",
-    "scroll_y",
-    "viewport_width",
-    "viewport_height",
-    "document_height",
+    "element_tag",
     "search_query",
     "search_results_count",
     "product_id",
     "product_name",
     "product_category",
     "product_brand",
-    "merchant_id",
     "unit_price",
-    "cart_id",
-    "error_type",
-    "error_code",
-    "error_message",
+    "filter_id",
+    "filter_value",
     "device_type",
-    "user_agent",
     "payload",
 ]
 
 PRODUCTS = [
     {
-        "product_id": "p-redmi-note-13-pro",
-        "product_name": "Xiaomi Redmi Note 13 Pro 256GB",
-        "product_category": "Smartfony",
-        "product_brand": "Xiaomi",
-        "merchant_id": "mediaexpert",
-        "unit_price": 1299.00,
+        "product_id": "p-bosch-serie6",
+        "product_name": "Bosch Serie 6 WAU28T0EPL",
+        "product_category": "pralki",
+        "product_brand": "Bosch",
+        "unit_price": 2399.00,
+        "energy_class": "A",
+        "capacity": "9kg",
     },
     {
-        "product_id": "p-poco-x6-pro",
-        "product_name": "Poco X6 Pro 512GB",
-        "product_category": "Smartfony",
-        "product_brand": "Xiaomi",
-        "merchant_id": "xkom",
-        "unit_price": 1599.00,
-    },
-    {
-        "product_id": "p-galaxy-a55",
-        "product_name": "Samsung Galaxy A55 5G 256GB",
-        "product_category": "Smartfony",
+        "product_id": "p-samsung-ecobubble",
+        "product_name": "Samsung EcoBubble WW90T534DAE",
+        "product_category": "pralki",
         "product_brand": "Samsung",
-        "merchant_id": "morele",
-        "unit_price": 1799.00,
+        "unit_price": 2199.00,
+        "energy_class": "A",
+        "capacity": "9kg",
     },
     {
-        "product_id": "p-iphone-15",
-        "product_name": "Apple iPhone 15 128GB",
-        "product_category": "Smartfony",
-        "product_brand": "Apple",
-        "merchant_id": "ispot",
-        "unit_price": 3499.00,
+        "product_id": "p-whirlpool-freshcare",
+        "product_name": "Whirlpool FreshCare+ FFD 9458",
+        "product_category": "pralki",
+        "product_brand": "Whirlpool",
+        "unit_price": 1749.00,
+        "energy_class": "B",
+        "capacity": "9kg",
     },
     {
-        "product_id": "p-nothing-2a",
-        "product_name": "Nothing Phone (2a) 256GB",
-        "product_category": "Smartfony",
-        "product_brand": "Nothing",
-        "merchant_id": "xkom",
-        "unit_price": 1449.00,
+        "product_id": "p-electrolux-perfectcare",
+        "product_name": "Electrolux PerfectCare 600 EW6F428WP",
+        "product_category": "pralki",
+        "product_brand": "Electrolux",
+        "unit_price": 1999.00,
+        "energy_class": "A",
+        "capacity": "8kg",
     },
     {
-        "product_id": "p-pixel-8a",
-        "product_name": "Google Pixel 8a 128GB",
-        "product_category": "Smartfony",
-        "product_brand": "Google",
-        "merchant_id": "mediaexpert",
-        "unit_price": 1899.00,
+        "product_id": "p-samsung-bespoke-fridge",
+        "product_name": "Samsung Bespoke RB38A7B6341",
+        "product_category": "lodowki",
+        "product_brand": "Samsung",
+        "unit_price": 3199.00,
+        "energy_class": "C",
+        "width": "60cm",
+    },
+    {
+        "product_id": "p-lg-noboundary-fridge",
+        "product_name": "LG No Frost GBB72MCDMN",
+        "product_category": "lodowki",
+        "product_brand": "LG",
+        "unit_price": 2899.00,
+        "energy_class": "D",
+        "width": "60cm",
+    },
+    {
+        "product_id": "p-bosch-serie4-fridge",
+        "product_name": "Bosch Serie 4 KGN39VLEB",
+        "product_category": "lodowki",
+        "product_brand": "Bosch",
+        "unit_price": 2549.00,
+        "energy_class": "E",
+        "width": "60cm",
+    },
+    {
+        "product_id": "p-bosch-smv4-dishwasher",
+        "product_name": "Bosch Serie 4 SMV4EVX14E",
+        "product_category": "zmywarki",
+        "product_brand": "Bosch",
+        "unit_price": 2149.00,
+        "energy_class": "C",
+        "width": "60cm",
+    },
+    {
+        "product_id": "p-siemens-iq300-dishwasher",
+        "product_name": "Siemens iQ300 SN63EX14CE",
+        "product_category": "zmywarki",
+        "product_brand": "Siemens",
+        "unit_price": 2499.00,
+        "energy_class": "C",
+        "width": "60cm",
+    },
+    {
+        "product_id": "p-whirlpool-maxispace-dishwasher",
+        "product_name": "Whirlpool MaxiSpace W8I HP42 L",
+        "product_category": "zmywarki",
+        "product_brand": "Whirlpool",
+        "unit_price": 2099.00,
+        "energy_class": "C",
+        "width": "60cm",
     },
 ]
 
 SEARCHES = [
-    ("smartfon 256gb do 2000", 42),
-    ("smartfon samsung 5g", 28),
-    ("tani ajfon", 0),
-    ("xiaomi 256gb", 19),
-    ("nothing phone 2a", 6),
-    ("smartfon do fotografii", 31),
+    ("pralka 9kg bosch seria 6", 14),
+    ("lodówka no frost 60cm", 22),
+    ("zmywarka do zabudowy 60", 18),
+    ("pralka a cicha", 12),
+    ("lodowka samsung bespoke", 8),
+    ("zmywarka siemens zeolith", 6),
 ]
 
 DEVICES = {
-    "desktop": {
-        "device_type": "desktop",
-        "viewport_width": 1440,
-        "viewport_height": 900,
-        "document_height": 4200,
-        "user_agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
-        ),
-    },
-    "mobile": {
-        "device_type": "mobile",
-        "viewport_width": 390,
-        "viewport_height": 844,
-        "document_height": 6100,
-        "user_agent": (
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) "
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1"
-        ),
-    },
+    "desktop": {"device_type": "desktop"},
+    "mobile": {"device_type": "mobile"},
 }
 
-BASE_URL = "https://www.ceneo.pl"
+BASE_URL = "https://agd-katalog.local"
 
 
 def _iso(ts: datetime) -> str:
@@ -157,21 +171,20 @@ def _iso(ts: datetime) -> str:
 
 def _path_for(page_type: str, product: dict[str, Any] | None = None, query: str | None = None) -> tuple[str, str, str]:
     if page_type == "home":
-        return f"{BASE_URL}/", "/", "Ceneo - porównywarka cen"
+        return f"{BASE_URL}/", "/", "Katalog AGD - Strona główna"
+    if page_type == "catalog":
+        return f"{BASE_URL}/katalog", "/katalog", "Katalog AGD - Wszystkie produkty"
     if page_type == "search":
-        q = query or "smartfon"
-        path = f"/szukaj-{q.replace(' ', '+')}.htm"
-        return f"{BASE_URL}{path}", path, f"Szukaj: {q} - Ceneo"
+        q = query or "pralka"
+        path = f"/szukaj?q={q.replace(' ', '+')}"
+        return f"{BASE_URL}{path}", path, f"Wyniki wyszukiwania: {q}"
     if page_type == "category":
-        return f"{BASE_URL}/Smartfony;szukaj-smartfon", "/Smartfony", "Smartfony - Ceneo"
-    if page_type == "product_details" and product:
-        path = f"/{product['product_id']}"
-        return f"{BASE_URL}{path}", path, f"{product['product_name']} - Ceneo"
-    if page_type == "cart":
-        return f"{BASE_URL}/koszyk", "/koszyk", "Koszyk - Ceneo"
-    if page_type == "checkout":
-        return f"{BASE_URL}/zamowienie", "/zamowienie", "Zamówienie - Ceneo"
-    return f"{BASE_URL}/", "/", "Ceneo"
+        cat = product["product_category"] if product else "pralki"
+        return f"{BASE_URL}/katalog/{cat}", f"/katalog/{cat}", f"AGD - {cat.capitalize()}"
+    if page_type == "product" and product:
+        path = f"/produkt/{product['product_id']}"
+        return f"{BASE_URL}{path}", path, f"{product['product_name']} - Specyfikacja"
+    return f"{BASE_URL}/katalog", "/katalog", "Katalog AGD"
 
 
 @dataclass
@@ -179,24 +192,25 @@ class SessionBuilder:
     persona: str
     session_id: str
     anonymous_id: str
-    user_id: str | None
     start_time: datetime
     device: dict[str, Any]
     rng: random.Random
-    cart_id: str = field(default_factory=lambda: f"cart_{uuid.uuid4().hex[:10]}")
     clock: datetime = field(init=False)
+    page_view_id: str = field(init=False)
+    seq: int = field(default=0)
     page_type: str = "home"
     page_url: str = f"{BASE_URL}/"
     page_path: str = "/"
-    page_title: str = "Ceneo - porównywarka cen"
+    page_title: str = "Katalog AGD"
     referrer_url: str | None = None
-    scroll_y: int = 0
     current_product: dict[str, Any] | None = None
     current_query: str | None = None
+    active_filters: dict[str, list[str]] = field(default_factory=dict)
     events: list[dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.clock = self.start_time
+        self.page_view_id = f"pv_{uuid.uuid4().hex[:10]}"
 
     def advance(self, lo_ms: int, hi_ms: int) -> None:
         self.clock += timedelta(milliseconds=self.rng.randint(lo_ms, hi_ms))
@@ -205,382 +219,315 @@ class SessionBuilder:
         self.referrer_url = self.page_url
         self.page_type = page_type
         self.current_product = product
+        self.page_view_id = f"pv_{uuid.uuid4().hex[:10]}"
         if query is not None:
             self.current_query = query
         self.page_url, self.page_path, self.page_title = _path_for(page_type, product, self.current_query)
-        self.scroll_y = 0
 
-    def emit(self, event_type: str, **overrides: Any) -> dict[str, Any]:
+    def emit(self, event_name: str, **overrides: Any) -> dict[str, Any]:
+        self.seq += 1
         product = overrides.pop("product", self.current_product)
         payload = overrides.pop("payload", None)
         client_ts = self.clock
-        server_ts = client_ts + timedelta(milliseconds=self.rng.randint(18, 220))
+        server_ts = client_ts + timedelta(milliseconds=self.rng.randint(18, 120))
+        filter_id = overrides.pop("filter_id", None)
+        filter_value = overrides.pop("filter_value", None)
+
         event = {
             "event_id": f"evt_{uuid.uuid4().hex}",
             "session_id": self.session_id,
+            "page_view_id": self.page_view_id,
+            "sequence_number": self.seq,
             "client_timestamp": _iso(client_ts),
             "server_timestamp": _iso(server_ts),
             "event_date": client_ts.date().isoformat(),
-            "user_id": self.user_id,
             "anonymous_id": self.anonymous_id,
-            "event_type": event_type,
+            "event_name": event_name,
+            "event_type": event_name,  # backward compatibility alias
             "page_type": overrides.pop("page_type", self.page_type),
             "page_url": overrides.pop("page_url", self.page_url),
             "page_path": overrides.pop("page_path", self.page_path),
             "page_title": overrides.pop("page_title", self.page_title),
             "referrer_url": overrides.pop("referrer_url", self.referrer_url),
-            "element_tag": None,
-            "element_id": None,
-            "element_text": None,
-            "element_selector": None,
-            "pointer_x": None,
-            "pointer_y": None,
-            "scroll_y": self.scroll_y,
-            "viewport_width": self.device["viewport_width"],
-            "viewport_height": self.device["viewport_height"],
-            "document_height": self.device["document_height"],
-            "search_query": self.current_query,
-            "search_results_count": None,
+            "element_id": overrides.pop("element_id", None),
+            "element_tag": overrides.pop("element_tag", None),
+            "search_query": overrides.pop("search_query", self.current_query),
+            "search_results_count": overrides.pop("search_results_count", None),
             "product_id": product["product_id"] if product else None,
             "product_name": product["product_name"] if product else None,
             "product_category": product["product_category"] if product else None,
             "product_brand": product["product_brand"] if product else None,
-            "merchant_id": product["merchant_id"] if product else None,
             "unit_price": product["unit_price"] if product else None,
-            "cart_id": self.cart_id if self.page_type in {"cart", "checkout"} or event_type in {
-                "add_to_cart",
-                "remove_from_cart",
-                "order_completed",
-            } else None,
-            "error_type": None,
-            "error_code": None,
-            "error_message": None,
+            "filter_id": filter_id,
+            "filter_value": filter_value,
             "device_type": self.device["device_type"],
-            "user_agent": self.device["user_agent"],
             "payload": json.dumps(payload, ensure_ascii=False) if payload is not None else None,
         }
         event.update(overrides)
         self.events.append(event)
         return event
 
-    def page_view(self, page_type: str, product: dict[str, Any] | None = None, query: str | None = None) -> None:
+    def page_enter(self, page_type: str, product: dict[str, Any] | None = None, query: str | None = None) -> None:
         self._page(page_type, product, query)
-        self.emit("page_view")
+        self.emit("page_enter")
 
     def click(
         self,
         element_id: str,
-        element_text: str,
         *,
         tag: str = "BUTTON",
-        selector: str | None = None,
-        x: int | None = None,
-        y: int | None = None,
         payload: dict[str, Any] | None = None,
         product: dict[str, Any] | None = None,
     ) -> None:
-        vw, vh = self.device["viewport_width"], self.device["viewport_height"]
         self.emit(
-            "click",
-            element_tag=tag,
+            "element_click",
             element_id=element_id,
-            element_text=element_text,
-            element_selector=selector or f"#{element_id}",
-            pointer_x=x if x is not None else self.rng.randint(40, vw - 40),
-            pointer_y=y if y is not None else self.rng.randint(80, vh - 80),
+            element_tag=tag,
             payload=payload,
             product=product,
         )
 
-    def scroll_to(self, y: int) -> None:
-        self.scroll_y = max(0, min(y, self.device["document_height"]))
-        depth = round(100 * self.scroll_y / max(self.device["document_height"], 1))
-        self.emit("scroll_checkpoint", payload={"scroll_depth_percent": depth})
+    def scroll(self, depth_pct: int = 50) -> None:
+        self.emit("scroll_summary", payload={"scrollDepthPercent": depth_pct})
 
     def search(self, query: str, results_count: int) -> None:
         self.current_query = query
         self._page("search", query=query)
-        self.emit("search", search_query=query, search_results_count=results_count)
-        self.emit("page_view", search_query=query, search_results_count=results_count)
+        self.emit("search_submitted", search_query=query, search_results_count=results_count)
+        self.emit("page_enter", search_query=query, search_results_count=results_count)
 
-    def apply_filter(self, category: str, value: str) -> None:
+    def apply_filter(self, filter_id: str, value: str) -> None:
+        values = self.active_filters.get(filter_id, [])
+        if value not in values:
+            values.append(value)
+        self.active_filters[filter_id] = values
         self.emit(
-            "filter_apply",
+            "filter_added",
+            filter_id=filter_id,
+            filter_value=value,
+            element_id=f"filter_{filter_id}_{value}",
             element_tag="INPUT",
-            element_id=f"filter_{category}",
-            element_text=value,
-            element_selector=f"input[name='{category}']",
-            payload={"filter_category": category, "filter_action": "applied", "value": value},
+            payload={"filterId": filter_id, "value": value},
         )
 
-    def remove_filter(self, category: str, value: str | None = None) -> None:
+    def remove_filter(self, filter_id: str, value: str | None = None) -> None:
+        if filter_id in self.active_filters:
+            if value and value in self.active_filters[filter_id]:
+                self.active_filters[filter_id].remove(value)
+                if not self.active_filters[filter_id]:
+                    del self.active_filters[filter_id]
+            else:
+                del self.active_filters[filter_id]
         self.emit(
-            "filter_remove",
+            "filter_removed",
+            filter_id=filter_id,
+            filter_value=value,
+            element_id=f"filter_clear_{filter_id}",
             element_tag="BUTTON",
-            element_id=f"filter_{category}_clear",
-            element_text="Wyczyść",
-            element_selector=f"#filter_{category}_clear",
-            payload={"filter_category": category, "filter_action": "removed", "value": value},
+            payload={"filterId": filter_id, "value": value},
         )
 
-    def error(self, error_type: str, code: str, message: str, *, element_id: str | None = None) -> None:
-        self.emit(
-            "ui_error" if error_type == "form_validation" else "api_error",
-            error_type=error_type,
-            error_code=code,
-            error_message=message,
-            element_id=element_id,
-            element_tag="FORM" if error_type == "form_validation" else None,
-        )
+    def view_product(self, product: dict[str, Any], dwell_ms: int = 3000) -> None:
+        self._page("product", product=product)
+        self.emit("page_enter", product=product)
+        self.emit("product_viewed", product=product)
+        self.advance(int(dwell_ms * 0.4), int(dwell_ms * 0.7))
+        self.scroll(40)
+        self.advance(int(dwell_ms * 0.3), int(dwell_ms * 0.6))
+
+    def ui_state_changed(self, component: str, state: str) -> None:
+        self.emit("ui_state_changed", payload={"component": component, "state": state})
 
 
-def _pick_products(rng: random.Random, n: int) -> list[dict[str, Any]]:
-    return rng.sample(PRODUCTS, k=min(n, len(PRODUCTS)))
-
-
-def build_frustration_session(builder: SessionBuilder) -> None:
-    """Failed coupons, clustered clicks, then an exit-intent mouse leave."""
-    variant = builder.rng.choice(["coupon", "empty_search", "dead_ui"])
-    builder.advance(200, 800)
-    builder.page_view("home")
-    builder.advance(1200, 2800)
-    builder.scroll_to(builder.rng.randint(180, 420))
-
-    if variant == "empty_search":
-        builder.advance(900, 1600)
-        builder.search("tani ajfon", 0)
-        builder.advance(1400, 2600)
-        builder.search("tani iphone 12", 0)
-        builder.advance(1800, 3200)
-        builder.click("btn_search", "Szukaj", tag="BUTTON", x=1180, y=64)
-        builder.advance(400, 700)
-        builder.search("ajfon 15 tanio", 0)
-        builder.advance(2200, 4000)
-        builder.emit("mouse_leave_viewport", pointer_x=builder.rng.randint(200, 900), pointer_y=2)
-        return
-
-    query, results = builder.rng.choice([s for s in SEARCHES if s[1] > 0])
-    builder.advance(800, 1800)
-    builder.search(query, results)
-    product = builder.rng.choice(PRODUCTS)
-    builder.advance(2500, 5000)
-    builder.click("offer_tile", product["product_name"], tag="A", product=product)
-    builder.advance(300, 700)
-    builder.page_view("product_details", product)
-    builder.advance(4000, 8000)
-    builder.click("btn_add_to_cart", "Dodaj do koszyka", x=1100, y=520, product=product)
-    builder.advance(200, 500)
-    builder.emit("add_to_cart", product=product, payload={"quantity": 1})
-    builder.advance(600, 1200)
-    builder.page_view("cart", product)
-    builder.advance(1500, 2800)
-    builder.click("link_checkout", "Przejdź do kasy", tag="A", x=1120, y=610)
-    builder.advance(400, 800)
-    builder.page_view("checkout", product)
-
-    coupons = [
-        ("LATO2026", "COUPON_INVALID", "Kod rabatowy jest nieprawidłowy"),
-        ("LATO2025", "COUPON_EXPIRED", "Kod wygasł 30 dni temu"),
-        ("WIOSNA2026", "COUPON_INVALID", "Kod rabatowy jest nieprawidłowy"),
-    ]
-    btn_x, btn_y = 1048, 388
-    for i, (code, err_code, err_msg) in enumerate(coupons):
-        builder.advance(1800, 3500)
-        builder.emit(
-            "input",
-            element_tag="INPUT",
-            element_id="coupon_code",
-            element_text=code,
-            element_selector="#coupon_code",
-            payload={"field": "coupon_code", "value": code},
-        )
-        builder.advance(400, 900)
-        builder.click("btn_apply_coupon", "Zastosuj kod", x=btn_x, y=btn_y)
-        builder.advance(180, 420)
-        builder.error("form_validation", err_code, err_msg, element_id="coupon_code")
-        if i == 1 or variant == "dead_ui":
-            for _ in range(4):
-                builder.advance(90, 180)
-                builder.click(
-                    "btn_apply_coupon",
-                    "Zastosuj kod",
-                    x=btn_x + builder.rng.randint(-4, 4),
-                    y=btn_y + builder.rng.randint(-4, 4),
-                )
-        if variant == "dead_ui" and i == 0:
-            builder.advance(700, 1200)
-            builder.click(
-                "banner_promo_static",
-                "",
-                tag="DIV",
-                selector=".promo-banner",
-                x=720,
-                y=140,
-            )
-
-    builder.advance(1600, 3200)
-    builder.emit("mouse_leave_viewport", pointer_x=builder.rng.randint(180, 860), pointer_y=1)
+def _pick_products(rng: random.Random, category: str, n: int) -> list[dict[str, Any]]:
+    matching = [p for p in PRODUCTS if p["product_category"] == category]
+    return rng.sample(matching, k=min(n, len(matching)))
 
 
 def build_decision_fatigue_session(builder: SessionBuilder) -> None:
-    """Pogo-sticking between offers and repeated filter changes."""
-    builder.advance(250, 700)
-    builder.page_view("home")
-    builder.advance(1000, 2200)
-    query, results = "smartfon 256gb do 2000", 42
-    builder.search(query, results)
-    products = _pick_products(builder.rng, 4)
+    """Decision fatigue scenario:
 
-    builder.advance(1800, 3200)
-    builder.apply_filter("brand", "Xiaomi")
-    builder.advance(900, 1800)
-    builder.apply_filter("memory", "256GB")
+    1. Rapid filter churn (adding and undoing multiple filters without progress).
+    2. Comparison oscillation (switching back and forth between 3 washing machines without narrowing).
+    """
+    builder.advance(300, 800)
+    builder.page_enter("catalog")
+    builder.advance(800, 1600)
+    builder.search("pralka 9kg bosch seria 6", 14)
 
-    for product in products[:3]:
-        builder.advance(1400, 2800)
-        builder.click("offer_tile", product["product_name"], tag="A", product=product)
-        builder.advance(250, 600)
-        builder.page_view("product_details", product)
-        builder.advance(2200, 4800)
-        builder.scroll_to(builder.rng.randint(300, 900))
-        builder.advance(400, 900)
-        builder.click("btn_back_results", "Wróć do wyników", tag="A")
-        builder.advance(200, 450)
-        builder.page_view("search")
-
-    builder.advance(8000, 16000)
-    builder.remove_filter("brand", "Xiaomi")
-    builder.advance(1200, 2400)
-    builder.apply_filter("price", "1000-1800")
-    builder.advance(1500, 3000)
-    builder.apply_filter("sort", "price_asc")
-    builder.advance(12000, 19000)
-
-    last = products[-1]
-    builder.click("offer_tile", last["product_name"], tag="A", product=last)
-    builder.advance(300, 700)
-    builder.page_view("product_details", last)
-    builder.advance(2800, 4500)
-    builder.click("btn_back_results", "Wróć do wyników", tag="A")
-    builder.advance(200, 500)
-    builder.page_view("search")
-    builder.advance(14000, 22000)
-    builder.remove_filter("price", "1000-1800")
-    builder.advance(900, 1600)
-    builder.remove_filter("memory", "256GB")
-
-
-def build_boredom_session(builder: SessionBuilder) -> None:
-    """Long idle gaps, hidden tab, and scrolling without product interaction."""
-    builder.advance(300, 900)
-    builder.page_view("home")
-    builder.advance(2000, 4000)
-    builder.scroll_to(800)
-    builder.advance(2500, 4500)
-    builder.scroll_to(1600)
-    builder.advance(1800, 3200)
-    query, results = builder.rng.choice([s for s in SEARCHES if s[1] > 0])
-    builder.search(query, results)
-    builder.advance(4000, 7000)
-    builder.scroll_to(1200)
-    builder.advance(5000, 8000)
-    builder.scroll_to(2400)
-    builder.advance(6000, 9000)
-    builder.scroll_to(3600)
-    builder.advance(32000, 42000)
-    builder.emit("tab_hidden", payload={"visibility_state": "hidden"})
-    builder.advance(28000, 48000)
-    builder.emit("tab_visible", payload={"visibility_state": "visible"})
-    builder.advance(8000, 15000)
-    builder.scroll_to(builder.device["document_height"] - 200)
-    builder.advance(22000, 35000)
-    builder.page_view("category")
-    builder.advance(10000, 18000)
-    builder.scroll_to(2000)
-    builder.advance(30000, 40000)
-    builder.emit("mouse_leave_viewport", pointer_x=builder.rng.randint(100, 700), pointer_y=4)
-
-
-def build_satisfaction_session(builder: SessionBuilder) -> None:
-    """Smooth search, inspect, cart, coupon success, purchase."""
-    product = builder.rng.choice(
-        [p for p in PRODUCTS if p["unit_price"] <= 2000 and p["product_brand"] != "Apple"]
-    )
-    builder.advance(200, 600)
-    builder.page_view("home")
-    builder.advance(900, 1600)
-    builder.search("smartfon 256gb do 2000", 42)
-    builder.advance(1400, 2400)
-    builder.apply_filter("brand", product["product_brand"])
+    # 1. Rapid filter churn within ~20 seconds (< 30s window), >= 6 changes, >= 2 undone
+    builder.advance(1000, 2000)
+    builder.apply_filter("width", "60cm")
+    builder.advance(1200, 2200)
+    builder.apply_filter("energy_class", "A")
     builder.advance(1000, 1800)
-    builder.apply_filter("memory", "256GB")
-    builder.advance(1600, 2600)
-    builder.click("offer_tile", product["product_name"], tag="A", product=product)
-    builder.advance(350, 650)
-    builder.page_view("product_details", product)
-    builder.advance(8000, 14000)
-    builder.scroll_to(900)
-    builder.advance(4000, 7000)
-    builder.click("btn_add_to_cart", "Dodaj do koszyka", x=1110, y=510, product=product)
-    builder.advance(250, 500)
-    builder.emit("add_to_cart", product=product, payload={"quantity": 1})
-    builder.advance(700, 1300)
-    builder.page_view("cart", product)
-    builder.advance(2000, 3500)
-    builder.click("link_checkout", "Przejdź do kasy", tag="A")
-    builder.advance(400, 700)
-    builder.page_view("checkout", product)
-    builder.advance(1800, 2800)
-    builder.emit(
-        "input",
-        element_tag="INPUT",
-        element_id="coupon_code",
-        element_text="CENEOSAVE10",
-        element_selector="#coupon_code",
-        payload={"field": "coupon_code", "value": "CENEOSAVE10"},
-    )
-    builder.advance(500, 900)
-    builder.click("btn_apply_coupon", "Zastosuj kod", x=1048, y=388)
+    builder.remove_filter("width", "60cm")  # undone 1
+    builder.advance(1100, 2100)
+    builder.apply_filter("brand", "Bosch")
+    builder.advance(1200, 2000)
+    builder.remove_filter("energy_class", "A")  # undone 2
+    builder.advance(900, 1700)
+    builder.apply_filter("price", "2000-2500")
+
+    # 2. Comparison oscillation: 3 washing machines, 5 transitions back and forth
+    prods = _pick_products(builder.rng, "pralki", 3)
+    p1, p2, p3 = prods[0], prods[1], prods[2]
+
+    # Transition sequence: P1 -> P2 -> P1 -> P3 -> P2 -> P1 (5 transitions, candidates=3)
+    sequence = [p1, p2, p1, p3, p2, p1]
+    for p in sequence:
+        builder.advance(800, 1800)
+        builder.click(f"card_{p['product_id']}", tag="DIV", product=p)
+        builder.advance(200, 500)
+        builder.view_product(p, dwell_ms=builder.rng.randint(2500, 4500))
+        builder.advance(400, 900)
+        builder.click("btn_back_to_catalog", tag="A")
+        builder.advance(200, 400)
+        builder.page_enter("catalog")
+
+
+def build_product_hesitation_session(builder: SessionBuilder) -> None:
+    """Hesitation & Revisit scenario:
+
+    1. Viewing P1, then intermediate products, then returning to P1 (product_revisit).
+    2. Stalling in catalog/category for >60s with activity but no progress (no_progress_window).
+    """
+    builder.advance(200, 600)
+    builder.page_enter("catalog")
+    builder.advance(600, 1400)
+
+    # Revisit dishwasher P1 after viewing P2
+    dishwashers = _pick_products(builder.rng, "zmywarki", 2)
+    p1, p2 = dishwashers[0], dishwashers[1]
+
+    # View P1
+    builder.advance(1000, 2000)
+    builder.click(f"card_{p1['product_id']}", tag="DIV", product=p1)
+    builder.advance(200, 400)
+    builder.view_product(p1, dwell_ms=4000)
+
+    # View intermediate P2
+    builder.advance(500, 1000)
+    builder.click("btn_back_to_catalog", tag="A")
+    builder.advance(200, 400)
+    builder.page_enter("catalog")
+    builder.advance(1200, 2500)
+    builder.click(f"card_{p2['product_id']}", tag="DIV", product=p2)
+    builder.advance(200, 400)
+    builder.view_product(p2, dwell_ms=3500)
+
+    # Revisit P1 (meaningful dwell > 2000ms)
+    builder.advance(600, 1200)
+    builder.click("btn_back_to_catalog", tag="A")
+    builder.advance(200, 400)
+    builder.page_enter("catalog")
+    builder.advance(1000, 2000)
+    builder.click(f"card_{p1['product_id']}", tag="DIV", product=p1)
+    builder.advance(200, 400)
+    builder.view_product(p1, dwell_ms=4500)
+
+    # Back to catalog - now stall with active clicks and scrolls for >60s without viewing products
+    builder.advance(400, 800)
+    builder.click("btn_back_to_catalog", tag="A")
+    builder.advance(200, 400)
+    builder.page_enter("category", product=p1)
+
+    for _ in range(6):
+        builder.advance(8000, 14000)
+        builder.scroll(builder.rng.randint(20, 80))
+        builder.advance(2000, 5000)
+        builder.click("btn_spec_filter_toggle", tag="BUTTON")
+
+
+def build_technical_friction_session(builder: SessionBuilder) -> None:
+    """Friction scenario:
+
+    1. Rage clicks on an unresponsive filter/button (3+ clicks within 2.5s with no UI reaction).
+    2. Dead click cluster on a non-interactive element (2+ clicks followed by >= 1.5s silence).
+    """
+    builder.advance(300, 700)
+    builder.page_enter("catalog")
+    builder.advance(1000, 2000)
+
+    # 1. Rage click on a filter button (4 clicks in ~400ms, no ui_state_changed)
+    target_btn = "btn_filter_apply_price"
+    for _ in range(4):
+        builder.advance(80, 160)
+        builder.click(target_btn, tag="BUTTON")
+
+    builder.advance(1500, 2500)
+
+    # 2. Dead clicks on a static badge / banner (2 clicks in ~300ms, followed by 2s silence)
+    dead_target = "static_badge_eco_guarantee"
+    for _ in range(2):
+        builder.advance(100, 200)
+        builder.click(dead_target, tag="DIV")
+
+    # Complete silence for 2.2 seconds (exceeds silenceMs = 1500)
+    builder.advance(2200, 3000)
+
+    # User scrolls and navigates away
+    builder.scroll(60)
+    builder.advance(1500, 3000)
+    builder.page_enter("catalog")
+
+
+def build_smooth_browsing_session(builder: SessionBuilder) -> None:
+    """Smooth and successful browsing session:
+
+    Normal search, systematic filter use, thorough review of two products without friction.
+    """
+    builder.advance(200, 600)
+    builder.page_enter("home")
+    builder.advance(800, 1800)
+    builder.search("lodówka no frost 60cm", 22)
+    builder.advance(1500, 3000)
+    builder.apply_filter("brand", "Samsung")
+    builder.ui_state_changed("catalog_grid", "filtered")
+    builder.advance(2000, 4000)
+    builder.scroll(30)
+
+    fridges = _pick_products(builder.rng, "lodowki", 2)
+    p1 = fridges[0]
+
+    builder.advance(1500, 3000)
+    builder.click(f"card_{p1['product_id']}", tag="DIV", product=p1)
     builder.advance(300, 600)
-    builder.emit(
-        "click",
-        element_tag="BUTTON",
-        element_id="btn_pay",
-        element_text="Zamawiam i płacę",
-        element_selector="#btn_pay",
-        pointer_x=1100,
-        pointer_y=720,
-        payload={"payment_method": "blik"},
-    )
-    builder.advance(800, 1400)
-    builder.emit(
-        "order_completed",
-        product=product,
-        payload={
-            "order_id": f"ord_{uuid.uuid4().hex[:8]}",
-            "currency": "PLN",
-            "total_amount": round(product["unit_price"] * 0.9, 2),
-            "discount_amount": round(product["unit_price"] * 0.1, 2),
-            "payment_method": "blik",
-        },
-    )
+    builder.view_product(p1, dwell_ms=12000)
+
+    builder.advance(1000, 2000)
+    builder.click("btn_back_to_catalog", tag="A")
+    builder.advance(300, 500)
+    builder.page_enter("catalog")
+    builder.advance(2000, 4000)
+
+    p2 = fridges[1]
+    builder.click(f"card_{p2['product_id']}", tag="DIV", product=p2)
+    builder.advance(300, 600)
+    builder.view_product(p2, dwell_ms=10000)
 
 
 PERSONA_BUILDERS = {
-    "frustration": build_frustration_session,
     "decision_fatigue": build_decision_fatigue_session,
-    "boredom": build_boredom_session,
-    "satisfaction": build_satisfaction_session,
+    "product_hesitation": build_product_hesitation_session,
+    "technical_friction": build_technical_friction_session,
+    "smooth_browsing": build_smooth_browsing_session,
 }
 
+EXPECTED_SIGNALS = {
+    "decision_fatigue": "comparison_oscillation, rapid_filter_churn",
+    "product_hesitation": "product_revisit, no_progress_window",
+    "technical_friction": "rage_click, dead_click_cluster",
+    "smooth_browsing": "none",
+}
 
 GROUND_TRUTH_COLUMNS = [
     "session_id",
     "persona",
     "start_time",
-    "user_id",
     "anonymous_id",
     "device_type",
+    "expected_signals",
 ]
 
 
@@ -599,15 +546,14 @@ def generate_sessions(
     for persona, build in PERSONA_BUILDERS.items():
         for _ in range(sessions_per_persona):
             clock += timedelta(minutes=rng.randint(4, 18), seconds=rng.randint(0, 50))
-            device_name = "mobile" if rng.random() < 0.28 else "desktop"
-            logged_in = rng.random() < 0.45
+            device_name = "mobile" if rng.random() < 0.3 else "desktop"
             session_id = f"sess_{session_index:04d}_{uuid.UUID(int=rng.getrandbits(128)).hex[:8]}"
+            anonymous_id = f"anon_{uuid.UUID(int=rng.getrandbits(128)).hex[:12]}"
             session_index += 1
             builder = SessionBuilder(
                 persona=persona,
                 session_id=session_id,
-                anonymous_id=f"anon_{uuid.UUID(int=rng.getrandbits(128)).hex[:12]}",
-                user_id=f"usr_{rng.randint(10000, 99999)}" if logged_in else None,
+                anonymous_id=anonymous_id,
                 start_time=clock,
                 device=DEVICES[device_name],
                 rng=rng,
@@ -619,9 +565,9 @@ def generate_sessions(
                     "session_id": builder.session_id,
                     "persona": persona,
                     "start_time": _iso(builder.start_time),
-                    "user_id": builder.user_id,
                     "anonymous_id": builder.anonymous_id,
                     "device_type": builder.device["device_type"],
+                    "expected_signals": EXPECTED_SIGNALS[persona],
                 }
             )
     return rows, labels
@@ -642,7 +588,7 @@ def write_ground_truth_csv(labels: list[dict[str, Any]], output: Path) -> Path:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate raw ecommerce telemetry CSV")
+    parser = argparse.ArgumentParser(description="Generate synthetic raw AGD ecommerce telemetry CSV")
     parser.add_argument("--sessions-per-persona", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)

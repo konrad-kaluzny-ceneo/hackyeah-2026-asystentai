@@ -1,41 +1,41 @@
-session_id,persona,start_time,user_id,anonymous_id,device_type
-sess_0000_1a3d1fa7,frustration,2026-10-03T09:29:07.000Z,usr_21395,anon_8b9d2434e465,mobile
-sess_0001_bf3c4c06,frustration,2026-10-03T09:40:16.000Z,usr_62350,anon_956269f0e5d7,mobile
-sess_0002_e2817efd,frustration,2026-10-03T09:48:51.000Z,usr_94012,anon_c4c2e2e3444e,desktop
-sess_0003_ec24a3c5,frustration,2026-10-03T10:02:03.000Z,,anon_99546eb40025,mobile
-sess_0004_6c52c49f,frustration,2026-10-03T10:16:33.000Z,usr_36365,anon_8a0f4efbedcd,desktop
-sess_0005_309d258c,frustration,2026-10-03T10:32:19.000Z,,anon_0ef8c2d6f7fd,desktop
-sess_0006_711c21c9,frustration,2026-10-03T10:36:40.000Z,,anon_8f9797b06d7c,desktop
-sess_0007_0710d430,frustration,2026-10-03T10:51:12.000Z,,anon_42deffccf86c,desktop
-sess_0008_7118e364,frustration,2026-10-03T10:59:25.000Z,,anon_82dc4c8e36b5,desktop
-sess_0009_a1384ddc,frustration,2026-10-03T11:06:55.000Z,,anon_b24445a7b7e5,desktop
-sess_0010_513a7052,decision_fatigue,2026-10-03T11:18:03.000Z,,anon_714c7df4e434,desktop
-sess_0011_a48b3dbe,decision_fatigue,2026-10-03T11:30:04.000Z,,anon_7631de9ddde9,desktop
-sess_0012_1b049863,decision_fatigue,2026-10-03T11:35:36.000Z,usr_70258,anon_a2b5b4985cb8,desktop
-sess_0013_2f65fafa,decision_fatigue,2026-10-03T11:50:48.000Z,,anon_7bf47042bd15,desktop
-sess_0014_b07aa066,decision_fatigue,2026-10-03T11:57:03.000Z,usr_40340,anon_085b15fb4a8f,mobile
-sess_0015_8cd321b0,decision_fatigue,2026-10-03T12:07:47.000Z,,anon_50843242168b,desktop
-sess_0016_749176f4,decision_fatigue,2026-10-03T12:19:21.000Z,usr_41300,anon_304b8590de9e,desktop
-sess_0017_9c07a751,decision_fatigue,2026-10-03T12:31:47.000Z,,anon_aee1e86b9ea5,desktop
-sess_0018_f8b38a8b,decision_fatigue,2026-10-03T12:41:34.000Z,usr_45720,anon_e9da484a8075,desktop
-sess_0019_fb1e143b,decision_fatigue,2026-10-03T12:50:47.000Z,,anon_e6d5901d8b62,desktop
-sess_0020_12d0498d,boredom,2026-10-03T13:02:12.000Z,usr_29442,anon_9bb961555275,desktop
-sess_0021_6d4067f4,boredom,2026-10-03T13:12:33.000Z,usr_30006,anon_5fd231094140,desktop
-sess_0022_1bb43332,boredom,2026-10-03T13:18:09.000Z,usr_25058,anon_5e187b248e67,desktop
-sess_0023_87cdb6a1,boredom,2026-10-03T13:28:13.000Z,,anon_742221676b7a,mobile
-sess_0024_4ef492c1,boredom,2026-10-03T13:38:20.000Z,,anon_fc04a168652f,desktop
-sess_0025_6de59332,boredom,2026-10-03T13:42:47.000Z,,anon_a3e05309b5a1,mobile
-sess_0026_ba35844e,boredom,2026-10-03T13:56:54.000Z,usr_29358,anon_d0a643fea53b,desktop
-sess_0027_0e614bcd,boredom,2026-10-03T14:07:58.000Z,,anon_4f76e38812fe,desktop
-sess_0028_3f6c21f7,boredom,2026-10-03T14:24:19.000Z,usr_78690,anon_707df251fdb1,desktop
-sess_0029_b2cf952d,boredom,2026-10-03T14:29:56.000Z,,anon_98549f222102,desktop
-sess_0030_8a2e6a93,satisfaction,2026-10-03T14:36:05.000Z,,anon_86cac6f4e238,mobile
-sess_0031_9acb394a,satisfaction,2026-10-03T14:46:37.000Z,,anon_0d5ba7cd4000,desktop
-sess_0032_2387eaf6,satisfaction,2026-10-03T14:52:45.000Z,,anon_72d78bdd7817,mobile
-sess_0033_8603156a,satisfaction,2026-10-03T15:06:07.000Z,usr_78951,anon_f41243601153,mobile
-sess_0034_339b77a8,satisfaction,2026-10-03T15:12:15.000Z,,anon_e2c328aa3310,mobile
-sess_0035_4baf0f5e,satisfaction,2026-10-03T15:29:26.000Z,usr_65851,anon_b7b8c1a59a45,desktop
-sess_0036_92ec89af,satisfaction,2026-10-03T15:36:09.000Z,usr_51207,anon_65e58f345df0,desktop
-sess_0037_2c913a7c,satisfaction,2026-10-03T15:54:28.000Z,,anon_3967e60a823d,desktop
-sess_0038_e9247069,satisfaction,2026-10-03T16:07:08.000Z,,anon_1fc905f8d4d6,desktop
-sess_0039_c4576cc3,satisfaction,2026-10-03T16:12:10.000Z,,anon_a394ed549e3c,desktop
+session_id,persona,start_time,anonymous_id,device_type,expected_signals
+sess_0000_23b8c1e9,decision_fatigue,2026-10-03T09:29:07.000Z,anon_bd9c66b3ad3c,mobile,"comparison_oscillation, rapid_filter_churn"
+sess_0001_3602f8ac,decision_fatigue,2026-10-03T09:36:09.000Z,anon_e059a0ee9132,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0002_c40db9b4,decision_fatigue,2026-10-03T09:51:40.000Z,anon_79ac1b1ea8e5,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0003_7b3a4e3e,decision_fatigue,2026-10-03T10:10:28.000Z,anon_e7067ef466aa,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0004_e0ccedc5,decision_fatigue,2026-10-03T10:25:03.000Z,anon_e3c436571d8c,mobile,"comparison_oscillation, rapid_filter_churn"
+sess_0005_f7860b50,decision_fatigue,2026-10-03T10:39:15.000Z,anon_a43825b559e4,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0006_3eae0032,decision_fatigue,2026-10-03T10:47:29.000Z,anon_d98868dd9c7c,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0007_da7b9095,decision_fatigue,2026-10-03T10:58:29.000Z,anon_6b44fa8dd5f2,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0008_99b49350,decision_fatigue,2026-10-03T11:05:35.000Z,anon_fbdd3933cbd5,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0009_3b048a8b,decision_fatigue,2026-10-03T11:14:57.000Z,anon_50c7c006314d,desktop,"comparison_oscillation, rapid_filter_churn"
+sess_0010_3b4206c5,product_hesitation,2026-10-03T11:25:25.000Z,anon_b3f6fe0d4860,desktop,"product_revisit, no_progress_window"
+sess_0011_6961929e,product_hesitation,2026-10-03T11:34:45.000Z,anon_a99f131849c8,desktop,"product_revisit, no_progress_window"
+sess_0012_dabac50d,product_hesitation,2026-10-03T11:49:53.000Z,anon_c9a7d91fef2a,desktop,"product_revisit, no_progress_window"
+sess_0013_0930aef6,product_hesitation,2026-10-03T12:04:38.000Z,anon_a193c4b23c19,desktop,"product_revisit, no_progress_window"
+sess_0014_9326dffd,product_hesitation,2026-10-03T12:22:08.000Z,anon_4b943e30b303,mobile,"product_revisit, no_progress_window"
+sess_0015_431d029f,product_hesitation,2026-10-03T12:34:15.000Z,anon_a377f6f1d289,desktop,"product_revisit, no_progress_window"
+sess_0016_3e5a87e3,product_hesitation,2026-10-03T12:48:53.000Z,anon_90882eafc977,desktop,"product_revisit, no_progress_window"
+sess_0017_466772ce,product_hesitation,2026-10-03T13:06:58.000Z,anon_8c61165495da,desktop,"product_revisit, no_progress_window"
+sess_0018_c33a1f6c,product_hesitation,2026-10-03T13:14:04.000Z,anon_cea60f4c39e5,desktop,"product_revisit, no_progress_window"
+sess_0019_01f7c7ec,product_hesitation,2026-10-03T13:22:06.000Z,anon_36136e15f200,mobile,"product_revisit, no_progress_window"
+sess_0020_a53bc024,technical_friction,2026-10-03T13:29:55.000Z,anon_1a5165ca3c7c,desktop,"rage_click, dead_click_cluster"
+sess_0021_26a524e3,technical_friction,2026-10-03T13:44:34.000Z,anon_71348c2a780b,desktop,"rage_click, dead_click_cluster"
+sess_0022_cab4923b,technical_friction,2026-10-03T13:58:06.000Z,anon_7321bf6b0a80,desktop,"rage_click, dead_click_cluster"
+sess_0023_28a39779,technical_friction,2026-10-03T14:13:34.000Z,anon_486bb6bfeafd,desktop,"rage_click, dead_click_cluster"
+sess_0024_a9e27ba9,technical_friction,2026-10-03T14:32:12.000Z,anon_4f6b58c8598d,desktop,"rage_click, dead_click_cluster"
+sess_0025_4f11d8dc,technical_friction,2026-10-03T14:46:54.000Z,anon_577bc55a36d5,desktop,"rage_click, dead_click_cluster"
+sess_0026_c566aa81,technical_friction,2026-10-03T15:00:18.000Z,anon_2a60c652e714,mobile,"rage_click, dead_click_cluster"
+sess_0027_87079ad4,technical_friction,2026-10-03T15:11:47.000Z,anon_d11fc8c0297c,desktop,"rage_click, dead_click_cluster"
+sess_0028_e916da57,technical_friction,2026-10-03T15:30:19.000Z,anon_e27718c5737d,mobile,"rage_click, dead_click_cluster"
+sess_0029_2387eaf6,technical_friction,2026-10-03T15:34:37.000Z,anon_72d78bdd7817,desktop,"rage_click, dead_click_cluster"
+sess_0030_d6312a80,smooth_browsing,2026-10-03T15:45:17.000Z,anon_893ad23298c3,desktop,none
+sess_0031_5b6a8102,smooth_browsing,2026-10-03T15:59:41.000Z,anon_3dba6da85844,desktop,none
+sess_0032_fd372539,smooth_browsing,2026-10-03T16:17:43.000Z,anon_40d92bce7930,desktop,none
+sess_0033_4b3446bc,smooth_browsing,2026-10-03T16:23:10.000Z,anon_53f28f11147f,desktop,none
+sess_0034_113634a5,smooth_browsing,2026-10-03T16:29:48.000Z,anon_5dc7b3e6a529,desktop,none
+sess_0035_491b90e9,smooth_browsing,2026-10-03T16:46:04.000Z,anon_7dbf4bc1ffa6,desktop,none
+sess_0036_5e70f65f,smooth_browsing,2026-10-03T16:53:54.000Z,anon_8d38bbd8fba6,desktop,none
+sess_0037_84a2576c,smooth_browsing,2026-10-03T17:04:26.000Z,anon_2976aab22a26,desktop,none
+sess_0038_92779574,smooth_browsing,2026-10-03T17:19:15.000Z,anon_07c0d116a394,desktop,none
+sess_0039_44790612,smooth_browsing,2026-10-03T17:31:50.000Z,anon_18c8a6162410,mobile,none
