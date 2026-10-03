@@ -1,6 +1,6 @@
 ---
 change_id: behavior-meta-events-2
-status: implementing
+status: implemented
 created: 2026-10-03
 updated: 2026-10-03
 ---
