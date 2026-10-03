@@ -271,23 +271,23 @@ The request contract changes from `{ state, events: CatalogEvent[] }` to `{ meta
 
 #### Automated
 
-- [x] 2.1 Extract/reuse strict shared MetaEvent validation and change request schema to events-only.
-- [x] 2.2 Add MetaEvent-only prompt, strict confidence gate, and deterministic proposal stub.
-- [x] 2.3 Update route, interface, S-04 notes, PRD/roadmap acceptance, and focused tests.
-- [x] 2.4 Run focused assistant/meta-event validation tests and typecheck.
+- [x] 2.1 Extract/reuse strict shared MetaEvent validation and change request schema to events-only. — f18f06b
+- [x] 2.2 Add MetaEvent-only prompt, strict confidence gate, and deterministic proposal stub. — f18f06b
+- [x] 2.3 Update route, interface, S-04 notes, PRD/roadmap acceptance, and focused tests. — f18f06b
+- [x] 2.4 Run focused assistant/meta-event validation tests and typecheck. — f18f06b
 
 #### Manual
 
-- [x] 2.5 Verify `0.76` calls stub and returns `show`; `0.75` returns `hide` without OpenAI network traffic.
-- [x] 2.6 Verify invalid/oversized inputs and Jev/stub failures return `hide`.
+- [x] 2.5 Verify `0.76` calls stub and returns `show`; `0.75` returns `hide` without OpenAI network traffic. — f18f06b
+- [x] 2.6 Verify invalid/oversized inputs and Jev/stub failures return `hide`. — f18f06b
 
 ### Phase 3: Wire the Existing Assistant Box
 
 #### Automated
 
-- [ ] 3.1 Subscribe the UI to recent MetaEvents and post once per fatigue trigger.
-- [ ] 3.2 Preserve local friction, mute, abort, stale-response, and one-box behavior with tests.
-- [ ] 3.3 Run focused UI tests and typecheck.
+- [x] 3.1 Subscribe the UI to recent MetaEvents and post once per fatigue trigger.
+- [x] 3.2 Preserve local friction, mute, abort, stale-response, and one-box behavior with tests.
+- [x] 3.3 Run focused UI tests and typecheck.
 
 #### Manual
 
