@@ -177,13 +177,15 @@ describe("Transport", () => {
     resetFixtureSeed();
   });
 
-  it("prefers sendBeacon when available", async () => {
+  it("uses the HTTP response when fetch is available", async () => {
+    let beaconCalls = 0;
     const transport = createTransport({
       endpoint: "/api/meta-events",
-      sendBeacon: () => true,
-      fetchImpl: (async () => {
-        throw new Error("fetch should not be called when sendBeacon succeeds");
-      }) as unknown as typeof fetch,
+      sendBeacon: () => {
+        beaconCalls += 1;
+        return true;
+      },
+      fetchImpl: (async () => ({ ok: true })) as unknown as typeof fetch,
     });
     const ok = await transport.send({
       schemaVersion: "1.0",
@@ -192,16 +194,20 @@ describe("Transport", () => {
       events: [],
     });
     expect(ok).toBe(true);
+    expect(beaconCalls).toBe(0);
   });
 
-  it("falls back to fetch when sendBeacon returns false", async () => {
+  it("falls back to sendBeacon when fetch cannot obtain a response", async () => {
+    let beaconCalls = 0;
     const transport = createTransport({
       endpoint: "/api/meta-events",
-      sendBeacon: () => false,
-      fetchImpl: (async () => ({
-        ok: true,
-        status: 200,
-      })) as unknown as typeof fetch,
+      sendBeacon: () => {
+        beaconCalls += 1;
+        return true;
+      },
+      fetchImpl: (async () => {
+        throw new Error("network down");
+      }) as unknown as typeof fetch,
     });
     const ok = await transport.send({
       schemaVersion: "1.0",
@@ -210,6 +216,27 @@ describe("Transport", () => {
       events: [],
     });
     expect(ok).toBe(true);
+    expect(beaconCalls).toBe(1);
+  });
+
+  it("does not hide an HTTP error behind sendBeacon", async () => {
+    let beaconCalls = 0;
+    const transport = createTransport({
+      endpoint: "/api/meta-events",
+      sendBeacon: () => {
+        beaconCalls += 1;
+        return true;
+      },
+      fetchImpl: (async () => ({ ok: false, status: 500 })) as unknown as typeof fetch,
+    });
+    const ok = await transport.send({
+      schemaVersion: "1.0",
+      batchId: "batch-4",
+      sentAt: new Date(0).toISOString(),
+      events: [],
+    });
+    expect(ok).toBe(false);
+    expect(beaconCalls).toBe(0);
   });
 
   it("returns false when both transports fail", async () => {

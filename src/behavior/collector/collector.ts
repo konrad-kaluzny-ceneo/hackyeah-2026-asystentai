@@ -46,6 +46,8 @@ export interface CollectorHandle {
     pageViewId: string;
     previousPageType?: PageType;
   };
+  /** Synchronizes the collector after a host router changes the URL. */
+  readonly syncPathname: () => void;
   /** Tears down every listener/observer; safe to call multiple times. */
   destroy(): void;
 }
@@ -298,6 +300,7 @@ export function createCollector(options: CollectorOptions): CollectorHandle {
 
   return {
     emit,
+    syncPathname: handlePotentialTransition,
     getCurrentPage: () => ({
       pageType: state.pageType,
       pathname: state.pathname,

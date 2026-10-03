@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 import { THRESHOLDS } from "@/behavior/config/thresholds";
 import {
@@ -27,6 +28,7 @@ const SESSION_ID_STORAGE_KEY = "behavior.sessionId.v1";
  */
 export function BehaviorDebugShell() {
   const trackerRef = useRef<BehaviorTracker | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const tracker = initBehaviorTracker({ onBatchSent: recordBatchSent });
@@ -53,6 +55,10 @@ export function BehaviorDebugShell() {
       setDebugState({ trackerEnabled: false });
     };
   }, []);
+
+  useEffect(() => {
+    trackerRef.current?.collector.syncPathname();
+  }, [pathname]);
 
   return <DebugOverlay />;
 }

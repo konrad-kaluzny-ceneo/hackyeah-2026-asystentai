@@ -17,9 +17,9 @@ export interface TransportOptions {
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
 /**
- * Delivery transport for meta event batches. Prefers `navigator.sendBeacon`
- * (no main-thread blocking, tab-close-safe) and falls back to `fetch` with
- * keepalive, then plain `fetch`.
+ * Delivery transport for meta event batches. Uses `fetch` first so an HTTP
+ * rejection is observable, then falls back to `sendBeacon` only when no fetch
+ * response can be obtained (for example while the page is unloading).
  */
 export function createTransport(options: TransportOptions): Transport {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch?.bind(globalThis);
@@ -42,42 +42,37 @@ export function createTransport(options: TransportOptions): Transport {
       } catch {
         return false;
       }
+      if (fetchImpl !== undefined) {
+        try {
+          const response = await fetchImpl(options.endpoint, {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body,
+            keepalive: true,
+          });
+          return response.ok;
+        } catch {
+          // Retry without keepalive before using the fire-and-forget fallback.
+          try {
+            const response = await fetchImpl(options.endpoint, {
+              method: "POST",
+              headers: JSON_HEADERS,
+              body,
+            });
+            return response.ok;
+          } catch {
+            // Continue to sendBeacon when no HTTP response was available.
+          }
+        }
+      }
       if (sendBeacon !== undefined) {
         try {
-          const queued = sendBeacon(options.endpoint, body);
-          if (queued) {
-            return true;
-          }
+          return sendBeacon(options.endpoint, body);
         } catch {
-          // fall through to fetch
+          return false;
         }
       }
-      if (fetchImpl === undefined) {
-        return false;
-      }
-      try {
-        const response = await fetchImpl(options.endpoint, {
-          method: "POST",
-          headers: JSON_HEADERS,
-          body,
-          keepalive: true,
-        });
-        if (response.ok) {
-          return true;
-        }
-      } catch {
-        // network error — final fallback below
-      }
-      try {
-        const response = await fetchImpl(options.endpoint, {
-          method: "POST",
-          headers: JSON_HEADERS,
-          body,
-        });
-        return response.ok;
-      } catch {
-        return false;
-      }
+      return false;
     },
   };
 }
