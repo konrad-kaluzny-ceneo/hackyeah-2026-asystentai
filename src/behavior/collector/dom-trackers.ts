@@ -46,6 +46,29 @@ export function attachDomTrackers(options: DomTrackersOptions): () => void {
     root.removeEventListener("click", onClick, { capture: true }),
   );
 
+  // -- Filter changes ------------------------------------------------------
+  const onChange: EventListener = (event) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    const filterId = event.target.getAttribute("data-filter-id");
+    if (filterId === null || filterId.length === 0) {
+      return;
+    }
+    const value =
+      "value" in event.target && typeof event.target.value === "string"
+        ? event.target.value
+        : "";
+    options.emit(value.length > 0 ? "filter_added" : "filter_removed", {
+      elementId: semanticElementId(event.target),
+      data: { filterId },
+    });
+  };
+  root.addEventListener("change", onChange, { capture: true, passive: true });
+  disposers.push(() =>
+    root.removeEventListener("change", onChange, { capture: true }),
+  );
+
   // -- IntersectionObserver -------------------------------------------------
   let observer: IntersectionObserver | undefined;
   if (typeof IntersectionObserver !== "undefined") {
@@ -81,9 +104,57 @@ export function attachDomTrackers(options: DomTrackersOptions): () => void {
 
   // -- Scroll summary -------------------------------------------------------
   let scrollIdleTimer: number | undefined;
-  const session: { maxDepth: number; lastY: number } = {
+  const session: {
+    maxDepth: number;
+    lastY: number;
+    scrollSamples: Array<{ timestamp: number; delta: number }>;
+  } = {
     maxDepth: 0,
     lastY: typeof window !== "undefined" ? window.scrollY : 0,
+    scrollSamples: [],
+  };
+  const emitScrollBurst = (timestamp: number, delta: number) => {
+    if (delta === 0) {
+      return;
+    }
+    session.scrollSamples.push({ timestamp, delta });
+    const burstStart = timestamp - THRESHOLDS.scroll.burstWindowMs;
+    session.scrollSamples = session.scrollSamples.filter(
+      (sample) => sample.timestamp >= burstStart,
+    );
+    if (session.scrollSamples.length < THRESHOLDS.scroll.burstMinEvents) {
+      return;
+    }
+
+    const distance = session.scrollSamples.reduce(
+      (total, sample) => total + Math.abs(sample.delta),
+      0,
+    );
+    const viewportHeight = Math.max(1, window.innerHeight);
+    let reversalCount = 0;
+    for (let index = 1; index < session.scrollSamples.length; index += 1) {
+      const previous = session.scrollSamples[index - 1].delta;
+      const current = session.scrollSamples[index].delta;
+      if (Math.sign(previous) !== Math.sign(current)) {
+        reversalCount += 1;
+      }
+    }
+    const distanceRatio = distance / viewportHeight;
+    if (
+      distanceRatio < THRESHOLDS.scroll.burstMinDistanceRatio &&
+      reversalCount === 0
+    ) {
+      return;
+    }
+
+    options.emit("scroll_burst", {
+      data: {
+        scrollCount: session.scrollSamples.length,
+        distanceRatioBucket: distanceRatio >= 1 ? "high" : "medium",
+        reversalCount,
+      },
+    });
+    session.scrollSamples = [];
   };
   const flushScroll = () => {
     scrollIdleTimer = undefined;
@@ -104,10 +175,11 @@ export function attachDomTrackers(options: DomTrackersOptions): () => void {
   const onScroll = () => {
     const doc = document.documentElement;
     const scrollable = Math.max(1, doc.scrollHeight - window.innerHeight);
-    session.maxDepth = Math.max(
-      session.maxDepth,
-      scrollDepthBucket(window.scrollY / scrollable),
-    );
+    const currentY = window.scrollY;
+    session.maxDepth = Math.max(session.maxDepth, scrollDepthBucket(currentY / scrollable));
+    emitScrollBurst(options.now?.() ?? Date.now(), currentY - session.lastY);
+    session.lastY = currentY;
+    markActivity();
     if (scrollIdleTimer !== undefined) {
       window.clearTimeout(scrollIdleTimer);
     }
@@ -126,6 +198,58 @@ export function attachDomTrackers(options: DomTrackersOptions): () => void {
       window.removeEventListener("scroll", onScroll);
     });
   }
+
+  // -- Idle state ----------------------------------------------------------
+  let idleTimer: number | undefined;
+  let mouseMoveThrottleTimer: number | undefined;
+  let idleStarted = false;
+  const startIdleTimer = () => {
+    if (idleTimer !== undefined) {
+      window.clearTimeout(idleTimer);
+    }
+    idleTimer = window.setTimeout(() => {
+      idleTimer = undefined;
+      if (idleStarted) {
+        return;
+      }
+      idleStarted = true;
+      options.emit("idle_started", {
+        data: { idleMs: THRESHOLDS.idle.idleMs },
+      });
+    }, THRESHOLDS.idle.idleMs);
+  };
+  const markActivity = () => {
+    if (idleStarted) {
+      idleStarted = false;
+      options.emit("idle_ended", {
+        data: { idleMs: THRESHOLDS.idle.idleMs },
+      });
+    }
+    startIdleTimer();
+  };
+  const onActivity: EventListener = () => markActivity();
+  const onMouseMove: EventListener = () => {
+    if (mouseMoveThrottleTimer !== undefined) {
+      return;
+    }
+    markActivity();
+    mouseMoveThrottleTimer = window.setTimeout(() => {
+      mouseMoveThrottleTimer = undefined;
+    }, THRESHOLDS.idle.activityThrottleMs);
+  };
+  root.addEventListener("mousedown", onActivity, { passive: true });
+  root.addEventListener("keydown", onActivity, { passive: true });
+  root.addEventListener("touchstart", onActivity, { passive: true });
+  root.addEventListener("mousemove", onMouseMove, { passive: true });
+  disposers.push(() => {
+    root.removeEventListener("mousedown", onActivity);
+    root.removeEventListener("keydown", onActivity);
+    root.removeEventListener("touchstart", onActivity);
+    root.removeEventListener("mousemove", onMouseMove);
+    if (idleTimer !== undefined) window.clearTimeout(idleTimer);
+    if (mouseMoveThrottleTimer !== undefined) window.clearTimeout(mouseMoveThrottleTimer);
+  });
+  startIdleTimer();
 
   return () => {
     for (const dispose of disposers) {

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { initBehaviorTracker } from "@/behavior/initializer";
 import {
   CATALOG_PRODUCT_VIEW_EVENT,
+  CATALOG_SEARCH_SUBMITTED_EVENT,
   type CatalogProductViewDetail,
 } from "@/lib/catalog-ui-events";
 
@@ -31,9 +32,16 @@ export function BehaviorTracker() {
         },
       });
     };
+    const onCatalogSearchSubmitted = () => {
+      handle.collector.emit("search_submitted", {
+        elementId: "catalog-search",
+      });
+    };
     window.addEventListener(CATALOG_PRODUCT_VIEW_EVENT, onCatalogProductView);
+    window.addEventListener(CATALOG_SEARCH_SUBMITTED_EVENT, onCatalogSearchSubmitted);
     return () => {
       window.removeEventListener(CATALOG_PRODUCT_VIEW_EVENT, onCatalogProductView);
+      window.removeEventListener(CATALOG_SEARCH_SUBMITTED_EVENT, onCatalogSearchSubmitted);
       void handle.destroy();
     };
   }, []);

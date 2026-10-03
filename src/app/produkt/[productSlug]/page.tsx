@@ -76,7 +76,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <p className="text-xs font-bold uppercase tracking-[.16em] text-[#7f9185]">{product.model} · {category?.name ?? "Sprzęt AGD"}</p>
           <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-[-.035em] sm:text-4xl">{product.name}</h1>
           <p className="mt-4 text-base leading-7 text-[#718078]">{product.shortDescription}</p>
-          <div className="mt-7 border-y border-[#e5eae6] py-5">
+          <div data-element-id="product-price" className="mt-7 border-y border-[#e5eae6] py-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-[#8b9890]">Cena demonstracyjna</p>
             <p className="mt-1 text-4xl font-bold tracking-tight text-[#243f31]">{formatPrice(product.price)}</p>
           </div>
@@ -90,7 +90,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </section>
 
       <section className="mt-12 grid gap-8 border-t border-[#e4e9e5] pt-9 lg:grid-cols-[.8fr_1.2fr]">
-        <div>
+        <div
+          data-element-id="product-description"
+          data-subject-product-id={product.id}
+          data-subject-category-id={product.categoryId}
+          data-subject-brand-id={product.brandId}
+        >
           <p className="text-xs font-bold uppercase tracking-[.16em] text-[#829389]">Opis produktu</p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight">Codzienna wygoda</h2>
           <p className="mt-4 text-sm leading-7 text-[#65736a]">{product.description}</p>
@@ -102,7 +107,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </div>
           <dl className="mt-5 divide-y divide-[#e8ece9] rounded-2xl border border-[#e3e9e4] bg-white px-4">
             {Object.entries(product.specifications).map(([key, value]) => (
-              <div key={key} className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm">
+              <div data-element-id="product-specification" data-spec-key={key} key={key} className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm">
                 <dt className="text-[#748178]">{specLabel(key)}</dt>
                 <dd className="text-right font-medium text-[#314238]">{formatSpec(value, key)}</dd>
               </div>

@@ -104,6 +104,8 @@ Value: przy popularnym i pewnym przypadku wystarcza Jev, a mocniejszy model ukł
 - FR-009: Asystent respektuje: jedna propozycja na raz, priorytet koszyka nad inspiracją, wyciszenie po zamknięciu, brak powtórek pytań, korekta założeń, honest uncertainty przy słabym sygnale. Priority: must-have
 
 - FR-010: Asystent może ułożyć jedną odpowiedź dla kupującego z wyjścia modelu Jev, gdy przypadek jest wśród najbardziej popularnych i pewność jest największa, a w pozostałych przypadkach z mocniejszego modelu zasilonego tym wyjściem. Priority: must-have
+- FR-011: System obserwacji zapisuje meta eventy opisujące zainteresowanie produktami i kategoriami oraz dynamikę przeglądania: `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`. Meta eventy opisują wzorzec zachowania, nie emocje ani intencje. Priority: should-have
+- FR-012: System obserwacji zapisuje meta eventy o sygnałach bliskich decyzji i feedbacku do asystenta: `price_focus`, `search_refinement_loop`, `assistant_proposal_dismissed`. Priority: could-have
 
 ## Non-Functional Requirements
 

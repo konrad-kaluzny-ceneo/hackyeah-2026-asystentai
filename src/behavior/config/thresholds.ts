@@ -20,6 +20,18 @@ export const THRESHOLDS = {
   scroll: {
     /** Inactivity window before emitting a scroll_summary. */
     idleMs: 1500,
+    /** Time span used to group rapid scroll samples into one burst. */
+    burstWindowMs: 700,
+    /** Minimum scroll samples required for a burst. */
+    burstMinEvents: 3,
+    /** Total travelled distance as a fraction of viewport height. */
+    burstMinDistanceRatio: 0.4,
+  },
+  idle: {
+    /** Inactivity window before emitting idle_started. */
+    idleMs: 4000,
+    /** Mousemove handling cadence to avoid high-frequency listener work. */
+    activityThrottleMs: 100,
   },
   analyzer: {
     /** Idle-time analysis cadence. */
@@ -51,15 +63,19 @@ export const THRESHOLDS = {
     cooldowns: {
       rage_click: 30 * 1000,
       dead_click_cluster: 30 * 1000,
-      repeated_validation_failure: 60 * 1000,
-      technical_friction: 60 * 1000,
       navigation_loop: 2 * 60 * 1000,
       no_progress_window: 60 * 1000,
       rapid_filter_churn: 60 * 1000,
       product_revisit: 60 * 1000,
       comparison_oscillation: 2 * 60 * 1000,
-      delivery_information_seeking: 60 * 1000,
-      availability_information_seeking: 60 * 1000,
+      category_interest: 60 * 1000,
+      filter_engagement: 60 * 1000,
+      hesitation_dwell: 60 * 1000,
+      rapid_scroll_burst: 30 * 1000,
+      price_focus: 60 * 1000,
+      description_focus: 60 * 1000,
+      search_refinement_loop: 2 * 60 * 1000,
+      assistant_proposal_dismissed: 0,
       sustained_product_interest: 60 * 1000,
     },
   },
@@ -75,14 +91,6 @@ export const THRESHOLDS = {
       windowMs: 2000,
       /** Silence after the last click to confirm the click had no effect. */
       silenceMs: 1500,
-    },
-    repeated_validation_failure: {
-      minFailures: 2,
-      windowMs: 30 * 1000,
-    },
-    technical_friction: {
-      /** Max wait after a failed interaction before user retry qualifies. */
-      retryWindowMs: 15 * 1000,
     },
     navigation_loop: {
       minCycleLength: 2,
@@ -117,18 +125,42 @@ export const THRESHOLDS = {
       minTransitions: 4,
       windowMs: 3 * 60 * 1000,
     },
-    delivery_information_seeking: {
-      minExposuresOrInteractions: 2,
-      windowMs: 60 * 1000,
-    },
-    availability_information_seeking: {
-      minExposuresOrInteractions: 2,
-      windowMs: 60 * 1000,
-    },
     sustained_product_interest: {
-      minSections: 3,
       minDwellMs: 10 * 1000,
       windowMs: 5 * 60 * 1000,
+    },
+    category_interest: {
+      minDwellMs: 6 * 1000,
+      windowMs: 60 * 1000,
+    },
+    filter_engagement: {
+      minChanges: 2,
+      minRetainedCount: 1,
+      windowMs: 60 * 1000,
+    },
+    hesitation_dwell: {
+      minIdleMs: 4 * 1000,
+      windowMs: 60 * 1000,
+    },
+    rapid_scroll_burst: {
+      minBursts: 1,
+      windowMs: 30 * 1000,
+    },
+    price_focus: {
+      minDwellMs: 3 * 1000,
+      windowMs: 60 * 1000,
+    },
+    description_focus: {
+      minDwellMs: 3 * 1000,
+      windowMs: 60 * 1000,
+    },
+    search_refinement_loop: {
+      minSearches: 3,
+      windowMs: 90 * 1000,
+    },
+    assistant_proposal_dismissed: {
+      // Stateless spike detector: fires whenever the dismiss click appears in the analysis window.
+      windowMs: 60 * 1000,
     },
   },
 } as const;

@@ -37,6 +37,8 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
 | S-04 | jev-session-proposal | … (serwer) dostać JSON propozycji z Jev albo OpenAI dla decision fatigue | — | US-03, FR-010 | ready |
 | S-05 | assistant-proposal-box | … (UI) zobaczyć box z odpowiedzią API albo brak boxa przy decision fatigue | S-04 | US-01, FR-007, FR-010 | ready |
+| S-06 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
+| S-07 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-06 | FR-012 | active |
 
 ## Streams
 
@@ -201,6 +203,53 @@ Source / Lineage:
 
 - Wydzielone z planu S-04 2026-10-03. Lane: Michał.
 
+### S-06: Meta eventy zainteresowania i dynamiki
+
+- **Outcome:** system zapisuje sześć dodatkowych meta eventów opisujących zainteresowanie produktami i kategoriami oraz dynamikę przeglądania: `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`.
+- **Change ID:** behavior-meta-events
+- **PRD refs:** FR-011
+- **Prerequisites:** S-01
+- **Parallel with:** S-04
+- **Blockers:** —
+- **Acceptance:**
+  - Kontrolki filtrów i wiersze tabeli specyfikacji mają stabilne `data-element-id`.
+  - Raw eventy filtrów, idle i scroll burst nie zawierają wartości formularzy ani tekstu użytkownika.
+  - Sześć detektorów jest zarejestrowanych z progami, allowlistą metryk i testami.
+  - Dokument kontraktu opisuje sześć nowych typów meta eventów.
+- **Unknowns:**
+  - Kalibracja progów dwell, idle i burst na mock katalogu — Owner: team. Block: no.
+- **Risk:** Mały mock katalog może zawyżać czułość detektorów. Mitigation: progi w `THRESHOLDS` i kalibracja na danych z debug overlay.
+- **Status:** done
+
+Source / Lineage:
+
+- Added on 2026-10-03.
+- Goal: meta eventy mają opisywać zarówno pozytywne zainteresowanie, jak i dynamikę przeglądania.
+- Implemented: `7d9e7bc` (six detectors), `c877129` (close-out).
+
+### S-07: Meta eventy ceny, wyszukiwania i odrzucenia propozycji
+
+- **Outcome:** system zapisuje trzy kolejne meta eventy: `price_focus` (uwaga na cenie), `search_refinement_loop` (wielokrotne uściślanie wyszukiwania) i `assistant_proposal_dismissed` (jawne odrzucenie propozycji asystenta).
+- **Change ID:** behavior-meta-events-2
+- **PRD refs:** FR-012
+- **Prerequisites:** S-06
+- **Parallel with:** S-04
+- **Blockers:** —
+- **Acceptance:**
+  - Box ceny na stronie produktu ma `data-element-id="product-price"`.
+  - Box asystenta i jego kontrolki mają stabilne `data-element-id`.
+  - Submit wyszukiwarki emituje raw `search_submitted` bez treści frazy.
+  - Trzy detektory zarejestrowane z progami, allowlistą i testami; dokument kontraktu opisuje je.
+- **Unknowns:**
+  - Progi dwell dla `price_focus` na stronie produktu — kalibracja. Block: no.
+- **Risk:** Asystent może być rzadko pokazywany na demo, więc `assistant_proposal_dismissed` będzie rzadki. Akceptowalne — to czysty feedback negatywny.
+- **Status:** active
+
+Source / Lineage:
+
+- Added on 2026-10-03.
+- Goal: meta eventy opisują sygnały "blisko decyzji" i jawny feedback do asystenta.
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID | Suggested issue title | Ready for `/plan` | Notes |
@@ -213,6 +262,8 @@ Source / Lineage:
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |
 | S-04 | jev-session-proposal | POST /api/assistant-proposal (Jev + OpenAI) | yes | Lane: Edyta. Kontrakt: `assistant-proposal-box/interface.md`. |
 | S-05 | assistant-proposal-box | Wire listing box to assistant-proposal API | yes | Lane: Michał. Po S-04. Plan w `context/changes/assistant-proposal-box/`. |
+| S-06 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | no | Done (`7d9e7bc`) |
+| S-07 | behavior-meta-events-2 | Price focus, search refinement loop, proposal dismissed | yes | Tagi na cenie/boxie asystenta + raw search_submitted |
 
 ## Open Roadmap Questions
 
