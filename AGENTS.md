@@ -39,8 +39,11 @@ Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can d
 - `src/app/page.tsx` — shell description.
 - `src/app/katalog/page.tsx` — empty demo-catalog route.
 - `src/app/layout.tsx` — Polish document language and the shared header.
+- `src/app/behavior-debug-shell.tsx` — mounts the tracker and the dev-only debug overlay.
 - `src/app/api/meta-events/route.ts` — POST endpoint for client behavior meta events.
-- `src/behavior/` — client-side pipeline (collector → buffer → analyzer → detectors → dispatcher). Raw events never leave the browser.
+- `src/domain/` — shopping-intent language (`ShoppingSignalKind`). Observation patterns in `src/behavior/` are not these signals. See `context/foundation/domain.md`.
+- `src/behavior/` — client-side observation pipeline (collector → buffer → analyzer → detectors → dispatcher). Raw events never leave the browser. Detector confidence is not shopping-signal strength.
+- `src/behavior/ui/` — dev-only debug overlay (`DebugOverlay` + in-memory `debug-store`). Never sends anything anywhere.
 - `src/server/meta-events/` — Zod validation and persistence of meta events.
 - `src/lib/db/` — Drizzle ORM schema (`meta_events` table) and lazy pg client.
 - `@/*` maps to `src/*` in `@tsconfig.json`.
@@ -62,3 +65,4 @@ Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can d
 - `add_to_cart`, `compare_added`, `compare_removed`, `favorite_added` exist in the TypeScript contract for future reuse, but the demo collector never emits them (PRD Non-Goals; `@context/foundation/prd.md`).
 - Feature flag: `NEXT_PUBLIC_BEHAVIOR_TRACKING=true` enables the tracker client-side. Anything else disables it.
 - Detectors, page-type rules, thresholds and the detector dedupe/cooldown live under `src/behavior/`. See `docs/adding-detector.md` and `docs/adding-page-type.md` before extending.
+- The debug overlay (`src/behavior/ui/DebugOverlay.tsx`) renders ONLY when the tracker is enabled. It is dev tooling — do not read raw event payloads from it, do not wire user-facing UI to it.

@@ -18,6 +18,13 @@ export interface DispatcherOptions {
   readonly debounceMs?: number;
   readonly retryBackoffMs?: readonly number[];
   readonly maxQueueEvents?: number;
+  readonly onBatchSent?: (batch: SentBatch) => void;
+}
+
+export interface SentBatch {
+  readonly batchId: string;
+  readonly sentAt: string;
+  readonly events: readonly MetaEvent[];
 }
 
 export interface DispatcherHandle {
@@ -81,11 +88,21 @@ export function createDispatcher(options: DispatcherOptions): DispatcherHandle {
     batch: MetaEvent[],
     attempt: number,
   ): Promise<void> => {
-    const ok = await options.transport.send(buildBatch(batch));
+    const payload = buildBatch(batch);
+    const ok = await options.transport.send(payload);
     if (ok) {
       // Remove only what we sent — anything enqueued during the request stays.
       const sent = new Set(batch.map((e) => e.eventId));
       queue = queue.filter((e) => !sent.has(e.eventId));
+      try {
+        options.onBatchSent?.({
+          batchId: payload.batchId,
+          sentAt: payload.sentAt,
+          events: payload.events,
+        });
+      } catch {
+        // Diagnostics must not reject delivery or stop the flush loop.
+      }
       return;
     }
     if (attempt >= retryBackoffMs.length) {

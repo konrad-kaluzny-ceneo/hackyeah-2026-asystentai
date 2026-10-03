@@ -209,7 +209,11 @@ export type Subject = Readonly<{
 }>;
 
 export type MetaEventQuality = Readonly<{
-  /** Normalized 0-1 detector confidence. */
+  /**
+   * Normalized 0-1 detector confidence.
+   * Not shopping-signal strength (FR-002). That reading lives in
+   * `src/domain/shopping-signal.ts` and is not classified here.
+   */
   strength: number;
   /** Number of raw events backing this meta event. */
   evidenceCount: number;

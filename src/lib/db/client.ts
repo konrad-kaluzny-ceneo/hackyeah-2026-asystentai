@@ -26,6 +26,11 @@ export function getDb(): Database {
       "DATABASE_URL is not set. Configure it (see .env.example) or disable persistence.",
     );
   }
+  if (!/^postgres(?:ql)?:\/\//i.test(url)) {
+    throw new Error(
+      "DATABASE_URL must be a PostgreSQL connection string (postgresql://...).",
+    );
+  }
   pool = new Pool({ connectionString: url });
   db = drizzle(pool, { schema });
   return db;

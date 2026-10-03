@@ -189,7 +189,11 @@ Na podstawie tych danych nie można bez dodatkowych źródeł stwierdzić:
 - jaka była treść wyszukiwania, formularza albo wiadomości;
 - że użytkownik kupił produkt;
 - że detekcja jest prawdziwa w sensie statystycznym — to heurystyka;
-- że brak rekordu oznacza brak problemu.
+- że brak rekordu oznacza brak problemu;
+- że rekord jest sygnałem zakupowym z FR-002 (`brand`, `uncertainty`,
+  `decision_fatigue`, `weak_budget`, `search_friction`). `strength` w tej
+  tabeli to pewność detektora, nie moc intencji. Klasyfikacja intencji
+  jest osobnym kontekstem (`src/domain/shopping-signal.ts`).
 
 ## 9. Pierwsze bezpieczne agregacje
 

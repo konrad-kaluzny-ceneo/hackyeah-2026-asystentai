@@ -12,9 +12,11 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-.
+
 # venv
 .venv/
+__pycache__/
+*.py[cod]
 
 # testing
 /coverage
