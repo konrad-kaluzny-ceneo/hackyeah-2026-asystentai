@@ -20,6 +20,7 @@ export interface BuildMetaEventInput {
   readonly subject?: Subject;
   readonly partialData?: boolean;
   readonly detectedAtMs?: number;
+  readonly windowStartedAtMs?: number;
   readonly eventId: string;
 }
 
@@ -29,7 +30,12 @@ export interface BuildMetaEventInput {
  */
 export function buildMetaEvent(input: BuildMetaEventInput): MetaEvent {
   const detectedAtMs = input.detectedAtMs ?? input.ctx.now();
-  const windowMs = computeWindowMs(input.evidence, input.ctx);
+  const windowMs = computeWindowMs(
+    input.evidence,
+    input.ctx,
+    input.windowStartedAtMs,
+    detectedAtMs,
+  );
   const startedAt = detectedAtMs - windowMs;
   return {
     schemaVersion: META_EVENT_SCHEMA_VERSION,
@@ -82,7 +88,12 @@ export function buildMetaEvent(input: BuildMetaEventInput): MetaEvent {
 function computeWindowMs(
   evidence: readonly RawEvent[],
   ctx: AnalysisContext,
+  windowStartedAtMs?: number,
+  detectedAtMs?: number,
 ): number {
+  if (windowStartedAtMs !== undefined && detectedAtMs !== undefined) {
+    return Math.max(0, detectedAtMs - windowStartedAtMs);
+  }
   if (evidence.length === 0) {
     // Fallback: the supplied analysis window.
     return Math.max(0, ctx.window.endedAt - ctx.window.startedAt);

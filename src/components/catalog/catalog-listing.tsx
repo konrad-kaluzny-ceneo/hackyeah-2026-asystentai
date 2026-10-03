@@ -127,7 +127,7 @@ export default function CatalogListing({ category, products, initialQuery = "" }
         }} className="flex w-full max-w-md gap-2 rounded-xl border border-[#dfe6e0] bg-white p-1.5">
           <label className="flex min-w-0 flex-1 items-center px-3">
             <span className="sr-only">Szukaj w katalogu</span>
-            <input name="q" value={query} onChange={(event) => updateQuery(event.target.value)} placeholder="Szukaj w katalogu" className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-[#a0aaa3]" />
+            <input data-element-id="catalog-search" name="q" value={query} onChange={(event) => updateQuery(event.target.value)} placeholder="Szukaj w katalogu" className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-[#a0aaa3]" />
           </label>
           <button className="rounded-lg bg-[#243f31] px-4 py-2 text-sm font-semibold text-white hover:bg-[#345743]" type="submit">Szukaj</button>
         </form>
@@ -137,22 +137,22 @@ export default function CatalogListing({ category, products, initialQuery = "" }
         <aside id="filters" className="rounded-2xl border border-[#e3e9e4] bg-white p-5 md:sticky md:top-6">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Filtry</h2>
-            {visibleProducts.length > 0 && <button type="button" onClick={clearSearchAndFilters} className="text-xs font-semibold text-[#56725e] hover:underline">Wyczyść</button>}
+            {visibleProducts.length > 0 && <button data-element-id="filter-clear" type="button" onClick={clearSearchAndFilters} className="text-xs font-semibold text-[#56725e] hover:underline">Wyczyść</button>}
           </div>
           <div className="mt-5 border-t border-[#edf0ed] pt-4">
             <p className="mb-3 text-sm font-semibold">Cena</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-[11px] text-[#87938b]">Od
-                <input aria-label="Cena od" inputMode="numeric" type="number" min="0" value={filters.priceMin ?? ""} onChange={(event) => updateFilter("priceMin", event.target.value)} placeholder="0 zł" className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
+                <input data-element-id="filter-price-min" data-filter-id="price" aria-label="Cena od" inputMode="numeric" type="number" min="0" value={filters.priceMin ?? ""} onChange={(event) => updateFilter("priceMin", event.target.value)} placeholder="0 zł" className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
               </label>
               <label className="text-[11px] text-[#87938b]">Do
-                <input aria-label="Cena do" inputMode="numeric" type="number" min="0" value={filters.priceMax ?? ""} onChange={(event) => updateFilter("priceMax", event.target.value)} placeholder="bez limitu" className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
+                <input data-element-id="filter-price-max" data-filter-id="price" aria-label="Cena do" inputMode="numeric" type="number" min="0" value={filters.priceMax ?? ""} onChange={(event) => updateFilter("priceMax", event.target.value)} placeholder="bez limitu" className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
               </label>
             </div>
           </div>
           <div className="mt-5 border-t border-[#edf0ed] pt-4">
             <label className="block text-sm font-semibold" htmlFor="brand-filter">Producent</label>
-            <select id="brand-filter" value={filters.brand ?? ""} onChange={(event) => updateFilter("brand", event.target.value)} className="mt-3 w-full rounded-lg border border-[#dfe6e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#72917b]">
+            <select data-element-id="filter-brand" data-filter-id="brand" id="brand-filter" value={filters.brand ?? ""} onChange={(event) => updateFilter("brand", event.target.value)} className="mt-3 w-full rounded-lg border border-[#dfe6e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#72917b]">
               <option value="">Wszyscy producenci</option>
               {brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
             </select>
@@ -161,17 +161,17 @@ export default function CatalogListing({ category, products, initialQuery = "" }
             <div key={spec.key} className="mt-5 border-t border-[#edf0ed] pt-4">
               <p className="mb-3 text-sm font-semibold">{spec.label}</p>
               {spec.kind === "select" ? (
-                <select aria-label={spec.label} value={filters[spec.key] ?? ""} onChange={(event) => updateFilter(spec.key, event.target.value)} className="w-full rounded-lg border border-[#dfe6e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#72917b]">
+                <select data-element-id={`filter-${spec.key}`} data-filter-id={spec.key} aria-label={spec.label} value={filters[spec.key] ?? ""} onChange={(event) => updateFilter(spec.key, event.target.value)} className="w-full rounded-lg border border-[#dfe6e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#72917b]">
                   <option value="">Dowolna</option>
                   {spec.options?.map((option) => <option key={option} value={option}>{option}{spec.unit ? ` ${spec.unit}` : ""}</option>)}
                 </select>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   <label className="text-[11px] text-[#87938b]">Od
-                    <input aria-label={`${spec.label} od`} type="number" min={spec.min} max={spec.max} value={filters[`${spec.key}Min`] ?? ""} onChange={(event) => updateFilter(`${spec.key}Min`, event.target.value)} placeholder={String(spec.min ?? "")} className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
+                    <input data-element-id={`filter-${spec.key}-min`} data-filter-id={spec.key} aria-label={`${spec.label} od`} type="number" min={spec.min} max={spec.max} value={filters[`${spec.key}Min`] ?? ""} onChange={(event) => updateFilter(`${spec.key}Min`, event.target.value)} placeholder={String(spec.min ?? "")} className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
                   </label>
                   <label className="text-[11px] text-[#87938b]">Do
-                    <input aria-label={`${spec.label} do`} type="number" min={spec.min} max={spec.max} value={filters[`${spec.key}Max`] ?? ""} onChange={(event) => updateFilter(`${spec.key}Max`, event.target.value)} placeholder={String(spec.max ?? "")} className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
+                    <input data-element-id={`filter-${spec.key}-max`} data-filter-id={spec.key} aria-label={`${spec.label} do`} type="number" min={spec.min} max={spec.max} value={filters[`${spec.key}Max`] ?? ""} onChange={(event) => updateFilter(`${spec.key}Max`, event.target.value)} placeholder={String(spec.max ?? "")} className="mt-1 w-full rounded-lg border border-[#dfe6e0] px-2.5 py-2 text-sm text-[#24352b] outline-none focus:border-[#72917b]" />
                   </label>
                   {spec.unit && <span className="col-span-2 text-[11px] text-[#9aa49d]">Wartości w {spec.unit}</span>}
                 </div>

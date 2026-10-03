@@ -109,7 +109,15 @@ describe("Contract integrity", () => {
   it("exports the full expected list of meta event names", () => {
     expect(META_EVENT_NAMES).toContain("rage_click");
     expect(META_EVENT_NAMES).toContain("comparison_oscillation");
-    expect(META_EVENT_NAMES).toHaveLength(12);
+    expect(META_EVENT_NAMES).toEqual(
+      expect.arrayContaining([
+        "category_interest",
+        "filter_engagement",
+        "hesitation_dwell",
+        "rapid_scroll_burst",
+      ]),
+    );
+    expect(META_EVENT_NAMES).toHaveLength(16);
   });
 
   it("exports page types that cover the demo's actual routes", () => {

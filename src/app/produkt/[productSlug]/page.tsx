@@ -102,7 +102,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </div>
           <dl className="mt-5 divide-y divide-[#e8ece9] rounded-2xl border border-[#e3e9e4] bg-white px-4">
             {Object.entries(product.specifications).map(([key, value]) => (
-              <div key={key} className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm">
+              <div data-element-id="product-specification" data-spec-key={key} key={key} className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm">
                 <dt className="text-[#748178]">{specLabel(key)}</dt>
                 <dd className="text-right font-medium text-[#314238]">{formatSpec(value, key)}</dd>
               </div>

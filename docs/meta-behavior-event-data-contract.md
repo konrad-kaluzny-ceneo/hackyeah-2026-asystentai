@@ -73,7 +73,7 @@ w bazie. Do czasu serwerowego należy używać `server_received_at` lub
 
 ## 4. Aktualne typy sygnałów w MVP
 
-Obecnie aktywnych jest sześć detektorów:
+Obecnie aktywnych jest dwanaście detektorów:
 
 | `event_name` | Co oznacza | Metryki w `metrics` |
 |---|---|---|
@@ -83,10 +83,22 @@ Obecnie aktywnych jest sześć detektorów:
 | `no_progress_window` | Aktywność użytkownika w oknie, ale bez zdarzenia uznanego za postęp. | `activeMs`, `clickCount`, `scrollCount`, `filterChanges` |
 | `product_revisit` | Powrót do produktu po obejrzeniu innych produktów. | `revisitCount`, `distinctIntermediates`, `productId` |
 | `comparison_oscillation` | Wielokrotne przechodzenie między małym zestawem produktów bez zawężenia wyboru. | `candidateCount`, `transitionCount` |
+| `sustained_product_interest` | Łączny czas ekspozycji konkretnej karty produktu osiąga próg zainteresowania. | `productId`, `dwellMs`, `exposureCount` |
+| `category_interest` | Łączny czas ekspozycji produktów wskazuje zainteresowanie kategorią. | `categoryId`, `dwellMs`, `uniqueProducts` |
+| `filter_engagement` | Użytkownik zmienia kilka filtrów i pozostawia co najmniej jeden aktywny. | `filterCount`, `filterIds`, `windowMs`, `retainedCount` |
+| `hesitation_dwell` | Użytkownik pozostaje bez aktywności na stronie katalogu lub produktu. | `idleMs`, `pageType` |
+| `rapid_scroll_burst` | Wystąpiła szybka seria scrolli o dużym dystansie lub z nawrotami. | `burstCount`, `distanceRatioBucket`, `reversalCount` |
+| `navigation_loop` | Powtarza się cykl wejść na typy stron bez wyjścia do nowego etapu. | `cycleLength`, `repeatCount`, `pageTypes` |
 
-W kontrakcie istnieją też nazwy przygotowane na przyszłość, np.
-`technical_friction` i `sustained_product_interest`. Nie należy zakładać, że
-te rekordy już powstają, dopóki detektory nie zostaną zarejestrowane.
+W kontrakcie istnieją też nazwy przygotowane na przyszłość:
+`repeated_validation_failure`, `technical_friction`,
+`delivery_information_seeking` i `availability_information_seeking`. Nie
+należy zakładać, że te rekordy już powstają, dopóki detektory nie zostaną
+zarejestrowane.
+
+Raw `scroll_burst`, `idle_started` i `idle_ended` pozostają lokalnymi eventami
+wejściowymi. Do bazy trafiają dopiero wyniki detekcji: odpowiednio
+`rapid_scroll_burst` i `hesitation_dwell`.
 
 ### Identyfikatory i trasy katalogu AGD
 

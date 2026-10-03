@@ -20,6 +20,18 @@ export const THRESHOLDS = {
   scroll: {
     /** Inactivity window before emitting a scroll_summary. */
     idleMs: 1500,
+    /** Time span used to group rapid scroll samples into one burst. */
+    burstWindowMs: 700,
+    /** Minimum scroll samples required for a burst. */
+    burstMinEvents: 3,
+    /** Total travelled distance as a fraction of viewport height. */
+    burstMinDistanceRatio: 0.4,
+  },
+  idle: {
+    /** Inactivity window before emitting idle_started. */
+    idleMs: 4000,
+    /** Mousemove handling cadence to avoid high-frequency listener work. */
+    activityThrottleMs: 100,
   },
   analyzer: {
     /** Idle-time analysis cadence. */
@@ -58,6 +70,10 @@ export const THRESHOLDS = {
       rapid_filter_churn: 60 * 1000,
       product_revisit: 60 * 1000,
       comparison_oscillation: 2 * 60 * 1000,
+      category_interest: 60 * 1000,
+      filter_engagement: 60 * 1000,
+      hesitation_dwell: 60 * 1000,
+      rapid_scroll_burst: 30 * 1000,
       delivery_information_seeking: 60 * 1000,
       availability_information_seeking: 60 * 1000,
       sustained_product_interest: 60 * 1000,
@@ -126,9 +142,25 @@ export const THRESHOLDS = {
       windowMs: 60 * 1000,
     },
     sustained_product_interest: {
-      minSections: 3,
       minDwellMs: 10 * 1000,
       windowMs: 5 * 60 * 1000,
+    },
+    category_interest: {
+      minDwellMs: 6 * 1000,
+      windowMs: 60 * 1000,
+    },
+    filter_engagement: {
+      minChanges: 2,
+      minRetainedCount: 1,
+      windowMs: 60 * 1000,
+    },
+    hesitation_dwell: {
+      minIdleMs: 4 * 1000,
+      windowMs: 60 * 1000,
+    },
+    rapid_scroll_burst: {
+      minBursts: 1,
+      windowMs: 30 * 1000,
     },
   },
 } as const;

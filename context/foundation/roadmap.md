@@ -36,6 +36,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
 | S-04 | jev-session-proposal | … dostać jedną propozycję ułożoną przez model z faktów katalogu tej sesji | S-02, S-03 | US-03, FR-010 | ready |
+| S-05 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | active |
 
 ## Streams
 
@@ -180,6 +181,29 @@ Source / Lineage:
 - Goal: treść jednej propozycji wynika z faktów bieżącej sesji katalogu.
 - Lane: Edyta.
 
+### S-05: Meta eventy zainteresowania i dynamiki
+
+- **Outcome:** system zapisuje sześć dodatkowych meta eventów opisujących zainteresowanie produktami i kategoriami oraz dynamikę przeglądania: `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`.
+- **Change ID:** behavior-meta-events
+- **PRD refs:** FR-011
+- **Prerequisites:** S-01
+- **Parallel with:** S-04
+- **Blockers:** —
+- **Acceptance:**
+  - Kontrolki filtrów i wiersze tabeli specyfikacji mają stabilne `data-element-id`.
+  - Raw eventy filtrów, idle i scroll burst nie zawierają wartości formularzy ani tekstu użytkownika.
+  - Sześć detektorów jest zarejestrowanych z progami, allowlistą metryk i testami.
+  - Dokument kontraktu opisuje sześć nowych typów meta eventów.
+- **Unknowns:**
+  - Kalibracja progów dwell, idle i burst na mock katalogu — Owner: team. Block: no.
+- **Risk:** Mały mock katalog może zawyżać czułość detektorów. Mitigation: progi w `THRESHOLDS` i kalibracja na danych z debug overlay.
+- **Status:** active
+
+Source / Lineage:
+
+- Added on 2026-10-03.
+- Goal: meta eventy mają opisywać zarówno pozytywne zainteresowanie, jak i dynamikę przeglądania.
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID | Suggested issue title | Ready for `/plan` | Notes |
@@ -191,6 +215,7 @@ Source / Lineage:
 | S-02 | decision-fatigue-box | One assistant proposal on decision fatigue | no | Done |
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |
 | S-04 | jev-session-proposal | One model-written proposal from catalog facts | yes | Lane: Edyta. Klucze modelu są w lokalnym środowisku, poza gitem. |
+| S-05 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | yes | Faza 1: DOM instrumentation, idle i scroll burst |
 
 ## Open Roadmap Questions
 
