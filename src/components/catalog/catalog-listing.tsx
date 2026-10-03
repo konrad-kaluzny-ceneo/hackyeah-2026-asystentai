@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AssistantInline } from "@/components/assistant/assistant-inline";
 import { trackCatalogEvent } from "@/lib/assistant-events";
-import { CLEAR_GLOBAL_SEARCH_EVENT } from "@/lib/catalog-ui-events";
+import { CLEAR_GLOBAL_SEARCH_EVENT, CATALOG_SEARCH_SUBMITTED_EVENT } from "@/lib/catalog-ui-events";
 import type { ActiveFilter } from "@/behavior/types";
 import type { CatalogState, Category, Product } from "@/lib/catalog-types";
 
@@ -89,6 +89,9 @@ export default function CatalogListing({ category, products, initialQuery = "" }
     setQuery(value);
     setPage(1);
     trackCatalogEvent({ type: "search_changed", categorySlug, query: value });
+    if (value.trim().length > 0) {
+      window.dispatchEvent(new Event(CATALOG_SEARCH_SUBMITTED_EVENT));
+    }
   }
 
   function clearSearchAndFilters() {
@@ -207,9 +210,9 @@ export default function CatalogListing({ category, products, initialQuery = "" }
 
           {totalPages > 1 && (
             <nav aria-label="Strony wyników" className="mt-8 flex items-center justify-center gap-2">
-              <button type="button" disabled={safePage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-lg border border-[#dfe6e0] bg-white px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">← Poprzednia</button>
+              <button type="button" data-element-id="pagination-prev" disabled={safePage === 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-lg border border-[#dfe6e0] bg-white px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">← Poprzednia</button>
               <span className="px-2 text-sm text-[#647168]">{safePage} / {totalPages}</span>
-              <button type="button" disabled={safePage === totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded-lg border border-[#dfe6e0] bg-white px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">Następna →</button>
+              <button type="button" data-element-id="pagination-next" disabled={safePage === totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded-lg border border-[#dfe6e0] bg-white px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40">Następna →</button>
             </nav>
           )}
 

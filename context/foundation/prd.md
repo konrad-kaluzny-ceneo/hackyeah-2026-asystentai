@@ -105,6 +105,7 @@ Value: treść jednej propozycji wynika z faktów bieżącej sesji katalogu
 
 - FR-010: Asystent może ułożyć treść jednej propozycji z faktów katalogu bieżącej sesji, korzystając ze skonfigurowanego modelu. Priority: must-have
 - FR-011: System obserwacji zapisuje meta eventy opisujące zainteresowanie produktami i kategoriami oraz dynamikę przeglądania: `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`. Meta eventy opisują wzorzec zachowania, nie emocje ani intencje. Priority: should-have
+- FR-012: System obserwacji zapisuje meta eventy o sygnałach bliskich decyzji i feedbacku do asystenta: `price_focus`, `search_refinement_loop`, `assistant_proposal_dismissed`. Priority: could-have
 
 ## Non-Functional Requirements
 

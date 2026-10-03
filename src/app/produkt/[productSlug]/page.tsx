@@ -76,7 +76,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <p className="text-xs font-bold uppercase tracking-[.16em] text-[#7f9185]">{product.model} · {category?.name ?? "Sprzęt AGD"}</p>
           <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-[-.035em] sm:text-4xl">{product.name}</h1>
           <p className="mt-4 text-base leading-7 text-[#718078]">{product.shortDescription}</p>
-          <div className="mt-7 border-y border-[#e5eae6] py-5">
+          <div data-element-id="product-price" className="mt-7 border-y border-[#e5eae6] py-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-[#8b9890]">Cena demonstracyjna</p>
             <p className="mt-1 text-4xl font-bold tracking-tight text-[#243f31]">{formatPrice(product.price)}</p>
           </div>

@@ -115,9 +115,12 @@ describe("Contract integrity", () => {
         "filter_engagement",
         "hesitation_dwell",
         "rapid_scroll_burst",
+        "price_focus",
+        "search_refinement_loop",
+        "assistant_proposal_dismissed",
       ]),
     );
-    expect(META_EVENT_NAMES).toHaveLength(16);
+    expect(META_EVENT_NAMES).toHaveLength(19);
   });
 
   it("exports page types that cover the demo's actual routes", () => {

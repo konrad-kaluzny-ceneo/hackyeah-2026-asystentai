@@ -1,6 +1,7 @@
 import type { MetaEventDetector } from "../types";
 
 import type { MetaEventIdGenerator } from "./base";
+import { AssistantProposalDismissedDetector } from "./assistant-proposal-dismissed";
 import { ComparisonOscillationDetector } from "./comparison-oscillation";
 import { CategoryInterestDetector } from "./category-interest";
 import { DeadClickClusterDetector } from "./dead-click-cluster";
@@ -8,10 +9,12 @@ import { FilterEngagementDetector } from "./filter-engagement";
 import { HesitationDwellDetector } from "./hesitation-dwell";
 import { NavigationLoopDetector } from "./navigation-loop";
 import { NoProgressWindowDetector } from "./no-progress-window";
+import { PriceFocusDetector } from "./price-focus";
 import { ProductRevisitDetector } from "./product-revisit";
 import { RapidScrollBurstDetector } from "./rapid-scroll-burst";
 import { RageClickDetector } from "./rage-click";
 import { RapidFilterChurnDetector } from "./rapid-filter-churn";
+import { SearchRefinementLoopDetector } from "./search-refinement-loop";
 import { SustainedProductInterestDetector } from "./sustained-product-interest";
 
 /**
@@ -35,5 +38,8 @@ export function buildDetectorRegistry(
     new HesitationDwellDetector(generateEventId),
     new RapidScrollBurstDetector(generateEventId),
     new NavigationLoopDetector(generateEventId),
+    new PriceFocusDetector(generateEventId),
+    new SearchRefinementLoopDetector(generateEventId),
+    new AssistantProposalDismissedDetector(generateEventId),
   ];
 }

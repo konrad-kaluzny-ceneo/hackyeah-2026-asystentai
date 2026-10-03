@@ -73,7 +73,7 @@ w bazie. Do czasu serwerowego należy używać `server_received_at` lub
 
 ## 4. Aktualne typy sygnałów w MVP
 
-Obecnie aktywnych jest dwanaście detektorów:
+Obecnie aktywnych jest piętnaście detektorów:
 
 | `event_name` | Co oznacza | Metryki w `metrics` |
 |---|---|---|
@@ -89,6 +89,9 @@ Obecnie aktywnych jest dwanaście detektorów:
 | `hesitation_dwell` | Użytkownik pozostaje bez aktywności na stronie katalogu lub produktu. | `idleMs`, `pageType` |
 | `rapid_scroll_burst` | Wystąpiła szybka seria scrolli o dużym dystansie lub z nawrotami. | `burstCount`, `distanceRatioBucket`, `reversalCount` |
 | `navigation_loop` | Powtarza się cykl wejść na typy stron bez wyjścia do nowego etapu. | `cycleLength`, `repeatCount`, `pageTypes` |
+| `price_focus` | Kumulacyjny czas ekspozycji boxa ceny na stronie produktu osiąga próg uwagi na cenie. | `dwellMs`, `exposureCount`, `productId` |
+| `search_refinement_loop` | Wielokrotne (`≥3`) wywołania wyszukiwania w krótkim oknie bez widoku produktu. | `searchCount`, `windowMs` |
+| `assistant_proposal_dismissed` | Użytkownik kliknął zamknięcie propozycji asystenta. | `pageType` |
 
 W kontrakcie istnieją też nazwy przygotowane na przyszłość:
 `repeated_validation_failure`, `technical_friction`,

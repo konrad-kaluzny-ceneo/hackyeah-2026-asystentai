@@ -36,7 +36,8 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
 | S-04 | jev-session-proposal | … dostać jedną propozycję ułożoną przez model z faktów katalogu tej sesji | S-02, S-03 | US-03, FR-010 | ready |
-| S-05 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | active |
+| S-05 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
+| S-06 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-05 | FR-012 | active |
 
 ## Streams
 
@@ -197,12 +198,36 @@ Source / Lineage:
 - **Unknowns:**
   - Kalibracja progów dwell, idle i burst na mock katalogu — Owner: team. Block: no.
 - **Risk:** Mały mock katalog może zawyżać czułość detektorów. Mitigation: progi w `THRESHOLDS` i kalibracja na danych z debug overlay.
-- **Status:** active
+- **Status:** done
 
 Source / Lineage:
 
 - Added on 2026-10-03.
 - Goal: meta eventy mają opisywać zarówno pozytywne zainteresowanie, jak i dynamikę przeglądania.
+- Implemented: `7d9e7bc` (six detectors), `c877129` (close-out).
+
+### S-06: Meta eventy ceny, wyszukiwania i odrzucenia propozycji
+
+- **Outcome:** system zapisuje trzy kolejne meta eventy: `price_focus` (uwaga na cenie), `search_refinement_loop` (wielokrotne uściślanie wyszukiwania) i `assistant_proposal_dismissed` (jawne odrzucenie propozycji asystenta).
+- **Change ID:** behavior-meta-events-2
+- **PRD refs:** FR-012
+- **Prerequisites:** S-05
+- **Parallel with:** S-04
+- **Blockers:** —
+- **Acceptance:**
+  - Box ceny na stronie produktu ma `data-element-id="product-price"`.
+  - Box asystenta i jego kontrolki mają stabilne `data-element-id`.
+  - Submit wyszukiwarki emituje raw `search_submitted` bez treści frazy.
+  - Trzy detektory zarejestrowane z progami, allowlistą i testami; dokument kontraktu opisuje je.
+- **Unknowns:**
+  - Progi dwell dla `price_focus` na stronie produktu — kalibracja. Block: no.
+- **Risk:** Asystent może być rzadko pokazywany na demo, więc `assistant_proposal_dismissed` będzie rzadki. Akceptowalne — to czysty feedback negatywny.
+- **Status:** active
+
+Source / Lineage:
+
+- Added on 2026-10-03.
+- Goal: meta eventy opisują sygnały "blisko decyzji" i jawny feedback do asystenta.
 
 ## Backlog Handoff
 
@@ -215,7 +240,8 @@ Source / Lineage:
 | S-02 | decision-fatigue-box | One assistant proposal on decision fatigue | no | Done |
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |
 | S-04 | jev-session-proposal | One model-written proposal from catalog facts | yes | Lane: Edyta. Klucze modelu są w lokalnym środowisku, poza gitem. |
-| S-05 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | yes | Faza 1: DOM instrumentation, idle i scroll burst |
+| S-05 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | no | Done (`7d9e7bc`) |
+| S-06 | behavior-meta-events-2 | Price focus, search refinement loop, proposal dismissed | yes | Tagi na cenie/boxie asystenta + raw search_submitted |
 
 ## Open Roadmap Questions
 

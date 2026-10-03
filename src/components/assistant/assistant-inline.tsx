@@ -57,12 +57,14 @@ export function AssistantInline({
   return (
     <aside
       aria-labelledby="assistant-proposal-title"
+      data-element-id="assistant-proposal"
       className="relative my-6 rounded-xl border border-sky-200 bg-sky-50 p-5 pr-12 text-slate-900 shadow-sm"
       role="status"
     >
       <button
         type="button"
         aria-label="Zamknij podpowiedź na 15 minut"
+        data-element-id="assistant-dismiss"
         className="absolute right-3 top-3 rounded p-1 text-slate-500 hover:bg-sky-100 hover:text-slate-900"
         onClick={dismiss}
       >
@@ -79,6 +81,7 @@ export function AssistantInline({
         <button
           type="button"
           onClick={onClearSearchAndFilters}
+          data-element-id="assistant-action"
           className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
         >
           {proposal.actionLabel}
@@ -86,6 +89,7 @@ export function AssistantInline({
       ) : (
         <a
           href="#filters"
+          data-element-id="assistant-action"
           className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
         >
           {proposal.actionLabel}

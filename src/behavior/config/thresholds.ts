@@ -74,6 +74,9 @@ export const THRESHOLDS = {
       filter_engagement: 60 * 1000,
       hesitation_dwell: 60 * 1000,
       rapid_scroll_burst: 30 * 1000,
+      price_focus: 60 * 1000,
+      search_refinement_loop: 2 * 60 * 1000,
+      assistant_proposal_dismissed: 0,
       delivery_information_seeking: 60 * 1000,
       availability_information_seeking: 60 * 1000,
       sustained_product_interest: 60 * 1000,
@@ -161,6 +164,18 @@ export const THRESHOLDS = {
     rapid_scroll_burst: {
       minBursts: 1,
       windowMs: 30 * 1000,
+    },
+    price_focus: {
+      minDwellMs: 3 * 1000,
+      windowMs: 60 * 1000,
+    },
+    search_refinement_loop: {
+      minSearches: 3,
+      windowMs: 90 * 1000,
+    },
+    assistant_proposal_dismissed: {
+      // Stateless spike detector: fires whenever the dismiss click appears in the analysis window.
+      windowMs: 60 * 1000,
     },
   },
 } as const;
