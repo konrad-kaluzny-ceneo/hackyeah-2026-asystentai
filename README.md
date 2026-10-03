@@ -1,8 +1,8 @@
 # Asystent AI — intencje na bieżąco
 
-Szkielet demo katalogu AGD. Asystent ma z intencji przeglądania proponować jeden następny krok. Sesja jest anonimowa.
+Demo katalogu AGD. Asystent proponuje co najwyżej jeden następny krok z faktów przeglądania. Sesja jest anonimowa.
 
-Szkielet aplikacji jest uruchomiony. Obok niego działa pipeline obserwacji UI (`src/behavior/`, meta eventy). To nie jest klasyfikacja intencji zakupowej. Katalog mockowy, sygnały zakupowe (`src/domain/shopping-signal.ts`) i box asystenta nie są jeszcze zaimplementowane. Granica domeny: [context/foundation/domain.md](context/foundation/domain.md).
+Katalog jest na `/`, `/katalog`, `/katalog/[kategoria]` i `/produkt/[slug]`. Fakty sesji klasyfikuje `DecisionEngine`. Pipeline `src/behavior/` zapisuje osobne obserwacje UI i nie zasila asystenta. Granica domeny: [context/foundation/domain.md](context/foundation/domain.md).
 
 Reguły produktu: [context/foundation/prd.md](context/foundation/prd.md). Kolejność slice’ów: [context/foundation/roadmap.md](context/foundation/roadmap.md).
 
@@ -15,8 +15,10 @@ npm run dev
 
 Aplikacja nasłuchuje na [http://localhost:3000](http://localhost:3000).
 
-- `/` — opis szkieletu
-- `/katalog` — pusta trasa demo katalogu
+- `/` — wejście do katalogu
+- `/katalog` — kategorie, a z parametrem `q` lista wyników
+- `/katalog/[kategoria]` — lista, filtry i podpowiedź asystenta
+- `/produkt/[slug]` — karta produktu
 
 ```bash
 npm run lint

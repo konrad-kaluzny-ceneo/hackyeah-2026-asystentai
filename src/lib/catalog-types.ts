@@ -1,3 +1,5 @@
+import type { ImplementedSignalKind } from "@/domain/shopping-signal";
+
 export type CategoryFilter = {
   key: string;
   label: string;
@@ -68,7 +70,7 @@ export type CatalogState = {
 
 export type AssistantProposal = {
   id: string;
-  kind: "decision-fatigue" | "empty-results";
+  kind: ImplementedSignalKind;
   title: string;
   message: string;
   actionLabel: string;
