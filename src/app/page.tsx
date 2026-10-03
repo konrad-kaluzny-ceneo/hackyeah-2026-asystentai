@@ -81,7 +81,7 @@ export default async function Home() {
           {featuredProducts.map((product) => (
             <Link key={product.id} href={`/produkt/${product.slug}`} className="group rounded-2xl border border-[#e5eae6] bg-white p-3 transition hover:-translate-y-0.5 hover:shadow-lg">
               <div className="relative aspect-[1.15/1] overflow-hidden rounded-xl bg-[#f4f6f4]">
-                <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 640px) 90vw, 280px" className="object-cover transition duration-500 group-hover:scale-105" />
+                <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 640px) 90vw, 280px" className="max-h-full max-w-full object-contain" />
               </div>
               <p className="mt-4 text-xs font-medium text-[#87948b]">{product.brand}</p>
               <h3 className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-5">{product.name}</h3>
