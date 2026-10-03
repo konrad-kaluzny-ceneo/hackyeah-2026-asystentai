@@ -47,21 +47,8 @@ export function DebugOverlay() {
           <div className="min-w-0 space-y-3 overflow-y-auto pr-1">
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
               <Stat label="Page" value={`${state.pageType}`} title={state.pathname} />
-              <Stat label="Path" value={state.pathname} />
               <Stat
-                label="Raw (sessionStorage)"
-                value={String(state.rawEventsInSessionStorage)}
-              />
-              <Stat
-                label="Meta unsent"
-                value={String(state.unsentMetaEvents)}
-              />
-              <Stat
-                label="Meta sent (session)"
-                value={String(state.totalMetaSentThisSession)}
-              />
-              <Stat
-                label="Session"
+                label="Session ID"
                 value={state.sessionId?.slice(0, 8) ?? "—"}
                 title={state.sessionId ?? undefined}
               />
@@ -140,7 +127,7 @@ export function DebugOverlay() {
                 placeholder
               </span>
             </div>
-            <div className="relative mt-2 min-h-40 flex-1 overflow-hidden rounded border border-dashed border-zinc-300 bg-white/70 aspect-[16/7] dark:border-zinc-600 dark:bg-zinc-900/40">
+            <div className="relative mt-2 h-[200px] min-h-[200px] max-h-[200px] w-full flex-none overflow-hidden rounded border border-dashed border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-900/40">
               <svg
                 aria-hidden="true"
                 className="h-full w-full"
