@@ -1,7 +1,7 @@
 ---
 change_id: assistant-proposal-box
 title: Box propozycji asystenta na listingu
-status: planned
+status: implementing
 created: 2026-10-03
 updated: 2026-10-03
 archived_at: null
@@ -9,6 +9,8 @@ archived_at: null
 
 ## Notes
 
-Logika wyświetlania boxa (kiedy wołać API, co rysować, wyciszenie, wyścig odpowiedzi) — lane UI: Michał.
+S-05 covers the end-to-end proposal flow: bounded MetaEvent history, MetaEvents-only request, Jev/OpenAI decision composition, and the existing single-box UI lifecycle.
 
-Zależność: `jev-session-proposal` (S-04) dostarcza `POST /api/assistant-proposal` zgodny z `interface.md` w tym folderze. Ten change nie zmienia reguł Jev ani promptów.
+Only validated MetaEvents are sent to the server; Jev receives a minimized summary without raw events, session/event identifiers, or paths. The server returns only action/data; presentation copy remains local to the UI. A confident, unhedged Jev result may use the shortcut, while other valid outputs use OpenAI.
+
+The approved implementation phase breakdown is in `plan.md`; the cross-slice API contract is documented in `interface.md` and must be aligned during implementation.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   CATALOG_SESSION_CHANGED,
   muteAssistantFor,
@@ -8,9 +8,19 @@ import {
   readCatalogEvents,
 } from "@/lib/assistant-events";
 import { DecisionEngine } from "@/lib/decision-engine";
+import {
+  MAX_ASSISTANT_PROPOSAL_EVENTS,
+  safeParseAssistantProposalResponse,
+} from "@/lib/assistant-proposal-api";
+import {
+  getAssistantMetaEventHistory,
+  subscribeAssistantMetaEventHistory,
+} from "@/behavior/assistant-meta-event-history";
+import type { MetaEvent } from "@/behavior/types";
 import type { AssistantProposal, CatalogState, Category, Product } from "@/lib/catalog-types";
 
 const MUTE_DURATION_MS = 15 * 60 * 1000;
+const EMPTY_META_EVENT_HISTORY: readonly MetaEvent[] = [];
 
 type AssistantInlineProps = {
   state: CatalogState;
@@ -23,36 +33,155 @@ export function AssistantInline({
   catalog,
   onClearSearchAndFilters,
 }: AssistantInlineProps) {
+  const [decision, setDecision] = useState<AssistantProposal | null>(null);
+  const [muted, setMuted] = useState(false);
   const [proposal, setProposal] = useState<AssistantProposal | null>(null);
+  const recentMetaEvents = useSyncExternalStore(
+    subscribeAssistantMetaEventHistory,
+    getAssistantMetaEventHistory,
+    () => EMPTY_META_EVENT_HISTORY,
+  );
+  const recentMetaEventsRef = useRef(recentMetaEvents);
+  const decisionRef = useRef(decision);
+  const mutedRef = useRef(muted);
+  const requestedFatigueIdsRef = useRef(new Set<string>());
+  const hasMetaEvents = recentMetaEvents.length > 0;
+
+  useEffect(() => {
+    recentMetaEventsRef.current = recentMetaEvents;
+    decisionRef.current = decision;
+    mutedRef.current = muted;
+  }, [decision, muted, recentMetaEvents]);
 
   useEffect(() => {
     let muteTimer: number | undefined;
-    const refreshProposal = () => {
+    const refreshDecision = () => {
       if (muteTimer !== undefined) window.clearTimeout(muteTimer);
 
       const mutedUntil = readAssistantMutedUntil();
       if (mutedUntil > Date.now()) {
+        setMuted(true);
+        setDecision(null);
         setProposal(null);
-        muteTimer = window.setTimeout(refreshProposal, mutedUntil - Date.now());
+        muteTimer = window.setTimeout(
+          refreshDecision,
+          mutedUntil - Date.now(),
+        );
         return;
       }
-      setProposal(DecisionEngine(readCatalogEvents(), state, catalog));
+
+      setMuted(false);
+      const nextDecision = DecisionEngine(readCatalogEvents(), state, catalog);
+      setDecision((current) =>
+        current?.id === nextDecision?.id && current?.kind === nextDecision?.kind
+          ? current
+          : nextDecision,
+      );
     };
 
-    refreshProposal();
-    window.addEventListener(CATALOG_SESSION_CHANGED, refreshProposal);
+    refreshDecision();
+    window.addEventListener(CATALOG_SESSION_CHANGED, refreshDecision);
     return () => {
-      window.removeEventListener(CATALOG_SESSION_CHANGED, refreshProposal);
+      window.removeEventListener(CATALOG_SESSION_CHANGED, refreshDecision);
       if (muteTimer !== undefined) window.clearTimeout(muteTimer);
     };
   }, [catalog, state]);
 
-  if (!proposal) return null;
+  useEffect(() => {
+    if (decision === null) return;
+    if (decision.kind === "search_friction") return;
+    if (
+      muted ||
+      !hasMetaEvents ||
+      requestedFatigueIdsRef.current.has(decision.id)
+    ) {
+      return;
+    }
+
+    const request = new AbortController();
+    let isCurrentRequest = true;
+    // Deferring one task lets React clean up a replayed effect before it sends
+    // anything, while the ID set still limits a real trigger to one request.
+    const requestTimer = window.setTimeout(() => {
+      if (
+        !isCurrentRequest ||
+        request.signal.aborted ||
+        decisionRef.current?.id !== decision.id ||
+        mutedRef.current
+      ) {
+        return;
+      }
+
+      const metaEvents = recentMetaEventsRef.current.slice(
+        -MAX_ASSISTANT_PROPOSAL_EVENTS,
+      );
+      if (metaEvents.length === 0) return;
+
+      requestedFatigueIdsRef.current.add(decision.id);
+      void fetch("/api/assistant-proposal", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ metaEvents }),
+        signal: request.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) return;
+          const body: unknown = await response.json();
+          const parsed = safeParseAssistantProposalResponse(body);
+          if (
+            !isCurrentRequest ||
+            decisionRef.current?.id !== decision.id ||
+            mutedRef.current ||
+            !parsed.success ||
+            parsed.data.status !== "show"
+          ) {
+            return;
+          }
+
+          const clearsCatalog =
+            parsed.data.action === "clear-search-and-filters";
+          setProposal({
+            ...decision,
+            ...(clearsCatalog && {
+              title: "Zacznij od pełnego katalogu",
+              message:
+                "Wyczyść wyszukiwanie i filtry, aby ponownie zobaczyć pełną ofertę.",
+              actionLabel: "Wyczyść wyszukiwanie i filtry",
+            }),
+            action: parsed.data.action,
+            data: parsed.data.data,
+          });
+        })
+        .catch(() => {
+          // Network errors and aborts keep the fatigue proposal hidden.
+        });
+    }, 0);
+
+    return () => {
+      isCurrentRequest = false;
+      window.clearTimeout(requestTimer);
+      request.abort();
+    };
+  }, [decision, hasMetaEvents, muted]);
+
+  const visibleProposal = muted
+    ? null
+    : decision?.kind === "search_friction"
+      ? decision
+      : decision !== null && proposal?.id === decision.id
+        ? proposal
+        : null;
 
   const dismiss = () => {
     muteAssistantFor(MUTE_DURATION_MS);
+    mutedRef.current = true;
+    decisionRef.current = null;
+    setMuted(true);
+    setDecision(null);
     setProposal(null);
   };
+
+  if (!visibleProposal) return null;
 
   return (
     <aside
@@ -74,17 +203,17 @@ export function AssistantInline({
         Podpowiedź asystenta
       </p>
       <h2 id="assistant-proposal-title" className="text-base font-semibold">
-        {proposal.title}
+        {visibleProposal.title}
       </h2>
-      <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
-      {proposal.kind === "search_friction" ? (
+      <p className="mt-1 text-sm leading-6 text-slate-700">{visibleProposal.message}</p>
+      {visibleProposal.action === "clear-search-and-filters" ? (
         <button
           type="button"
           onClick={onClearSearchAndFilters}
           data-element-id="assistant-action"
           className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
         >
-          {proposal.actionLabel}
+          {visibleProposal.actionLabel}
         </button>
       ) : (
         <a
@@ -92,7 +221,7 @@ export function AssistantInline({
           data-element-id="assistant-action"
           className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
         >
-          {proposal.actionLabel}
+          {visibleProposal.actionLabel}
         </a>
       )}
     </aside>

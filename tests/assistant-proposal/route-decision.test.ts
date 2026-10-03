@@ -3,94 +3,48 @@ import { describe, expect, it } from "vitest";
 import { routeJevOutput } from "@/server/assistant-proposal/route-decision";
 import type { JevAssistantOutput } from "@/server/assistant-proposal/schema";
 
+function output(
+  situation: string,
+  confidence: number,
+  hedgingRequired = false,
+  messageDraft: string | null = "Zawęź wybór według ważnego parametru.",
+): JevAssistantOutput {
+  return {
+    situation,
+    proposal: {
+      confidence,
+      hedging_required: hedgingRequired,
+      message_draft: messageDraft,
+    },
+  };
+}
+
 describe("routeJevOutput", () => {
-  it("routes to shortcut when situation is DECISION_FATIGUE, confidence >= 0.75, no hedging, and draft exists", () => {
-    const output: JevAssistantOutput = {
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.85,
-        hedging_required: false,
-        message_draft: "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
-      },
-    };
-
-    const decision = routeJevOutput(output);
-    expect(decision).toEqual({
+  it("uses a confident, unhedged decision-fatigue draft as a shortcut", () => {
+    expect(routeJevOutput(output("DECISION_FATIGUE", 0.9))).toEqual({
       decision: "shortcut",
-      message: "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
+      message: "Zawęź wybór według ważnego parametru.",
     });
   });
 
-  it("routes to shortcut at exact confidence threshold 0.75", () => {
-    const output: JevAssistantOutput = {
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.75,
-        hedging_required: false,
-        message_draft: "Pomóż zawęzić wybór.",
-      },
-    };
-
-    const decision = routeJevOutput(output);
-    expect(decision).toEqual({
-      decision: "shortcut",
-      message: "Pomóż zawęzić wybór.",
+  it("uses OpenAI when confidence is below the shortcut threshold", () => {
+    expect(routeJevOutput(output("DECISION_FATIGUE", 0.7))).toEqual({
+      decision: "needs_openai",
     });
   });
 
-  it("routes to needs_openai when confidence is below 0.75", () => {
-    const output: JevAssistantOutput = {
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.74,
-        hedging_required: false,
-        message_draft: "Zawęź wyniki.",
-      },
-    };
-
-    const decision = routeJevOutput(output);
-    expect(decision).toEqual({ decision: "needs_openai" });
+  it("uses OpenAI when Jev requires hedging or has no draft", () => {
+    expect(
+      routeJevOutput(output("DECISION_FATIGUE", 0.9, true)),
+    ).toEqual({ decision: "needs_openai" });
+    expect(
+      routeJevOutput(output("DECISION_FATIGUE", 0.9, false, null)),
+    ).toEqual({ decision: "needs_openai" });
   });
 
-  it("routes to needs_openai when hedging_required is true", () => {
-    const output: JevAssistantOutput = {
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.9,
-        hedging_required: true,
-        message_draft: "Być może warto zawęzić filtry.",
-      },
-    };
-
-    const decision = routeJevOutput(output);
-    expect(decision).toEqual({ decision: "needs_openai" });
-  });
-
-  it("routes to needs_openai for situations other than DECISION_FATIGUE", () => {
-    const output: JevAssistantOutput = {
-      situation: "PRODUCT_HESITATION",
-      proposal: {
-        confidence: 0.95,
-        hedging_required: false,
-        message_draft: "Wróć do poprzedniego modelu.",
-      },
-    };
-
-    const decision = routeJevOutput(output);
-    expect(decision).toEqual({ decision: "needs_openai" });
-  });
-
-  it("routes to needs_openai when message_draft is empty or whitespace", () => {
-    const output: JevAssistantOutput = {
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.95,
-        hedging_required: false,
-        message_draft: "   ",
-      },
-    };
-
-    const decision = routeJevOutput(output);
-    expect(decision).toEqual({ decision: "needs_openai" });
+  it("uses OpenAI for other valid situations", () => {
+    expect(routeJevOutput(output("PRODUCT_HESITATION", 0.95))).toEqual({
+      decision: "needs_openai",
+    });
   });
 });

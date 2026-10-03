@@ -5,6 +5,7 @@ import {
   parseAssistantProposalResponse,
   safeParseAssistantProposalResponse,
 } from "@/lib/assistant-proposal-api";
+import { makeMetaEvent, resetFixtureSeed } from "../behavior/fixtures";
 
 describe("assistant-proposal-api contract", () => {
   describe("AssistantProposalResponseSchema", () => {
@@ -44,33 +45,12 @@ describe("assistant-proposal-api contract", () => {
   });
 
   describe("AssistantProposalRequestSchema", () => {
-    it("accepts valid catalog state and events", () => {
+    it("accepts a bounded MetaEvents-only request", () => {
+      resetFixtureSeed();
       const payload = {
-        state: {
-          categorySlug: "lodowki",
-          query: "samsung",
-          filters: { brand: "Samsung" },
-          resultCount: 5,
-          page: 1,
-        },
-        events: [
-          {
-            id: "e1",
-            timestamp: "2026-10-03T14:00:00.000Z",
-            type: "product_view",
-            categorySlug: "lodowki",
-            productSlug: "lodowka-samsung-rb",
-            productId: "p1",
-            categoryId: "c1",
-            brandId: "b1",
-          },
-          {
-            id: "e2",
-            timestamp: "2026-10-03T14:01:00.000Z",
-            type: "return_to_listing",
-            categorySlug: "lodowki",
-            categoryId: "c1",
-          },
+        metaEvents: [
+          makeMetaEvent("rage_click"),
+          makeMetaEvent("category_interest"),
         ],
       };
 
@@ -78,18 +58,27 @@ describe("assistant-proposal-api contract", () => {
       expect(result.success).toBe(true);
     });
 
-    it("rejects invalid state or events", () => {
-      const badState = {
-        state: {
-          categorySlug: 123,
-          query: "",
-          filters: {},
-          resultCount: -1,
-          page: 0,
-        },
-        events: [],
-      };
-      expect(AssistantProposalRequestSchema.safeParse(badState).success).toBe(false);
+    it("rejects empty, oversized, raw, or catalog-context requests", () => {
+      expect(
+        AssistantProposalRequestSchema.safeParse({ metaEvents: [] }).success,
+      ).toBe(false);
+      expect(
+        AssistantProposalRequestSchema.safeParse({
+          metaEvents: Array.from({ length: 11 }, () => makeMetaEvent("rage_click")),
+        }).success,
+      ).toBe(false);
+      expect(
+        AssistantProposalRequestSchema.safeParse({
+          metaEvents: [{ type: "product_view", pathname: "/product" }],
+        }).success,
+      ).toBe(false);
+      expect(
+        AssistantProposalRequestSchema.safeParse({
+          state: { query: "fridge" },
+          events: [],
+          metaEvents: [makeMetaEvent("rage_click")],
+        }).success,
+      ).toBe(false);
     });
   });
 });

@@ -1,71 +1,42 @@
-# Odpowiedź z Jev albo z OpenAI — Plan Brief
+# Odpowiedź z Jev i OpenAI — Plan Brief
 
 > Full plan: `context/changes/jev-session-proposal/plan.md`  
-> Kontrakt dla UI: `context/changes/assistant-proposal-box/interface.md` (S-05, Michał)
+> Kontrakt dla UI: `context/changes/assistant-proposal-box/interface.md`
 
 ## What & Why
 
-Dla sesji decision fatigue serwer układa jedną odpowiedź na żywo: Jev (Typesafe) klasyfikuje fakty katalogu; przy pewnym `DECISION_FATIGUE` tekst idzie ze skrótu Jev, inaczej OpenAI. Wynik trafia do klienta przez `POST /api/assistant-proposal` — **bez** pracy nad boxem w tym change.
-
-## Starting Point
-
-Box na listingu dziś pokazuje stałe zdania z `DecisionEngine`. Pusty wynik i decision fatigue są rozpoznawane. Brak klienta LLM w aplikacji. Klucze tylko po stronie serwera.
+Serwer analizuje minimalne podsumowanie MetaEvents przez Jev (Typesafe). Pewny, niehedgowany wynik `DECISION_FATIGUE` może użyć skrótu Jev; pozostałe poprawne wyniki przechodzą do OpenAI. API zwraca wyłącznie status, akcję i dane, a copy pozostaje lokalne w UI.
 
 ## Desired End State
 
-Route zwraca JSON zgodny z `interface.md`: `show` z `title`, `message`, akcją `narrow-choice` albo `hide`. Jev ma limit 3 s, rate limit 30/min IP i 10/min proces. Pusty wynik **nie** woła tego endpointu (nadal S-03 po stronie UI). Podpięcie boxa — osobny slice S-05.
+Route przyjmuje 1–10 MetaEvents w body do 64 KiB i zwraca JSON zgodny z `interface.md`. Prompt pomija surowe eventy, ścieżki i identyfikatory sesji/eventu. Jev ma timeout 3 s, OpenAI osobny timeout 5 s z retry wyłączonymi, rate limit 30/min/IP i 10/min/proces.
 
-## Key Decisions Made
+## Key Decisions
 
-| Decision | Choice | Why (1 sentence) |
+| Decision | Choice | Why |
 | --- | --- | --- |
-| Granica slice’a | Kontrakt HTTP + serwer | UI jest w `assistant-proposal-box` (Michał) |
-| PoC offline | Porzucony | Prompt z pliku nie opisuje sesji na demo |
-| Sprawdzenie | Schemat `JevAssistantResponse` | Bramka przed zdaniem dla kupującego |
-| Popularny przypadek | Tylko `DECISION_FATIGUE` | Zgodne z gwiazdą przewodnią |
-| Pewność | `confidence` ≥ 0,75 i `hedging_required` false | Granica ze system promptu próbnego |
-| Jev | `TYPESAFE_API_KEY` | Pierwsze wywołanie ma własny klucz |
-| Mocniejszy model | OpenAI, `OPENAI_API_KEY` | Osobne wywołanie poza skrótem |
-| Porażka Jev / OpenAI / limit | `{ status: "hide" }` | Stałe S-02 nie jest fallbackiem |
-| Który moment | Tylko decision fatigue (body z UI) | Pusty wynik poza route |
-| Body POST | `CatalogState` i `CatalogEvent[]` | Brak osobnego id sesji; limiter po IP |
-| Limit Jev | 30/min IP, 10/min proces | Demo + ochrona kosztów |
-| Czas | 3 s tylko na Jev | OpenAI bez tego limitu (konsument może czekać bez loadera) |
+| Request | `{ metaEvents }`, 1–10 elementów | Bez stanu i eventów katalogu w payloadzie |
+| Jev shortcut | Pewny, niehedgowany fatigue z niepustym szkicem | Pozwala pominąć drugie wywołanie modelu |
+| OpenAI | Strukturalna decyzja `action` + `data` | Model nie generuje tytułu, wiadomości ani etykiety UI |
+| Filtry | Klucze sanityzowane do dostępnych filtrów kategorii | Nieznane filtry nie przechodzą do UI |
+| Czas | 3 s dla Jev, 5 s dla OpenAI | Osobne deadline’y; retry OpenAI SDK wyłączone |
+| Błąd providera | `{ status: "hide" }` poza developmentem | Bezpieczny kontrakt UI; development ujawnia wyjątek |
 
 ## Scope
 
-**In scope:**
+- MetaEvents-only request validation, prywatnościowy prompt i bounded history.
+- Jev shortcut/OpenAI composition, rate limits, timeouty i action/data response.
+- UI fetch lifecycle, lokalne copy, mute, abort i obsługa stale response.
 
-- Serwer: Jev, schemat, reguła skrótu, OpenAI, rate limit, route
-- Wspólne typy odpowiedzi (`src/lib/assistant-proposal-api.ts`) zgodne z `interface.md`
-- Testy reguły, schematu, limitu, gałęzi OpenAI, route
+## Out of Scope
 
-**Out of scope:**
+- Surowe eventy, `CatalogState` lub `CatalogEvent[]` w żądaniu do modeli.
+- Odczyt debug store przez asystenta.
+- Nowe typy propozycji, loader, drugi box lub Redis limiter.
 
-- `assistant-inline.tsx`, fetch, wyścig odpowiedzi, wyciszenie UI (S-05)
-- `data_processor/` jako runtime
-- Model przy pustym wyniku
-- Meta eventy z `src/behavior/`
-- Loader, drugi box, Redis limiter
+## Success Criteria
 
-## Architecture / Approach
-
-Prompt składany na serwerze z `CatalogState`, `CatalogEvent[]` i katalogu. `DecisionEngine` zostaje po stronie klienta tylko do rozpoznania momentu (S-05 woła route). Ten change kończy się na działającym `POST /api/assistant-proposal`.
-
-## Phases at a Glance
-
-| Phase | What it delivers | Key risk |
-| --- | --- | --- |
-| 1. Bramka Jev | Schemat, limit, Typesafe, `hide`/`show` (skrót) | Adres HTTP Typesafe poza repo |
-| 2. OpenAI + kontrakt | Gałąź mocniejszego modelu, pełna odpowiedź `interface.md` | OpenAI wolne lub błąd |
-
-**Prerequisites:** S-02, S-03. Klucze lokalnie.  
-**Estimated effort:** około 2 sesje (2 fazy).
-
-## Success Criteria (Summary)
-
-- `POST` z fixture decision fatigue → `show` lub `hide` wg reguł.
-- Skrót Jev nie woła OpenAI.
-- Wyjście poza skrótem → OpenAI → `show` lub `hide`.
-- 31. IP / 11. proces w minucie → `hide`, bez wołania Jev.
-- Odpowiedź JSON pasuje do `interface.md` (test parsowania / Zod).
+- Jev/OpenAI zwracają poprawny kontrakt action/data; UI używa lokalnego copy.
+- MetaEvent history jest ograniczona do 10 unikalnych eventów.
+- Odrzucone payloady i błędy providerów nie pokazują propozycji.
+- `search_friction` pozostaje lokalne, a wyciszenie boxa trwa 15 minut.

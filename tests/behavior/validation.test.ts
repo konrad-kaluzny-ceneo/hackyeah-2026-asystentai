@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { MetaEventSchema } from "@/behavior/meta-event-schema";
 import { META_EVENT_NAMES, PAGE_TYPES } from "@/behavior/types";
-import {
-  BATCH_LIMITS,
-  BatchPayloadSchema,
-  MetaEventSchema,
-} from "@/server/meta-events/validation";
+import { BATCH_LIMITS, BatchPayloadSchema } from "@/server/meta-events/validation";
 
 import { makeMetaEvent, resetFixtureSeed } from "./fixtures";
 

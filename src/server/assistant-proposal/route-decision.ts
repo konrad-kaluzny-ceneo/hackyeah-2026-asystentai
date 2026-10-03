@@ -1,20 +1,10 @@
 import type { JevAssistantOutput } from "./schema";
 
 export type RouteDecision =
-  | {
-      decision: "shortcut";
-      message: string;
-    }
-  | {
-      decision: "needs_openai";
-    };
+  | { decision: "shortcut"; message: string }
+  | { decision: "needs_openai" };
 
-/**
- * Pure decision function:
- * Shortcut only when situation is DECISION_FATIGUE, confidence >= 0.75,
- * hedging_required is false, and message_draft is non-empty.
- * All other valid outputs require the stronger model (OpenAI).
- */
+/** Use Jev's draft only when confidence is high and no hedging is required. */
 export function routeJevOutput(output: JevAssistantOutput): RouteDecision {
   const messageDraft = output.proposal.message_draft?.trim() ?? "";
 
@@ -24,13 +14,8 @@ export function routeJevOutput(output: JevAssistantOutput): RouteDecision {
     output.proposal.hedging_required === false &&
     messageDraft.length > 0
   ) {
-    return {
-      decision: "shortcut",
-      message: messageDraft,
-    };
+    return { decision: "shortcut", message: messageDraft };
   }
 
-  return {
-    decision: "needs_openai",
-  };
+  return { decision: "needs_openai" };
 }

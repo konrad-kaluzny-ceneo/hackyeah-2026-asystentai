@@ -15,3 +15,15 @@ export async function getCategoryFilters(
 
   return row?.specFilters ?? [];
 }
+
+export async function getCategoryFiltersById(
+  categoryId: string,
+): Promise<CategoryFilter[]> {
+  const [row] = await getDb()
+    .select({ specFilters: categories.specFilters })
+    .from(categories)
+    .where(eq(categories.id, categoryId))
+    .limit(1);
+
+  return row?.specFilters ?? [];
+}

@@ -15,7 +15,7 @@ To wzorce UI: `rage_click`, `dead_click_cluster`, `rapid_filter_churn`, `no_prog
 
 `MetaEvent.quality.strength` to pewność heurystyki detektora (0–1). To nie jest moc sygnału zakupowego z FR-002.
 
-Asystent tego kontekstu nie czyta. `comparison_oscillation` i `product_revisit` nie są decision fatigue.
+Te zdarzenia nie są typami intencji zakupowej: `comparison_oscillation` i `product_revisit` same w sobie nie oznaczają decision fatigue. S-05 przekazuje Jev wyłącznie ograniczone podsumowanie zwalidowanych MetaEvents; lokalny `DecisionEngine` nadal rozpoznaje moment decision fatigue z `CatalogEvent`.
 
 ## Intencja zakupowa
 

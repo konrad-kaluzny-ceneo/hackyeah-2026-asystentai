@@ -1,110 +1,288 @@
-# Box propozycji asystenta — Implementation Plan
+# Assistant Proposal from Aggregated MetaEvents — Implementation Plan
 
 ## Overview
 
-Warstwa UI boxa na listingu: kiedy coś pokazać, skąd wziąć treść, jak obsłużyć wyciszenie i równoległe żądania. Treść decision fatigue pochodzi wyłącznie z kontraktu w [`interface.md`](./interface.md) (implementacja serwera w `jev-session-proposal`).
+Connect the existing behavior MetaEvent pipeline to the assistant proposal flow. The client keeps a bounded window of successfully dispatched MetaEvents and, when the existing decision-fatigue gate fires, sends that window to the server. The server asks Jev to classify the event summary, then uses a confident Jev shortcut or OpenAI to return only an action and its data. Failures produce no box; presentation copy remains local to the UI.
 
-## Current State
+## Current State Analysis
 
-- `src/components/assistant/assistant-inline.tsx` — `DecisionEngine` → natychmiastowy render.
-- `src/components/catalog/catalog-listing.tsx` — montuje `AssistantInline`.
-- Wyciszenie: `muteAssistantFor` / `readAssistantMutedUntil` w `src/lib/assistant-events.ts`.
+- Raw behavior events are collected and analyzed in the browser. Detectors emit privacy-safe `MetaEvent`s; the dispatcher batches them to `POST /api/meta-events`. Raw events stay in the browser (`src/behavior/types.ts:54-57,171-173`).
+- The full MetaEvent batch is available after a successful HTTP response through the dispatcher's `onBatchSent` callback (`src/behavior/dispatcher/dispatcher.ts:87-105`). The production tracker shell currently sends that callback only to the dev debug summary store (`src/app/behavior-debug-shell.tsx:33-43`). That store retains summaries, not full events (`src/behavior/ui/debug-store.ts:89-124`), and is not an assistant data source.
+- `AssistantInline` currently uses `DecisionEngine` to render fixed local copy. It does not call `/api/assistant-proposal` (`src/components/assistant/assistant-inline.tsx:28-48`). The existing mute lasts 15 minutes (`:52-55`).
+- The shared proposal request accepts `{ metaEvents }` only. The Jev prompt minimizes event data and excludes raw events, session/page-view identifiers, and paths.
+- A confident, unhedged Jev fatigue result can use the shortcut; other valid outputs use OpenAI and return the same action/data contract.
+- `DecisionEngine` already supplies an occasional client-side gate: three distinct pairwise-similar product views followed by a return to the listing, with no later route or catalog change (`src/lib/decision-engine.ts:104-183`). The request body will contain MetaEvents only; catalog events remain local to this gate.
+
+### Key Discoveries:
+
+- `MetaEvent.quality.strength` is detector confidence, not Jev's proposal confidence (`src/behavior/types.ts:222-230`). The route threshold must use Jev's `proposal.confidence`.
+- The assistant must read from a production-purpose bounded MetaEvent store, not `debug-store` or the raw-event checkpoint.
+- `MetaEventSchema` already strictly validates the event shape, privacy flags, and metric allowlist (`src/server/meta-events/validation.ts:111-143`). Make the shared validation client-safe rather than duplicating or weakening it.
 
 ## Desired End State
 
-Zgodnie z `plan-brief.md`. Decision fatigue nie używa `title`/`message` z obiektu zwróconego przez silnik do renderu — silnik tylko wyznacza moment i ewentualnie trigger fetch.
+When the current decision-fatigue gate fires, the client sends one `POST /api/assistant-proposal` containing only a bounded array of recent MetaEvents that were sent to `/api/meta-events`. The server validates and summarizes those events for Jev without sending raw events or catalog state. Jev may provide a confident shortcut; other valid results go to OpenAI. The API returns `show` with an action and data, or `hide`; the UI combines a valid action with local presentation copy.
 
-## Visual spec (box na listingu)
-
-Jeden komponent: `AssistantInline` w `catalog-listing.tsx` (pod siatką / empty state). **Stany:**
-
-| Stan | Widoczność | Źródło treści |
-| --- | --- | --- |
-| Brak sygnału | Nic (`null`) | `DecisionEngine` → `null` |
-| Wyciszony (15 min) | Nic | `readAssistantMutedUntil` |
-| `search_friction` | Box od razu | `DecisionEngine` (bez fetch) |
-| `decision_fatigue`, czekanie na API | **Nic** — bez loadera | — |
-| `decision_fatigue`, `hide` / błąd HTTP | Nic | — |
-| `decision_fatigue`, `show` | Box | Pola z `AssistantProposalResponse` |
-
-**Layout (MVP, jak dziś):** `aside` z etykietą „Podpowiedź asystenta”, tytuł (`h2`), akapit `message`, przycisk × (wyciszenie), jedna akcja — dla fatigue link `href="#filters"` z `actionLabel`; dla friction przycisk czyszczenia filtrów. Klasy Tailwind mogą się zmienić w fazie 2; struktura i jedna akcja zostają.
-
-Pełny kontrakt danych i przykłady JSON: [`interface.md`](./interface.md).
+The existing single-box behavior remains: local `search_friction` stays local, the fatigue proposal has no loader, stale requests are ignored, and dismissal mutes the assistant for 15 minutes. OpenAI has a separate short deadline with SDK retries disabled.
 
 ## What We're NOT Doing
 
-- Serwer, modele, prompty (S-04).
-- Loader / skeleton.
-- Druga propozycja, porównanie modeli, koszyk.
-- Zmiana progów decision fatigue w `DecisionEngine`.
+- Sending raw events, raw-event checkpoints, catalog state, or `CatalogEvent[]` to Jev.
+- Reusing `src/behavior/ui/debug-store.ts` as an assistant data source.
+- Calling Jev for every browsing event, for `search_friction`, while muted, or when the behavior tracker is disabled.
+- Sending raw events or catalog facts to Jev/OpenAI, or adding a second proposal box.
+- Changing detector definitions, thresholds, or `DecisionEngine` criteria.
 
-## Phase 1: Konsumpcja API
+## Implementation Approach
+
+Use the existing fatigue proposal ID as the request identity. A separate application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and notifies `AssistantInline`. The UI calls the route once for a given fatigue proposal ID when the store has events and the assistant is not muted. The route validates `{ metaEvents }`, gives Jev a server-built summary, then uses the Jev shortcut or OpenAI. It sanitizes filter keys before returning the action/data contract.
+
+## Phase 1: Retain Recent MetaEvents for the Assistant
 
 ### Overview
 
-`AssistantInline` rozgałęzia ścieżki: lokalna propozycja vs fetch.
+Expose a bounded, production-safe snapshot of full MetaEvents without involving the debug overlay or raw event storage.
 
-### Changes
+### Changes Required:
 
-**File:** `src/lib/assistant-proposal-api.ts` — **import tylko** (moduł dostarcza S-04). Blokada startu S-05: plik istnieje i test Zod przechodzi.
+#### 1. Assistant MetaEvent history
 
-**File:** `src/components/assistant/assistant-inline.tsx`
+**File**: `src/behavior/assistant-meta-event-history.ts` (new)
 
-**Contract:**
+**Intent**: Provide an app-purpose in-memory store and subscription for recent complete MetaEvents. Keep this separate from detector raw buffers and the development debug store.
 
-- `DecisionEngine` → jeśli `null`: `proposal` puste, bez fetch.
-- `kind === "search_friction"`: ustaw propozycję z silnika, bez fetch.
-- `kind === "decision_fatigue"`: **nie** renderuj stałego tytułu/treści z silnika. Wywołaj `POST /api/assistant-proposal` z `{ state, events: readCatalogEvents() }`.
-  - `show` → zmapuj na lokalny stan do renderu (title, message, akcja `narrow-choice` / label z odpowiedzi).
-  - `hide` → brak boxa.
-- Przed fetch: `++requestId`, `abortPrevious()`. Po odpowiedzi render tylko gdy `requestId` aktualny.
-- Wyciszenie: jak dziś — bez fetch, `proposal` null.
-- Zależności efektu: `state`, `catalog`, listener `CATALOG_SESSION_CHANGED`.
+**Contract**: Deduplicate by `eventId`, preserve chronological order, retain at most 10 events, expose a read-only snapshot and subscribe/unsubscribe functions, and clear the snapshot when the behavior tracker/session is torn down. An empty snapshot means no assistant request is eligible.
 
-```ts
-const current = ++requestId;
-abortPrevious();
-const result = await fetch("/api/assistant-proposal", { method: "POST", body: JSON.stringify(...), signal });
-if (current !== requestId) return;
-```
+#### 2. Publish successfully dispatched batches
 
-### Success criteria
+**File**: `src/behavior/initializer/initializer.ts`
 
-**Automated:**
+**Intent**: Publish only MetaEvents from batches whose `/api/meta-events` transport received HTTP 2xx, using the existing dispatcher callback seam.
 
-- Test: `search_friction` nie woła fetch (mock).
-- Test: starszy `requestId` nie ustawia propozycji.
+**Contract**: Keep the existing optional `onBatchSent` hook and preserve its full batch payload. The application history subscriber receives full events; raw events and event checkpoints are never exposed through this path.
 
-**Manual:**
+**File**: `src/app/behavior-debug-shell.tsx`
 
-- Trzy podobne produkty + powrót → box z tekstem z API lub brak przy `hide`.
-- Pusty wynik → stała propozycja bez API.
-- × → cisza 15 min.
-- Dwie szybkie zmiany sesji → widać wynik późniejszego wywołania.
+**Intent**: Connect the app-purpose history and existing debug summary callback to tracker batches while the tracker is mounted in development and production.
 
-## Phase 2 (optional): Prezentacja
+**Contract**: Compose the production history update with `recordBatchSent`; the assistant does not import or subscribe to `debug-store`.
 
-Dopracowanie klas Tailwind, `aria`, copy etykiety „Podpowiedź asystenta” — bez nowych akcji w boxie.
+### Phase Success Criteria
+
+#### Automated Verification:
+
+- `npm test -- tests/behavior/dispatcher.test.ts tests/behavior/assistant-meta-event-history.test.ts`
+- `npm run typecheck`
+
+#### Manual Verification:
+
+- With behavior tracking enabled, browse across catalog and product pages and confirm that only successfully sent MetaEvents enter the assistant history.
+- Confirm history is chronological, capped at 10 unique events, clears with the tracker, and contains no raw events.
+
+**Implementation Note**: After automated checks pass, pause for the manual check before starting Phase 2.
+
+## Phase 2: MetaEvents-Only Jev Route and OpenAI Action
+
+### Overview
+
+Replace the catalog-event request contract with bounded MetaEvents and connect the Jev/OpenAI composition while preserving the shortcut branch.
+
+### Changes Required:
+
+#### 1. Shared MetaEvent request contract
+
+**File**: `src/behavior/meta-event-schema.ts` (new shared schema; extract the current `MetaEventSchema`)
+
+**Intent**: Make the existing strict MetaEvent validator usable by both the browser request contract and server routes without importing a server-layer module into client code.
+
+**Contract**: Preserve the current strict field, privacy-flag, and per-event metric allowlist validation. Keep `/api/meta-events` validation behavior unchanged.
+
+**File**: `src/server/meta-events/validation.ts`
+
+**Intent**: Continue using the shared schema for stored meta-event batches.
+
+**Contract**: Existing `BatchPayloadSchema` keeps its envelope and limits; it composes the extracted shared `MetaEventSchema`.
+
+**File**: `src/lib/assistant-proposal-api.ts`
+
+**Intent**: Define the single shared request and response contract consumed by the route and client.
+
+**Contract**: The request is `{ metaEvents: MetaEvent[] }`, with 1–10 strict MetaEvents and a 64 KiB request-body ceiling. Remove `state` and catalog `events` from this endpoint's request. Keep the existing `show | hide` response union.
+
+**File**: `context/changes/assistant-proposal-box/interface.md`
+
+**Intent**: Document the revised request, Jev/OpenAI behavior, action/data response, and hide cases for both S-04 and S-05.
+
+**Contract**: State explicitly that only aggregated MetaEvents are sent, raw/catalog events are excluded, Jev may use a confident shortcut, and OpenAI returns only action/data.
+
+#### 2. Jev prompt, gate, and OpenAI action
+
+**File**: `src/server/assistant-proposal/prompt.ts`
+
+**Intent**: Build Jev input from the bounded MetaEvent array instead of catalog facts.
+
+**Contract**: Summarize allowlisted event names, relative timing/window, page type, safe subject context, and allowlisted metrics. Do not include session/page-view identifiers, paths, raw events, catalog state, or catalog events. Do not describe detector `quality.strength` as Jev confidence.
+
+**File**: `src/server/assistant-proposal/route-decision.ts`
+
+**Intent**: Apply the requested strict confidence gate for the existing fatigue proposal path.
+
+**Contract**: Only a confident, unhedged fatigue result with a non-empty Jev draft takes the shortcut; other valid outputs use OpenAI. The OpenAI response is a structured action and data payload, not UI copy.
+
+#### 3. Route orchestration and documentation alignment
+
+**File**: `src/app/api/assistant-proposal/route.ts`
+
+**Intent**: Validate MetaEvents and call the shared Jev/OpenAI composition.
+
+**Contract**: Preserve body/rate limits and Jev's three-second timeout. OpenAI has its own deadline with retries disabled. The API returns only status/action/data and sanitizes filter keys; invalid input and provider failures return `{ status: "hide" }`.
+
+**File**: `context/changes/jev-session-proposal/plan.md` and `context/changes/jev-session-proposal/plan-brief.md`
+
+**Intent**: Align the S-04 server notes with the shared MetaEvents request and OpenAI action/data response.
+
+**Contract**: Document the shortcut/OpenAI flow, timeout and retry behavior, and the minimal response contract.
+
+**File**: `context/foundation/prd.md` and `context/foundation/roadmap.md`
+
+**Intent**: Align FR-010 and S-04/S-05 acceptance text with the agreed confidence-gated demo flow.
+
+**Contract**: Preserve the one-proposal guardrail and document that OpenAI may decide action/data for valid non-shortcut outputs.
+
+### Phase Success Criteria
+
+#### Automated Verification:
+
+- `npm test -- tests/assistant-proposal/assistant-proposal-api.test.ts tests/assistant-proposal/schema.test.ts tests/assistant-proposal/route-decision.test.ts tests/assistant-proposal/route.test.ts tests/behavior/validation.test.ts`
+- `npm run typecheck`
+
+#### Manual Verification:
+
+- A confident, unhedged Jev shortcut returns a valid `show`; uncertain output uses OpenAI and returns validated action/data.
+- Invalid Jev output, timeout, rate limit, or provider failure returns `hide`.
+- Invalid/raw-event payloads and more than 10 events are rejected before Jev is called.
+
+**Implementation Note**: After automated checks pass, pause for the manual checks before starting Phase 3.
+
+## Phase 3: Wire the Existing Assistant Box
+
+### Overview
+
+Call the revised endpoint from the existing fatigue UI gate and combine the validated action/data with local UI copy.
+
+### Changes Required:
+
+#### 1. Request lifecycle and rendering
+
+**File**: `src/components/assistant/assistant-inline.tsx`
+
+**Intent**: Subscribe to assistant MetaEvent history and use it as the only request payload while retaining existing local behavior for empty-search recovery.
+
+**Contract**:
+
+- `DecisionEngine === null`: render nothing and do not call the endpoint.
+- `search_friction`: render the existing local recovery proposal and do not call Jev.
+- `decision_fatigue`: if not muted and the MetaEvent history is non-empty, call `POST /api/assistant-proposal` once for that fatigue proposal ID with `{ metaEvents }` only.
+- `show`: render one proposal from local presentation copy and the parsed server action/data; `hide`, HTTP failure, or invalid response renders nothing.
+- Keep the 15-minute mute, abort superseded requests, ignore stale responses, and do not add a loader or a second box.
+
+**File**: `tests/components/assistant/assistant-inline.test.tsx` (new)
+
+**Intent**: Cover request gating and the existing single-box lifecycle.
+
+**Contract**: Verify fatigue with recent MetaEvents sends one events-only request; no history, muted, null, or friction does not call the endpoint; hide and invalid responses render no fatigue box; a fixed show renders one box; stale requests cannot replace newer state.
+
+### Phase Success Criteria
+
+#### Automated Verification:
+
+- `npm test -- tests/components/assistant/assistant-inline.test.tsx tests/lib/assistant-events.test.ts`
+- `npm run typecheck`
+
+#### Manual Verification:
+
+- Browse three similar products and return to the listing with tracking enabled. Confirm `/api/meta-events` receives detector MetaEvents, followed by one `/api/assistant-proposal` request whose body contains only a bounded `metaEvents` array.
+- Confirm the server calls Jev and then either uses a confident shortcut or calls OpenAI; the UI displays local copy with the returned action.
+- Confirm empty-search recovery stays local, dismissal mutes for 15 minutes, and another proposal cannot appear at the same time.
 
 ## Testing Strategy
 
-- Vitest + mock `fetch` dla gałęzi fatigue / friction / abort.
-- Manual z działającym S-04 i kluczami lokalnymi.
+### Unit Tests:
+
+- MetaEvent history ordering, deduplication, max-10 bound, and clear behavior.
+- Shared MetaEvent validation and request count/body-size limits.
+- Jev shortcut boundary, OpenAI fallback, action/data validation, filter-key sanitization, and provider failure paths.
+- UI gate, mute, abort, and stale-request handling.
+
+### Integration Tests:
+
+- Route with mocked Jev/OpenAI output: MetaEvents-only request → Jev → shortcut/OpenAI → `show` or `hide`.
+- No test or runtime path makes an external OpenAI call.
+
+### Manual Testing Steps:
+
+1. Enable `NEXT_PUBLIC_BEHAVIOR_TRACKING=true` and browse between product pages and a category listing.
+2. Confirm raw events remain in the local debug overlay and MetaEvents continue to post to `/api/meta-events`.
+3. Trigger decision fatigue by viewing three similar products and returning to the listing.
+4. Inspect `/api/assistant-proposal`: it contains no raw events, catalog state, or catalog events, only the bounded MetaEvent array.
+5. Use mocked Jev/OpenAI output to verify the shortcut and OpenAI paths return the same action/data shape.
+6. Dismiss the proposal and confirm the 15-minute mute; verify empty-search recovery remains local.
+
+## Performance Considerations
+
+Retain and send no more than 10 MetaEvents per proposal request, with a 64 KiB body ceiling. Preserve the Jev timeout/rate limits and keep OpenAI bounded by its own deadline without SDK retries.
+
+## Migration Notes
+
+The request contract changes from `{ state, events: CatalogEvent[] }` to `{ metaEvents: MetaEvent[] }`. The browser and route must ship together. Existing meta-event persistence remains unchanged; the assistant keeps only a bounded in-memory window of events received through the successful batch callback. A page reload clears this assistant window, while client-side catalog navigation preserves it for the mounted tracker lifetime.
 
 ## References
 
-- Kontrakt: `context/changes/assistant-proposal-box/interface.md`
-- Serwer: `context/changes/jev-session-proposal/plan.md`
-- Slice: `context/foundation/roadmap.md` S-05
+- API contract: `context/changes/assistant-proposal-box/interface.md`
+- Previous server plan to align: `context/changes/jev-session-proposal/plan.md`
+- MetaEvent contract: `src/behavior/types.ts`, `src/server/meta-events/validation.ts`
+- Dispatcher callback: `src/behavior/dispatcher/dispatcher.ts`
+- Current client fatigue gate: `src/lib/decision-engine.ts`
+- Current shared API module: `src/lib/assistant-proposal-api.ts`
 
 ## Progress
 
-### Phase 1
+> Convention: `- [ ]` pending, `- [x]` done. Append `— <commit sha>` when a step lands.
 
-- [ ] 1.1 Import z `assistant-proposal-api.ts` (S-04 gotowe)
-- [ ] 1.2 `assistant-inline` — fetch + lifecycle
-- [ ] 1.3 Testy + `npm run typecheck`
+### Phase 1: Retain Recent MetaEvents for the Assistant
 
-### Phase 2 (optional)
+#### Automated
 
-- [ ] 2.1 Polish wizualny
+- [x] 1.1 Add bounded MetaEvent history store and tests. — e9aba2a
+- [x] 1.2 Publish full successful dispatcher batches to the app store without using debug-store. — e9aba2a
+- [x] 1.3 Run focused behavior tests and typecheck. — e9aba2a
+
+#### Manual
+
+- [x] 1.4 Verify recent history updates only after `/api/meta-events` receives HTTP 2xx and is capped at 10. — e9aba2a
+
+### Phase 2: MetaEvents-Only Jev Route and OpenAI Action
+
+#### Automated
+
+- [x] 2.1 Extract/reuse strict shared MetaEvent validation and change request schema to events-only. — f18f06b
+- [x] 2.2 Add MetaEvent-only prompt and connect the Jev/OpenAI action flow. — f18f06b
+- [x] 2.3 Update route, interface, S-04 notes, PRD/roadmap acceptance, and focused tests. — f18f06b
+- [x] 2.4 Run focused assistant/meta-event validation tests and typecheck. — f18f06b
+
+#### Manual
+
+- [x] 2.5 Verify the Jev shortcut and OpenAI fallback return the shared action/data contract.
+- [x] 2.6 Verify invalid/oversized inputs and Jev/OpenAI failures return `hide`.
+
+### Phase 3: Wire the Existing Assistant Box
+
+#### Automated
+
+- [x] 3.1 Subscribe the UI to recent MetaEvents and post once per fatigue trigger.
+- [x] 3.2 Preserve local friction, mute, abort, stale-response, and one-box behavior with tests.
+- [x] 3.3 Run focused UI tests and typecheck.
+
+#### Manual
+
+- [ ] 3.4 Verify the full browse → meta-events → proposal request → Jev/OpenAI → single box flow.
