@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 
 import { getDebugState, subscribeDebug } from "./debug-store";
+import { EmotionTimelineChart } from "./EmotionTimelineChart";
 
 // Cached server snapshot — `useSyncExternalStore` requires a stable value
 // for SSR. The overlay only renders when tracker is enabled, which is
@@ -124,34 +125,11 @@ export function DebugOverlay() {
                 Emocje użytkownika w czasie
               </h3>
               <span className="shrink-0 text-[10px] uppercase tracking-[0.12em] text-zinc-400">
-                placeholder
+                mock · 30 s
               </span>
             </div>
-            <div className="relative mt-2 h-[200px] min-h-[200px] max-h-[200px] w-full flex-none overflow-hidden rounded border border-dashed border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-900/40">
-              <svg
-                aria-hidden="true"
-                className="h-full w-full"
-                viewBox="0 0 640 120"
-                preserveAspectRatio="none"
-              >
-                <path
-                  d="M0 86 C55 76 62 48 118 58 S177 100 230 72 S290 38 340 56 S400 86 452 48 S515 24 560 42 S610 72 640 28"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  className="text-sky-500/70"
-                />
-                <path
-                  d="M0 94 H640 M0 60 H640 M0 26 H640"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeDasharray="4 8"
-                  className="text-zinc-200 dark:text-zinc-700"
-                />
-              </svg>
-              <span className="absolute inset-x-0 bottom-2 text-center text-zinc-400">
-                dane zostaną podpięte później
-              </span>
+            <div className="mt-2 flex-none">
+              <EmotionTimelineChart />
             </div>
           </section>
         </div>

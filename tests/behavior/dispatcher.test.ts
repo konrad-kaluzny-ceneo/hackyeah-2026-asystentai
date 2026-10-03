@@ -81,7 +81,6 @@ describe("Dispatcher", () => {
     const clock = makeClock(0);
     const batches: MetaEventBatchPayload[] = [];
     const second = makeMetaEvent("dead_click_cluster");
-    let dispatcher: DispatcherHandle;
     const transport = {
       send: async (payload: MetaEventBatchPayload) => {
         batches.push(payload);
@@ -91,7 +90,7 @@ describe("Dispatcher", () => {
         return true;
       },
     };
-    dispatcher = createDispatcher({
+    const dispatcher: DispatcherHandle = createDispatcher({
       transport,
       generateBatchId: makeIdGenerator("batch"),
       now: clock.now,
