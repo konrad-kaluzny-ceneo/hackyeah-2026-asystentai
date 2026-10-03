@@ -3,7 +3,6 @@ import type { AssistantProposalResponse } from "@/lib/assistant-proposal-api";
 import { requestJev } from "./jev-client";
 import {
   requestStrongerReply,
-  type StrongerReply,
 } from "./openai-client";
 import { routeJevOutput } from "./route-decision";
 import { JevAssistantOutputSchema } from "./schema";

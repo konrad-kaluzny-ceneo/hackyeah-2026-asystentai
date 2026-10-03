@@ -21,14 +21,14 @@ function output(
 
 describe("routeJevOutput", () => {
   it("uses a confident, unhedged fatigue draft as a shortcut", () => {
-    expect(routeJevOutput(output("DECISION_FATIGUE", 0.75))).toEqual({
+    expect(routeJevOutput(output("DECISION_FATIGUE", 0.9))).toEqual({
       decision: "shortcut",
       message: "Zawęź wybór według ważnego parametru.",
     });
   });
 
-  it("uses OpenAI when confidence is below the threshold", () => {
-    expect(routeJevOutput(output("DECISION_FATIGUE", 0.74))).toEqual({
+  it("uses OpenAI below the shortcut confidence threshold", () => {
+    expect(routeJevOutput(output("DECISION_FATIGUE", 0.49))).toEqual({
       decision: "needs_openai",
     });
   });

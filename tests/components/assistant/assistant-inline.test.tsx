@@ -21,6 +21,7 @@ vi.mock("@/lib/decision-engine", () => ({
 
 import { AssistantInline } from "@/components/assistant/assistant-inline";
 import { AssistantProposalCoordinator } from "@/components/assistant/assistant-proposal-coordinator";
+import { AssistantProposalWidget } from "@/components/assistant/assistant-proposal-widget";
 import {
   clearAssistantMetaEventHistory,
   MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL,
@@ -105,6 +106,7 @@ async function renderAssistant(
     root.render(
       <>
         <AssistantProposalCoordinator />
+        <AssistantProposalWidget />
         <AssistantInline
           state={state}
           catalog={catalog}
@@ -116,7 +118,14 @@ async function renderAssistant(
 }
 
 async function renderCoordinatorOnly() {
-  await act(async () => root.render(<AssistantProposalCoordinator />));
+  await act(async () =>
+    root.render(
+      <>
+        <AssistantProposalCoordinator />
+        <AssistantProposalWidget />
+      </>,
+    ),
+  );
 }
 
 async function flushRequestTasks() {
@@ -153,6 +162,33 @@ afterEach(async () => {
 });
 
 describe("assistant proposal coordinator and listing UI", () => {
+  it("shows a visible OpenAI request state until the response arrives", async () => {
+    let resolveResponse: ((value: Response) => void) | undefined;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+
+    await renderCoordinatorOnly();
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+
+    expect(
+      container.querySelector('[data-ai-request-state="pending"]'),
+    ).not.toBeNull();
+    expect(container.textContent).toContain("Wysyłanie requestu do OpenAI");
+
+    await act(async () => resolveResponse?.(response(SHOW_PROPOSAL)));
+    await flushRequestTasks();
+
+    expect(
+      container.querySelector('[data-ai-request-state="pending"]'),
+    ).toBeNull();
+    expect(container.textContent).toContain(SHOW_PROPOSAL.message);
+  });
+
   it("waits for five events and can complete classification off the listing page", async () => {
     await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL - 1);
@@ -175,12 +211,14 @@ describe("assistant proposal coordinator and listing UI", () => {
 
     await renderAssistant();
     expect(container.querySelector("h2")?.textContent).toBe("Pomóc zawęzić wybór?");
-    expect(container.querySelector('[data-assistant-popover="filters"]')).not.toBeNull();
+    const widget = container.querySelector<HTMLElement>('[data-assistant-popover="filters"]');
+    expect(widget).not.toBeNull();
+    expect(widget?.className).toContain("fixed");
     const filtersLink = container.querySelector<HTMLAnchorElement>(
       '[data-element-id="assistant-action"]',
     );
     expect(filtersLink?.tagName).toBe("A");
-    expect(filtersLink?.getAttribute("href")).toBe("#filters");
+    expect(filtersLink?.getAttribute("href")).toBe("/katalog#filters");
   });
 
   it("does not call the server while muted", async () => {

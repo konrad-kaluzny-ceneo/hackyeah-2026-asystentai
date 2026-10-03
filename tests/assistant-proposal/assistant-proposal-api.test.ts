@@ -36,6 +36,16 @@ describe("assistant-proposal-api contract", () => {
       expect(safeParseAssistantProposalResponse(emptyTitle).success).toBe(false);
     });
 
+    it("rejects copy that is too long for the widget", () => {
+      expect(
+        safeParseAssistantProposalResponse({
+          status: "show",
+          title: "Krótki tytuł",
+          message: "x".repeat(181),
+        }).success,
+      ).toBe(false);
+    });
+
     it("accepts a valid 'hide' response", () => {
       const payload = { status: "hide" };
       const parsed = parseAssistantProposalResponse(payload);

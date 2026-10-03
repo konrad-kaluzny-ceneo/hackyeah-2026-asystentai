@@ -54,8 +54,11 @@ describe("inferAndSaveIntentSnapshot", () => {
         detectedAt: `2026-10-03T12:00:0${index}.000Z`,
       }),
     );
-    const event = events[0];
-    if (event === undefined) throw new Error("fixture must contain an event");
+    const firstInputEvent = events[2];
+    const lastInputEvent = events.at(-1);
+    if (firstInputEvent === undefined || lastInputEvent === undefined) {
+      throw new Error("fixture must contain an event");
+    }
     const requestJev = vi.fn().mockResolvedValue(jevResponse);
     const captured: Array<unknown> = [];
 
@@ -78,9 +81,9 @@ describe("inferAndSaveIntentSnapshot", () => {
         sessionId: "session-test-1",
       },
     });
-    expect(jevRequest.state.recentMetaEvents).toHaveLength(5);
+    expect(jevRequest.state.recentMetaEvents).toHaveLength(3);
     expect(jevRequest.state.recentMetaEvents[0]).toEqual(
-      expect.objectContaining({ eventId: "event-000001" }),
+      expect.objectContaining({ eventId: "event-000003" }),
     );
     expect(jevRequest.state.recentMetaEvents.at(-1)).toEqual(
       expect.objectContaining({ eventId: "event-000005" }),
@@ -93,9 +96,9 @@ describe("inferAndSaveIntentSnapshot", () => {
         model: "jev-latest",
         intents: jevResponse.answers.intents.probabilities,
         inputEventWindow: {
-          windowStartedAt: event.window.startedAt,
-          windowEndedAt: event.window.endedAt,
-          eventCount: 5,
+          windowStartedAt: firstInputEvent.window.startedAt,
+          windowEndedAt: lastInputEvent.window.endedAt,
+          eventCount: 3,
         },
       }),
     ]);

@@ -3,6 +3,8 @@ import { z } from "zod";
 import { MetaEventSchema } from "@/behavior/meta-event-schema";
 
 export const MAX_ASSISTANT_PROPOSAL_EVENTS = 10;
+export const MAX_ASSISTANT_PROPOSAL_TITLE_LENGTH = 80;
+export const MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH = 180;
 
 // ============================================================================
 // Response Contract (context/changes/assistant-proposal-box/interface.md)
@@ -10,8 +12,8 @@ export const MAX_ASSISTANT_PROPOSAL_EVENTS = 10;
 
 export const AssistantProposalShowSchema = z.object({
   status: z.literal("show"),
-  title: z.string().trim().min(1),
-  message: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(MAX_ASSISTANT_PROPOSAL_TITLE_LENGTH),
+  message: z.string().trim().min(1).max(MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH),
 }).strict();
 
 export const AssistantProposalHideSchema = z.object({

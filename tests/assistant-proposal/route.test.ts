@@ -55,7 +55,7 @@ describe("POST /api/assistant-proposal", () => {
   it("uses Jev's confident fatigue draft as a shortcut", async () => {
     const jevSpy = vi
       .spyOn(jevClient, "requestJev")
-      .mockResolvedValue(jevOutput(0.88));
+      .mockResolvedValue(jevOutput(0.95));
     const openaiSpy = vi
       .spyOn(openaiClient, "requestStrongerReply")
 

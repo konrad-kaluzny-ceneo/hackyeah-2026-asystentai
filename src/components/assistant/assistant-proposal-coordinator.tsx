@@ -18,6 +18,7 @@ import {
 } from "@/lib/assistant-events";
 import {
   getAssistantProposalUiState,
+  setAssistantRequestInFlight,
   setAssistantSearchRecoveryVisible,
   setAssistantServerProposal,
   subscribeAssistantProposalUiState,
@@ -27,6 +28,7 @@ const EMPTY_META_EVENT_HISTORY: readonly MetaEvent[] = [];
 const EMPTY_PROPOSAL_UI_STATE = {
   proposal: null,
   searchRecoveryVisible: false,
+  requestInFlight: false,
 } as const;
 
 /**
@@ -84,6 +86,7 @@ export function AssistantProposalCoordinator() {
         requestAllowedRef.current = false;
         clearAssistantProposalTriggers();
         activeControllerRef.current?.abort();
+        setAssistantRequestInFlight(false);
         setAssistantServerProposal(null);
         setAssistantSearchRecoveryVisible(false);
         setMuted(true);
@@ -115,6 +118,7 @@ export function AssistantProposalCoordinator() {
         const controller = new AbortController();
         activeTriggerRef.current = trigger;
         activeControllerRef.current = controller;
+        setAssistantRequestInFlight(true);
         try {
           const response = await fetch("/api/assistant-proposal", {
             method: "POST",
@@ -154,6 +158,7 @@ export function AssistantProposalCoordinator() {
         } catch {
           // Network failures and aborted requests leave the proposal hidden.
         } finally {
+          setAssistantRequestInFlight(false);
           if (activeControllerRef.current === controller) {
             activeControllerRef.current = null;
             activeTriggerRef.current = null;
@@ -169,6 +174,7 @@ export function AssistantProposalCoordinator() {
     if (!requestAllowed) {
       clearAssistantProposalTriggers();
       activeControllerRef.current?.abort();
+      setAssistantRequestInFlight(false);
       return;
     }
 

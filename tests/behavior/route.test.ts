@@ -6,7 +6,7 @@ import * as intentInference from "@/server/intent-inference/trigger";
 
 vi.mock("@/server/intent-inference/trigger", () => ({
   inferAndSaveIntentSnapshot: vi.fn(),
-  MIN_JEV_INTENT_EVENTS: 5,
+  MIN_JEV_INTENT_EVENTS: 3,
 }));
 
 import { makeMetaEvent, resetFixtureSeed } from "./fixtures";
@@ -31,7 +31,7 @@ describe("POST /api/meta-events", () => {
     vi.mocked(intentInference.inferAndSaveIntentSnapshot).mockReset();
   });
 
-  it("accepts a valid batch and skips intent inference before five events", async () => {
+  it("accepts a valid batch and skips intent inference before three events", async () => {
     const saveBatchSpy = vi
       .spyOn(service, "saveBatch")
       .mockResolvedValue({
@@ -60,8 +60,8 @@ describe("POST /api/meta-events", () => {
     expect(intentInference.inferAndSaveIntentSnapshot).not.toHaveBeenCalled();
   });
 
-  it("runs intent inference on the five most recent persisted events", async () => {
-    const acceptedEvents = Array.from({ length: 5 }, (_, index) =>
+  it("runs intent inference on the three most recent persisted events", async () => {
+    const acceptedEvents = Array.from({ length: 3 }, (_, index) =>
       makeMetaEvent("rage_click", { eventId: `evt-a-00000${index + 1}` }),
     );
     vi.spyOn(service, "saveBatch").mockResolvedValue({
@@ -74,7 +74,7 @@ describe("POST /api/meta-events", () => {
     const response = await POST(
       makeRequest({
         schemaVersion: "1.0",
-        batchId: "batch-test-5",
+        batchId: "batch-test-3",
         sentAt: new Date(0).toISOString(),
         events: acceptedEvents,
       }),
