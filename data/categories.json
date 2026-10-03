@@ -1,0 +1,79 @@
+[
+  {
+    "id": "lodowki",
+    "slug": "lodowki",
+    "name": "Lodówki",
+    "description": "Modele chłodziarko-zamrażarek do różnych kuchni i potrzeb domowych.",
+    "imageUrl": "https://picsum.photos/seed/katalog-lodowki/800/800",
+    "specFilters": [
+      {
+        "key": "capacityLiters",
+        "label": "Pojemność",
+        "unit": "l",
+        "kind": "range",
+        "min": 180,
+        "max": 500
+      },
+      {
+        "key": "heightCm",
+        "label": "Wysokość",
+        "unit": "cm",
+        "kind": "range",
+        "min": 140,
+        "max": 205
+      }
+    ]
+  },
+  {
+    "id": "pralki",
+    "slug": "pralki",
+    "name": "Pralki",
+    "description": "Pralki o zróżnicowanej pojemności i prędkości wirowania.",
+    "imageUrl": "https://picsum.photos/seed/katalog-pralki/800/800",
+    "specFilters": [
+      {
+        "key": "loadKg",
+        "label": "Wsad",
+        "unit": "kg",
+        "kind": "range",
+        "min": 5,
+        "max": 12
+      },
+      {
+        "key": "spinRpm",
+        "label": "Wirowanie",
+        "unit": "obr./min",
+        "kind": "range",
+        "min": 800,
+        "max": 1600
+      }
+    ]
+  },
+  {
+    "id": "zmywarki",
+    "slug": "zmywarki",
+    "name": "Zmywarki",
+    "description": "Zmywarki do zabudowy i wolnostojące w dwóch szerokościach.",
+    "imageUrl": "https://picsum.photos/seed/katalog-zmywarki/800/800",
+    "specFilters": [
+      {
+        "key": "widthCm",
+        "label": "Szerokość",
+        "unit": "cm",
+        "kind": "select",
+        "options": [
+          "45",
+          "60"
+        ]
+      },
+      {
+        "key": "placeSettings",
+        "label": "Komplety naczyń",
+        "unit": "kpl.",
+        "kind": "range",
+        "min": 8,
+        "max": 16
+      }
+    ]
+  }
+]

@@ -2,6 +2,7 @@ import type { PageTypeRule } from "../config/page-types";
 import type { PageType, RawEvent, RawEventName } from "../types";
 
 import type { RawEventBuffer } from "../buffer/buffer";
+import { generateId as generateUniqueId } from "../id";
 import { classifyPathname } from "../page-classifier/classifier";
 import { attachDomTrackers } from "./dom-trackers";
 import { Sequence } from "./sequence";
@@ -73,7 +74,7 @@ const RESERVED_NOT_EMITTED: ReadonlySet<RawEventName> = new Set([
 export function createCollector(options: CollectorOptions): CollectorHandle {
   const buffer = options.buffer;
   const now = options.now ?? Date.now;
-  const generateId = options.generateId ?? defaultGenerateId;
+  const generateId = options.generateId ?? (() => generateUniqueId("raw"));
   const sequence = new Sequence();
   const sessionId = getSessionId();
 
@@ -316,14 +317,4 @@ export function createCollector(options: CollectorOptions): CollectorHandle {
       }
     },
   };
-}
-
-function defaultGenerateId(): string {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
-    return crypto.randomUUID();
-  }
-  return `raw-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
