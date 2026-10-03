@@ -1,8 +1,8 @@
-import { categories, products } from "@/lib/catalog-data";
 import type {
   AssistantProposal,
   CatalogEvent,
   CatalogState,
+  Category,
   CategoryFilter,
   Product,
 } from "@/lib/catalog-types";
@@ -82,7 +82,11 @@ function valuesMatchForFilter(
   return String(firstValue) === String(secondValue);
 }
 
-function areSimilarProducts(first: Product, second: Product): boolean {
+function areSimilarProducts(
+  first: Product,
+  second: Product,
+  categories: Category[],
+): boolean {
   if (first.categorySlug !== second.categorySlug) return false;
 
   const category = categories.find((item) => item.slug === first.categorySlug);
@@ -104,6 +108,7 @@ function areSimilarProducts(first: Product, second: Product): boolean {
 export function DecisionEngine(
   events: CatalogEvent[],
   catalogState: CatalogState,
+  catalog: { categories: Category[]; products: Product[] },
 ): AssistantProposal | null {
   const queryIsActive = catalogState.query.trim().length > 0;
   const filtersAreActive = hasActiveFilters(catalogState.filters);
@@ -153,7 +158,7 @@ export function DecisionEngine(
       break;
     }
     if (event.type === "product_view" && event.categorySlug === catalogState.categorySlug) {
-      const product = products.find((item) => item.slug === event.productSlug);
+      const product = catalog.products.find((item) => item.id === event.productId);
       if (product?.categorySlug === catalogState.categorySlug) {
         viewedProducts.set(product.slug, product);
       }
@@ -171,9 +176,9 @@ export function DecisionEngine(
   const recentProducts = [...viewedProducts.values()];
   const hasSimilarCluster =
     recentProducts.length >= 3 &&
-    areSimilarProducts(recentProducts[0], recentProducts[1]) &&
-    areSimilarProducts(recentProducts[0], recentProducts[2]) &&
-    areSimilarProducts(recentProducts[1], recentProducts[2]);
+    areSimilarProducts(recentProducts[0], recentProducts[1], catalog.categories) &&
+    areSimilarProducts(recentProducts[0], recentProducts[2], catalog.categories) &&
+    areSimilarProducts(recentProducts[1], recentProducts[2], catalog.categories);
 
   return hasSimilarCluster ? decisionFatigueProposal(returnEvent) : null;
 }

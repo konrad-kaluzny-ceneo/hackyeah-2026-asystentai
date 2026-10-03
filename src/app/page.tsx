@@ -1,19 +1,31 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { categories, products } from "@/lib/catalog-data";
+import { connection } from "next/server";
 import { CatalogSearchForm } from "@/components/catalog/catalog-search-form";
+import { CatalogUnavailable } from "@/components/catalog/catalog-unavailable";
+import { getCategories, getProducts } from "@/lib/catalog-repository";
+import type { Category, Product } from "@/lib/catalog-types";
 
 export const metadata: Metadata = {
   title: "Katalog AGD",
   description: "Znajdź sprzęt AGD dopasowany do swojej kuchni i codziennych potrzeb.",
 };
 
-const featuredProducts = products.slice(0, 4);
+export default async function Home() {
+  await connection();
+  let categories: Category[];
+  let products: Product[];
+  try {
+    [categories, products] = await Promise.all([getCategories(), getProducts()]);
+  } catch (error) {
+    console.error("Catalog home query failed", error);
+    return <CatalogUnavailable />;
+  }
+  const featuredProducts = products.slice(0, 4);
 
-export default function Home() {
   return (
-    <main className="flex-1 bg-[#f7f8f6] text-[#17211d]">
+    <main data-catalog-context="" data-route-template="/" className="flex-1 bg-[#f7f8f6] text-[#17211d]">
       <section className="mx-auto grid w-full max-w-7xl gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:py-20">
         <div className="max-w-2xl">
           <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d9e4dc] bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[.16em] text-[#42634f]">
@@ -40,7 +52,7 @@ export default function Home() {
                   href={`/katalog/${category.slug}`}
                   className={`group relative overflow-hidden rounded-2xl bg-white ${index === 0 ? "col-span-2 aspect-[2.15/1]" : "aspect-square"}`}
                 >
-                  <Image src={category.imageUrl} alt="" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 640px) 80vw, 360px" className="object-cover transition duration-500 group-hover:scale-105" />
+                  <Image src={category.imageUrl} alt="" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 640px) 80vw, 360px" className="max-h-full max-w-full object-contain transition duration-500" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-transparent" />
                   <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-2 text-white">
                     <span className="text-lg font-semibold">{category.name}</span>
@@ -51,7 +63,7 @@ export default function Home() {
             </div>
             <div className="mx-1 mt-4 flex items-center justify-between rounded-2xl bg-white/75 px-4 py-3 text-sm text-[#526257]">
               <span>Wybrane urządzenia do domu</span>
-              <span className="font-semibold">72 modele</span>
+              <span className="font-semibold">{products.length} modeli</span>
             </div>
           </div>
         </div>

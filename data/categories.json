@@ -4,7 +4,7 @@
     "slug": "lodowki",
     "name": "Lodówki",
     "description": "Modele chłodziarko-zamrażarek do różnych kuchni i potrzeb domowych.",
-    "imageUrl": "https://picsum.photos/seed/katalog-lodowki/800/800",
+    "imageUrl": "https://image.ceneostatic.pl/data/products/199354056/p-product.jpg",
     "specFilters": [
       {
         "key": "capacityLiters",
@@ -29,7 +29,7 @@
     "slug": "pralki",
     "name": "Pralki",
     "description": "Pralki o zróżnicowanej pojemności i prędkości wirowania.",
-    "imageUrl": "https://picsum.photos/seed/katalog-pralki/800/800",
+    "imageUrl": "https://image.ceneostatic.pl/data/products/200782051/p-product.jpg",
     "specFilters": [
       {
         "key": "loadKg",
@@ -54,7 +54,7 @@
     "slug": "zmywarki",
     "name": "Zmywarki",
     "description": "Zmywarki do zabudowy i wolnostojące w dwóch szerokościach.",
-    "imageUrl": "https://picsum.photos/seed/katalog-zmywarki/800/800",
+    "imageUrl": "https://image.ceneostatic.pl/data/products/200693085/p-product.jpg",
     "specFilters": [
       {
         "key": "widthCm",

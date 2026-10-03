@@ -89,7 +89,16 @@ export class ProductRevisitDetector implements MetaEventDetector {
             distinctIntermediates,
             productId,
           },
-          subject: { type: "product", id: productId },
+          subject: {
+            type: "product",
+            id: productId,
+            ...(qualifying[1].subject?.categoryId !== undefined && {
+              categoryId: qualifying[1].subject.categoryId,
+            }),
+            ...(qualifying[1].subject?.brandId !== undefined && {
+              brandId: qualifying[1].subject.brandId,
+            }),
+          },
           eventId: this.generateEventId(),
           detectedAtMs: qualifying[1].timestamp,
         }),

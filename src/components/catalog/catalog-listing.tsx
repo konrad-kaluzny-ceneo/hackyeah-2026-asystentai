@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { AssistantInline } from "@/components/assistant/assistant-inline";
 import { trackCatalogEvent } from "@/lib/assistant-events";
 import { CLEAR_GLOBAL_SEARCH_EVENT } from "@/lib/catalog-ui-events";
+import type { ActiveFilter } from "@/behavior/types";
 import type { CatalogState, Category, Product } from "@/lib/catalog-types";
 
 const PAGE_SIZE = 20;
@@ -61,6 +62,19 @@ export default function CatalogListing({ category, products, initialQuery = "" }
   const pageProducts = visibleProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const state: CatalogState = { categorySlug, query, filters, resultCount: visibleProducts.length, page: safePage };
   const brands = [...new Set(products.map((product) => product.brand))].sort((a, b) => a.localeCompare(b, "pl-PL"));
+  const activeFilters: ActiveFilter[] = [];
+  if (filters.priceMin || filters.priceMax) activeFilters.push({ id: "price" });
+  if (filters.brand) {
+    const brandId = products.find((product) => product.brand === filters.brand)?.brandId;
+    if (brandId) activeFilters.push({ id: "brand", valueIds: [brandId] });
+  }
+  for (const spec of category?.specFilters ?? []) {
+    if (spec.kind === "select" && filters[spec.key]) {
+      activeFilters.push({ id: spec.key, valueIds: [filters[spec.key]] });
+    } else if (spec.kind === "range" && (filters[`${spec.key}Min`] || filters[`${spec.key}Max`])) {
+      activeFilters.push({ id: spec.key });
+    }
+  }
 
   function updateFilter(key: string, value: string) {
     const next = { ...filters };
@@ -88,7 +102,14 @@ export default function CatalogListing({ category, products, initialQuery = "" }
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-5 pb-16 pt-6 sm:px-8">
+    <div
+      data-catalog-context=""
+      data-route-template={category ? "/katalog/[categorySlug]" : "/katalog"}
+      data-catalog-category-id={category?.id}
+      data-catalog-category-slug={category?.slug}
+      data-active-filters={JSON.stringify(activeFilters)}
+      className="mx-auto w-full max-w-7xl px-5 pb-16 pt-6 sm:px-8"
+    >
       <div className="mb-5 flex flex-wrap items-center gap-2 text-xs text-[#819087]">
         <Link href="/" className="hover:text-[#345743]">Strona główna</Link><span>/</span>
         {category ? <Link href="/katalog" className="hover:text-[#345743]">Katalog</Link> : <span>Katalog</span>}
@@ -177,7 +198,11 @@ export default function CatalogListing({ category, products, initialQuery = "" }
           )}
 
           <div className="mt-6">
-            <AssistantInline state={state} onClearSearchAndFilters={clearSearchAndFilters} />
+            <AssistantInline
+              state={state}
+              catalog={{ categories: category ? [category] : [], products }}
+              onClearSearchAndFilters={clearSearchAndFilters}
+            />
           </div>
 
           {totalPages > 1 && (
@@ -197,9 +222,9 @@ export default function CatalogListing({ category, products, initialQuery = "" }
 
 export function ProductCard({ product }: { product: Product }) {
   return (
-    <Link href={`/produkt/${product.slug}`} className="group flex h-full flex-col rounded-2xl border border-[#e3e9e4] bg-white p-3 transition hover:-translate-y-0.5 hover:border-[#c7d6ca] hover:shadow-[0_12px_30px_rgba(29,53,37,.08)]">
+    <Link href={`/produkt/${product.slug}`} data-element-id="product-card" data-subject-product-id={product.id} data-subject-category-id={product.categoryId} data-subject-brand-id={product.brandId} className="group flex h-full flex-col rounded-2xl border border-[#e3e9e4] bg-white p-3 transition hover:-translate-y-0.5 hover:border-[#c7d6ca] hover:shadow-[0_12px_30px_rgba(29,53,37,.08)]">
       <div className="relative aspect-[1.2/1] overflow-hidden rounded-xl bg-[#f3f6f3]">
-        <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 640px) 90vw, (max-width: 1280px) 44vw, 300px" className="object-cover transition duration-500 group-hover:scale-105" />
+        <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 640px) 90vw, (max-width: 1280px) 44vw, 300px" className="max-h-full max-w-full object-contain transition duration-500" />
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#65756b]">{product.brand}</span>
       </div>
       <div className="flex flex-1 flex-col px-1 pb-1 pt-4">

@@ -8,16 +8,13 @@ export type PageTypeRule = Readonly<{
 /**
  * URL → PageType rules. Ordered: the FIRST matching rule wins.
  *
- * Keep in sync with real routes in `src/app/`. As of 2026-10-03 only
- * `/` and `/katalog` exist; everything else falls through to "unknown".
+ * Keep in sync with the real routes in `src/app/`.
  * See docs/adding-page-type.md for how to extend.
  */
 export const PAGE_TYPE_RULES: readonly PageTypeRule[] = [
   { type: "home", pattern: /^\/$/ },
+  { type: "product", pattern: /^\/produkt(?:\/|$)/ },
   { type: "catalog", pattern: /^\/katalog(?:\/|$)/ },
-  // Future routes (reserved; do not enable until the corresponding
-  // route exists in src/app/):
-  // { type: "search", pattern: /^\/search(?:\/|$)/ },
-  // { type: "category", pattern: /^\/kategoria(?:\/|$)/ },
-  // { type: "product", pattern: /^\/produkt(?:\/|$)/ },
+  // Search is represented by the existing Polish /katalog route and its
+  // query is never included in the sanitized route template.
 ] as const;

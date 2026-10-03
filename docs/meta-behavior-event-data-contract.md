@@ -88,6 +88,23 @@ W kontrakcie istnieją też nazwy przygotowane na przyszłość, np.
 `technical_friction` i `sustained_product_interest`. Nie należy zakładać, że
 te rekordy już powstają, dopóki detektory nie zostaną zarejestrowane.
 
+### Identyfikatory i trasy katalogu AGD
+
+W aplikacji identyfikatory katalogowe są kluczami głównymi PostgreSQL, nie
+slugami z adresów URL:
+
+- `subject.id` dla produktu oraz `metrics.productId` wskazują `products.id`;
+- `subject.categoryId` wskazuje `categories.id`;
+- `subject.brandId` wskazuje `brands.id`.
+
+Aktualne bezpieczne szablony tras to `/`, `/katalog`,
+`/katalog/[categorySlug]` i `/produkt/[productSlug]`. Wartość
+`route_template` nie zawiera query stringa. Parametry z wyszukiwarki oraz
+numeryczne wartości pól filtrów nie są wysyłane. Aktywne filtry są opisywane
+przez stabilne identyfikatory: dla filtra zakresowego zapisujemy samo `id`, a
+dla wyboru opcji `id` i `valueIds`. `sortingType` pozostaje pominięte, dopóki
+interfejs nie udostępnia sortowania.
+
 ## 5. Struktura pól JSONB
 
 ### `ecommerce_context`

@@ -24,18 +24,73 @@ export class DemoContextProvider implements EcommerceContextProvider {
   constructor(private readonly input: DemoContextProviderInput) {}
 
   getContext(): EcommerceContext {
+    const catalogContext = readCatalogContext();
     return {
       pageType: this.input.pageType,
       pathname: sanitizePathname(this.input.pathname),
-      routeTemplate: this.input.routeTemplate,
+      routeTemplate: catalogContext.routeTemplate ?? this.input.routeTemplate,
       previousPageType: this.input.previousPageType,
-      activeFilters: [],
-      activeFiltersCount: 0,
+      categoryId: catalogContext.categoryId,
+      productId: catalogContext.productId,
+      brandId: catalogContext.brandId,
+      activeFilters: catalogContext.activeFilters,
+      activeFiltersCount: catalogContext.activeFilters.length,
       viewportClass: getViewportClass(),
       deviceClass: getDeviceClass(),
       currentJourneyStage: "browsing",
     };
   }
+}
+
+const ROUTE_TEMPLATES = new Set([
+  "/",
+  "/katalog",
+  "/katalog/[categorySlug]",
+  "/produkt/[productSlug]",
+]);
+
+function readCatalogContext(): {
+  routeTemplate?: string;
+  categoryId?: string;
+  productId?: string;
+  brandId?: string;
+  activeFilters: EcommerceContext["activeFilters"];
+} {
+  if (typeof document === "undefined") return { activeFilters: [] };
+  const element = document.querySelector<HTMLElement>("[data-catalog-context]");
+  if (!element) return { activeFilters: [] };
+
+  let activeFilters: EcommerceContext["activeFilters"] = [];
+  try {
+    const parsed: unknown = JSON.parse(element.dataset.activeFilters ?? "[]");
+    if (Array.isArray(parsed)) {
+      activeFilters = parsed.flatMap((filter: unknown): EcommerceContext["activeFilters"][number][] => {
+        if (
+          typeof filter !== "object" ||
+          filter === null ||
+          !("id" in filter) ||
+          typeof filter.id !== "string" ||
+          filter.id.length === 0 ||
+          filter.id.length > 128
+        ) return [];
+        const valueIds = "valueIds" in filter && Array.isArray(filter.valueIds)
+          ? filter.valueIds.filter((value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 128)
+          : undefined;
+        return [{ id: filter.id, ...(valueIds && valueIds.length > 0 ? { valueIds } : {}) }];
+      });
+    }
+  } catch {
+    activeFilters = [];
+  }
+
+  const routeTemplate = element.dataset.routeTemplate;
+  return {
+    ...(routeTemplate && ROUTE_TEMPLATES.has(routeTemplate) ? { routeTemplate } : {}),
+    ...(element.dataset.catalogCategoryId ? { categoryId: element.dataset.catalogCategoryId } : {}),
+    ...(element.dataset.catalogProductId ? { productId: element.dataset.catalogProductId } : {}),
+    ...(element.dataset.catalogBrandId ? { brandId: element.dataset.catalogBrandId } : {}),
+    activeFilters,
+  };
 }
 
 function sanitizePathname(pathname: string): string {
