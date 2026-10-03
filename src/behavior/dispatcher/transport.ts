@@ -17,9 +17,9 @@ export interface TransportOptions {
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 
 /**
- * Delivery transport for meta event batches. Prefers `navigator.sendBeacon`
- * (no main-thread blocking, tab-close-safe) and falls back to `fetch` with
- * keepalive, then plain `fetch`.
+ * Delivery transport for meta event batches. Uses `fetch` first so an HTTP
+ * rejection is observable, then falls back to `sendBeacon` only when no fetch
+ * response can be obtained (for example while the page is unloading).
  */
 export function createTransport(options: TransportOptions): Transport {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch?.bind(globalThis);
@@ -42,42 +42,54 @@ export function createTransport(options: TransportOptions): Transport {
       } catch {
         return false;
       }
-      if (sendBeacon !== undefined) {
+      if (fetchImpl !== undefined) {
         try {
-          const queued = sendBeacon(options.endpoint, body);
-          if (queued) {
-            return true;
-          }
+          const response = await fetchImpl(options.endpoint, {
+            method: "POST",
+            headers: JSON_HEADERS,
+            body,
+            keepalive: true,
+          });
+          return response.ok;
         } catch {
-          // fall through to fetch
+          if (isDocumentExiting()) {
+            return deliverWithBeacon(sendBeacon, options.endpoint, body);
+          }
+          // An active page can still wait for a response without keepalive.
+          try {
+            const response = await fetchImpl(options.endpoint, {
+              method: "POST",
+              headers: JSON_HEADERS,
+              body,
+            });
+            return response.ok;
+          } catch {
+            // Continue to sendBeacon when no HTTP response was available.
+          }
         }
       }
-      if (fetchImpl === undefined) {
-        return false;
-      }
-      try {
-        const response = await fetchImpl(options.endpoint, {
-          method: "POST",
-          headers: JSON_HEADERS,
-          body,
-          keepalive: true,
-        });
-        if (response.ok) {
-          return true;
-        }
-      } catch {
-        // network error — final fallback below
-      }
-      try {
-        const response = await fetchImpl(options.endpoint, {
-          method: "POST",
-          headers: JSON_HEADERS,
-          body,
-        });
-        return response.ok;
-      } catch {
-        return false;
-      }
+      return deliverWithBeacon(sendBeacon, options.endpoint, body);
     },
   };
+}
+
+function isDocumentExiting(): boolean {
+  return (
+    typeof document !== "undefined" && document.visibilityState === "hidden"
+  );
+}
+
+function deliverWithBeacon(
+  sendBeacon: TransportOptions["sendBeacon"],
+  endpoint: string,
+  body: string,
+): boolean {
+  if (sendBeacon === undefined) {
+    return false;
+  }
+  try {
+    return sendBeacon(endpoint, body);
+  } catch {
+    return false;
+  }
 }

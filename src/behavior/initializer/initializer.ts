@@ -14,6 +14,7 @@ import type { MetaEventIdGenerator } from "../detectors/base";
 import {
   createDispatcher,
   type DispatcherHandle,
+  type SentBatch,
 } from "../dispatcher/dispatcher";
 import { createTransport } from "../dispatcher/transport";
 import { generateId as generateUniqueId } from "../id";
@@ -23,6 +24,7 @@ export interface BehaviorTrackerOptions {
   readonly endpoint?: string;
   readonly generateId?: MetaEventIdGenerator;
   readonly now?: () => number;
+  readonly onBatchSent?: (batch: SentBatch) => void;
 }
 
 export interface BehaviorTracker {
@@ -74,6 +76,7 @@ export function initBehaviorTracker(
     }),
     generateBatchId: generateId,
     now,
+    onBatchSent: options.onBatchSent,
   });
 
   const deduplicator = new Deduplicator({

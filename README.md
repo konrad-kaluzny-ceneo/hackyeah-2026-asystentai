@@ -1,8 +1,14 @@
 # Asystent AI — intencje na bieżąco
 
+<<<<<<< HEAD
 Demo katalogu AGD z lodówkami, pralkami i zmywarkami. Katalog jest
 odczytywany z PostgreSQL, a asystent w sesji anonimowej może zaproponować
 pojedynczy następny krok na podstawie lokalnej historii przeglądania.
+=======
+Demo katalogu AGD. Asystent proponuje co najwyżej jeden następny krok z faktów przeglądania. Sesja jest anonimowa.
+
+Katalog jest na `/`, `/katalog`, `/katalog/[kategoria]` i `/produkt/[slug]`. Fakty sesji klasyfikuje `DecisionEngine`. Pipeline `src/behavior/` zapisuje osobne obserwacje UI i nie zasila asystenta. Granica domeny: [context/foundation/domain.md](context/foundation/domain.md).
+>>>>>>> origin/main
 
 Reguły produktu: [context/foundation/prd.md](context/foundation/prd.md). Kolejność slice’ów: [context/foundation/roadmap.md](context/foundation/roadmap.md).
 
@@ -15,10 +21,17 @@ npm run dev
 
 Aplikacja nasłuchuje na [http://localhost:3000](http://localhost:3000).
 
+<<<<<<< HEAD
 - `/` — strona główna
 - `/katalog` — kategorie i globalne wyniki wyszukiwania
 - `/katalog/[categorySlug]` — listing z filtrami i paginacją
 - `/produkt/[productSlug]` — szczegóły i rekomendacje produktu
+=======
+- `/` — wejście do katalogu
+- `/katalog` — kategorie, a z parametrem `q` lista wyników
+- `/katalog/[kategoria]` — lista, filtry i podpowiedź asystenta
+- `/produkt/[slug]` — karta produktu
+>>>>>>> origin/main
 
 ```bash
 npm run lint

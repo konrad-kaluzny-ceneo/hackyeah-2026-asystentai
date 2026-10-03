@@ -75,7 +75,7 @@ export function AssistantInline({
         {proposal.title}
       </h2>
       <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
-      {proposal.kind === "empty-results" ? (
+      {proposal.kind === "search_friction" ? (
         <button
           type="button"
           onClick={onClearSearchAndFilters}

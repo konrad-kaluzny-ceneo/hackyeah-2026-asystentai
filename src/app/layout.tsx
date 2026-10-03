@@ -6,7 +6,7 @@ import { getCategories } from "@/lib/catalog-repository";
 import type { Category } from "@/lib/catalog-types";
 import { CatalogSessionTracker } from "@/components/assistant/catalog-session-tracker";
 import SiteHeader from "@/components/site-header";
-import { BehaviorTracker } from "./behavior-tracker";
+import { BehaviorDebugShell } from "./behavior-debug-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -43,6 +43,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <p>Katalog demonstracyjny · przykładowe modele i parametry</p>
           </div>
         </footer>
+<<<<<<< HEAD
+=======
+        <BehaviorDebugShell />
+>>>>>>> origin/main
       </body>
     </html>
   );
