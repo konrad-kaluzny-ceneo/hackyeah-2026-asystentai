@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { POST, resetLimitersForTest } from "@/app/api/assistant-proposal/route";
+import {
+  MAX_REQUEST_BODY_BYTES,
+  POST,
+  resetLimitersForTest,
+} from "@/app/api/assistant-proposal/route";
 import { parseAssistantProposalResponse } from "@/lib/assistant-proposal-api";
+import * as proposalStub from "@/server/assistant-proposal/openai-stub";
 import * as jevClient from "@/server/assistant-proposal/jev-client";
+import { makeMetaEvent, resetFixtureSeed } from "../behavior/fixtures";
 
 function makeRequest(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://localhost/api/assistant-proposal", {
@@ -12,67 +18,50 @@ function makeRequest(body: unknown, headers: Record<string, string> = {}) {
   }) as unknown as Parameters<typeof POST>[0];
 }
 
-const validRequestBody = {
-  state: {
-    categorySlug: "lodowki",
-    query: "",
-    filters: {},
-    resultCount: 12,
-    page: 1,
+function jevOutput(confidence: number, situation = "DECISION_FATIGUE") {
+  return {
+    situation,
+    proposal: {
+      confidence,
+      hedging_required: true,
+      message_draft: null,
+    },
+  };
+}
+
+const validEvent = makeMetaEvent("rage_click", {
+  eventId: "evt-hidden-identifier",
+  detectedAt: "2026-10-03T14:00:00.000Z",
+  identity: {
+    sessionId: "session-hidden-token",
+    pageViewId: "pageview-hidden-token",
   },
-  events: [
-    {
-      id: "e1",
-      timestamp: "2026-10-03T14:00:00.000Z",
-      type: "product_view",
-      categorySlug: "lodowki",
-      productSlug: "lodowka-a",
-      productId: "p1",
-      categoryId: "c1",
-      brandId: "b1",
-    },
-    {
-      id: "e2",
-      timestamp: "2026-10-03T14:01:00.000Z",
-      type: "product_view",
-      categorySlug: "lodowki",
-      productSlug: "lodowka-b",
-      productId: "p2",
-      categoryId: "c1",
-      brandId: "b2",
-    },
-    {
-      id: "e3",
-      timestamp: "2026-10-03T14:02:00.000Z",
-      type: "return_to_listing",
-      categorySlug: "lodowki",
-      categoryId: "c1",
-    },
-    {
-      id: "e4",
-      timestamp: "2026-10-03T14:02:01.000Z",
-      type: "listing_view",
-      categorySlug: "lodowki",
-      categoryId: "c1",
-    },
-  ],
-};
+  page: { type: "catalog", pathname: "/secret/catalog/path" },
+  metrics: { clickCount: 3, windowMs: 1000, elementId: "product-card" },
+  quality: {
+    strength: 0.99,
+    evidenceCount: 2,
+    algorithmVersion: "1.0",
+    partialData: false,
+  },
+});
+
+const validRequestBody = { metaEvents: [validEvent] };
 
 describe("POST /api/assistant-proposal", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     resetLimitersForTest();
+    resetFixtureSeed();
   });
 
-  it("returns show response when Jev meets shortcut criteria", async () => {
-    const jevSpy = vi.spyOn(jevClient, "requestJev").mockResolvedValue({
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.88,
-        hedging_required: false,
-        message_draft: "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
-      },
-    });
+  it("returns the deterministic proposal when Jev confidence is above 0.75", async () => {
+    const jevSpy = vi
+      .spyOn(jevClient, "requestJev")
+      .mockResolvedValue(jevOutput(0.76));
+    const stubSpy = vi
+      .spyOn(proposalStub, "generateProposalWithOpenAiStub")
+      .mockResolvedValue({ title: "Stały tytuł", message: "Stała treść demo." });
 
     const response = await POST(
       makeRequest(validRequestBody, { "x-real-ip": "10.0.0.1" }),
@@ -83,131 +72,156 @@ describe("POST /api/assistant-proposal", () => {
     expect(json).toEqual({
       status: "show",
       kind: "decision_fatigue",
-      title: "Pomóc zawęzić wybór?",
-      message: "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
+      title: "Stały tytuł",
+      message: "Stała treść demo.",
       action: "narrow-choice",
       actionLabel: "Przejdź do filtrów",
     });
-
-    // Validates against shared contract schema
     expect(parseAssistantProposalResponse(json)).toEqual(json);
     expect(jevSpy).toHaveBeenCalledOnce();
+    expect(stubSpy).toHaveBeenCalledOnce();
+    expect(stubSpy).toHaveBeenCalledWith(jevOutput(0.76));
+
+    const prompt = jevSpy.mock.calls[0]![0];
+    expect(prompt).toContain("event=rage_click");
+    expect(prompt).toContain("clickCount=3");
+    expect(prompt).toContain("+0ms");
+    expect(prompt).not.toContain("evt-hidden-identifier");
+    expect(prompt).not.toContain("session-hidden-token");
+    expect(prompt).not.toContain("pageview-hidden-token");
+    expect(prompt).not.toContain("/secret/catalog/path");
+    expect(prompt).not.toContain("2026-10-03T14:00:00.000Z");
+    expect(prompt).not.toContain("0.99");
   });
 
-  it("returns hide when Jev client throws or aborts", async () => {
+  it("uses the fixed local stub copy without a model call", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(0.9));
+
+    const response = await POST(makeRequest(validRequestBody));
+
+    expect(await response.json()).toEqual({
+      status: "show",
+      kind: "decision_fatigue",
+      title: "Pomóc zawęzić wybór?",
+      message:
+        "Wybierzmy jeden parametr, na przykład pojemność, aby szybciej zawęzić wyniki.",
+      action: "narrow-choice",
+      actionLabel: "Przejdź do filtrów",
+    });
+  });
+
+  it.each([0.75, 0.7])("returns hide and skips the stub at confidence %s", async (confidence) => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(confidence));
+    const stubSpy = vi.spyOn(proposalStub, "generateProposalWithOpenAiStub");
+
+    const response = await POST(makeRequest(validRequestBody));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "hide" });
+    expect(stubSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns hide for a high-confidence non-fatigue situation", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(
+      jevOutput(0.95, "PRODUCT_HESITATION"),
+    );
+    const stubSpy = vi.spyOn(proposalStub, "generateProposalWithOpenAiStub");
+
+    const response = await POST(makeRequest(validRequestBody));
+
+    expect(await response.json()).toEqual({ status: "hide" });
+    expect(stubSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns hide when Jev throws, times out, or returns an invalid shape", async () => {
     const jevSpy = vi
       .spyOn(jevClient, "requestJev")
-      .mockRejectedValue(new Error("Timeout / connection abort"));
+      .mockRejectedValueOnce(new Error("Timeout / connection abort"))
+      .mockResolvedValueOnce({ not_a_valid_field: true });
 
-    const response = await POST(
-      makeRequest(validRequestBody, { "x-real-ip": "10.0.0.2" }),
-    );
+    for (let index = 0; index < 2; index += 1) {
+      const response = await POST(makeRequest(validRequestBody));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ status: "hide" });
+    }
+    expect(jevSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns hide when the local proposal stub fails or returns invalid copy", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(0.9));
+    const stubSpy = vi
+      .spyOn(proposalStub, "generateProposalWithOpenAiStub")
+      .mockRejectedValueOnce(new Error("stub failure"))
+      .mockResolvedValueOnce({ title: "  ", message: "  " });
+
+    for (let index = 0; index < 2; index += 1) {
+      const response = await POST(makeRequest(validRequestBody));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ status: "hide" });
+    }
+    expect(stubSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects invalid, empty, catalog, raw-event, and over-10-event bodies before Jev", async () => {
+    const jevSpy = vi.spyOn(jevClient, "requestJev");
+    const invalidBodies = [
+      "not-json",
+      { metaEvents: [] },
+      { state: { query: "fridge" }, events: [], metaEvents: [validEvent] },
+      { metaEvents: [{ type: "product_view", pathname: "/catalog/product" }] },
+      { metaEvents: Array.from({ length: 11 }, () => validEvent) },
+    ];
+
+    for (const body of invalidBodies) {
+      const response = await POST(makeRequest(body));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ status: "hide" });
+    }
+    expect(jevSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects bodies over 64 KiB before calling Jev", async () => {
+    const jevSpy = vi.spyOn(jevClient, "requestJev");
+
+    const response = await POST(makeRequest("x".repeat(MAX_REQUEST_BODY_BYTES + 1)));
 
     expect(response.status).toBe(200);
-    const json = await response.json();
-    expect(json).toEqual({ status: "hide" });
-    expect(jevSpy).toHaveBeenCalledOnce();
+    expect(await response.json()).toEqual({ status: "hide" });
+    expect(jevSpy).not.toHaveBeenCalled();
   });
 
-  it("returns hide when Jev returns invalid schema output", async () => {
-    vi.spyOn(jevClient, "requestJev").mockResolvedValue({
-      not_a_valid_field: true,
-    });
+  it("enforces the process rate limit without calling Jev after the limit", async () => {
+    const jevSpy = vi
+      .spyOn(jevClient, "requestJev")
+      .mockResolvedValue(jevOutput(0.9));
 
-    const response = await POST(
-      makeRequest(validRequestBody, { "x-real-ip": "10.0.0.3" }),
-    );
-
-    expect(response.status).toBe(200);
-    const json = await response.json();
-    expect(json).toEqual({ status: "hide" });
-  });
-
-  it("returns hide when confidence is below 0.75 in Phase 1 (needs_openai)", async () => {
-    vi.spyOn(jevClient, "requestJev").mockResolvedValue({
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.7,
-        hedging_required: false,
-        message_draft: "Może warto sprawdzić inne wymiary.",
-      },
-    });
-
-    const response = await POST(
-      makeRequest(validRequestBody, { "x-real-ip": "10.0.0.4" }),
-    );
-
-    expect(response.status).toBe(200);
-    const json = await response.json();
-    expect(json).toEqual({ status: "hide" });
-  });
-
-  it("returns 400 when request body fails validation", async () => {
-    const response = await POST(
-      makeRequest({ state: "invalid" }, { "x-real-ip": "10.0.0.5" }),
-    );
-
-    expect(response.status).toBe(400);
-    const json = (await response.json()) as { error: string };
-    expect(json.error).toBe("validation_failed");
-  });
-
-  it("enforces rate limit: 31st request from same IP within 60s returns hide without calling Jev", async () => {
-    const jevSpy = vi.spyOn(jevClient, "requestJev").mockResolvedValue({
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.9,
-        hedging_required: false,
-        message_draft: "Skrót testowy.",
-      },
-    });
-
-    // Make 10 requests (process limit is 10, so let's test process limiter and IP limiter)
-    // First, let's reset to test specifically IP limiter:
-    // With process limit = 10, requests 1-10 are allowed, 11th hits process limit.
-    for (let i = 0; i < 10; i++) {
-      const res = await POST(
+    for (let index = 0; index < 10; index += 1) {
+      const response = await POST(
         makeRequest(validRequestBody, { "x-real-ip": "10.1.1.1" }),
       );
-      expect(res.status).toBe(200);
+      expect(response.status).toBe(200);
     }
-
     expect(jevSpy).toHaveBeenCalledTimes(10);
 
-    // 11th request hits the process limiter
-    const res11 = await POST(
+    const limited = await POST(
       makeRequest(validRequestBody, { "x-real-ip": "10.1.1.1" }),
     );
-    expect(res11.status).toBe(200);
-    expect(await res11.json()).toEqual({ status: "hide" });
-    // Jev should NOT be called on 11th request
+    expect(await limited.json()).toEqual({ status: "hide" });
     expect(jevSpy).toHaveBeenCalledTimes(10);
   });
 
-  it("enforces IP rate limit: 31st request from same IP returns hide without calling Jev (when process limit allows)", async () => {
-    const jevSpy = vi.spyOn(jevClient, "requestJev").mockResolvedValue({
-      situation: "DECISION_FATIGUE",
-      proposal: {
-        confidence: 0.9,
-        hedging_required: false,
-        message_draft: "Skrót testowy.",
-      },
-    });
-
-    // Temporarily increase process limit or check IP limiter directly to test 31st IP call
+  it("enforces the per-IP rate limit", async () => {
+    const jevSpy = vi.spyOn(jevClient, "requestJev");
     const { ipLimiter } = await import("@/app/api/assistant-proposal/route");
-    for (let i = 0; i < 30; i++) {
+    for (let index = 0; index < 30; index += 1) {
       expect(ipLimiter.check("192.168.1.100").allowed).toBe(true);
     }
-    const check31 = ipLimiter.check("192.168.1.100");
-    expect(check31.allowed).toBe(false);
+    expect(ipLimiter.check("192.168.1.100").allowed).toBe(false);
 
-    // Now send request from that IP
-    const res = await POST(
+    const response = await POST(
       makeRequest(validRequestBody, { "x-real-ip": "192.168.1.100" }),
     );
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "hide" });
+    expect(await response.json()).toEqual({ status: "hide" });
     expect(jevSpy).not.toHaveBeenCalled();
   });
 });

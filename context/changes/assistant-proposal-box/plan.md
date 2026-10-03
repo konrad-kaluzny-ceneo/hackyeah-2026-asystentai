@@ -259,27 +259,27 @@ The request contract changes from `{ state, events: CatalogEvent[] }` to `{ meta
 
 #### Automated
 
-- [x] 1.1 Add bounded MetaEvent history store and tests.
-- [x] 1.2 Publish full successful dispatcher batches to the app store without using debug-store.
-- [x] 1.3 Run focused behavior tests and typecheck.
+- [x] 1.1 Add bounded MetaEvent history store and tests. — e9aba2a
+- [x] 1.2 Publish full successful dispatcher batches to the app store without using debug-store. — e9aba2a
+- [x] 1.3 Run focused behavior tests and typecheck. — e9aba2a
 
 #### Manual
 
-- [x] 1.4 Verify recent history updates only after `/api/meta-events` receives HTTP 2xx and is capped at 10.
+- [x] 1.4 Verify recent history updates only after `/api/meta-events` receives HTTP 2xx and is capped at 10. — e9aba2a
 
 ### Phase 2: MetaEvents-Only Jev Route and Proposal Stub
 
 #### Automated
 
-- [ ] 2.1 Extract/reuse strict shared MetaEvent validation and change request schema to events-only.
-- [ ] 2.2 Add MetaEvent-only prompt, strict confidence gate, and deterministic proposal stub.
-- [ ] 2.3 Update route, interface, S-04 notes, PRD/roadmap acceptance, and focused tests.
-- [ ] 2.4 Run focused assistant/meta-event validation tests and typecheck.
+- [x] 2.1 Extract/reuse strict shared MetaEvent validation and change request schema to events-only.
+- [x] 2.2 Add MetaEvent-only prompt, strict confidence gate, and deterministic proposal stub.
+- [x] 2.3 Update route, interface, S-04 notes, PRD/roadmap acceptance, and focused tests.
+- [x] 2.4 Run focused assistant/meta-event validation tests and typecheck.
 
 #### Manual
 
-- [ ] 2.5 Verify `0.76` calls stub and returns `show`; `0.75` returns `hide` without OpenAI network traffic.
-- [ ] 2.6 Verify invalid/oversized inputs and Jev/stub failures return `hide`.
+- [x] 2.5 Verify `0.76` calls stub and returns `show`; `0.75` returns `hide` without OpenAI network traffic.
+- [x] 2.6 Verify invalid/oversized inputs and Jev/stub failures return `hide`.
 
 ### Phase 3: Wire the Existing Assistant Box
 
