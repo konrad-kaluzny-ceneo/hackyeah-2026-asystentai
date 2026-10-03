@@ -52,6 +52,7 @@ Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can d
 
 - `npm run dev` — local app at http://localhost:3000.
 - `npm run lint` — ESLint (`@eslint.config.mjs`).
+- `npm run typecheck` — `tsc --noEmit`.
 - `npm run build` — production build. Run it before a PR that changes the app.
 - `npm test` — Vitest suite under `tests/` (`@vitest.config.ts`, happy-dom). Use `npm run test:watch` while iterating.
 - `npm run db:generate` — drizzle-kit generates SQL migrations into `drizzle/` from `@src/lib/db/schema.ts`.
