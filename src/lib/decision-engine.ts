@@ -26,6 +26,7 @@ function emptyResultsProposal(events: CatalogEvent[], state: CatalogState): Assi
     message: "Wyczyść wyszukiwanie i filtry, aby zobaczyć cały katalog w tej kategorii.",
     actionLabel: "Wyczyść wyszukiwanie i filtry",
     action: "clear-search-and-filters",
+    data: { target: "catalog", filterKeys: [] },
     createdAt: latestEvent?.timestamp ?? latestTimestamp(events),
   };
 }
@@ -48,6 +49,7 @@ function decisionFatigueProposal(
       "Wybierz jeden parametr, który jest dla Ciebie najważniejszy, i zawęź nim wyniki.",
     actionLabel: "Przejdź do filtrów",
     action: "narrow-choice",
+    data: { target: "filters", filterKeys: [] },
     createdAt: returnEvent.timestamp,
   };
 }

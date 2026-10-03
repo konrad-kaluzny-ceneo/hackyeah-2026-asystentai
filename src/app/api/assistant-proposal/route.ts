@@ -4,11 +4,11 @@ import {
   AssistantProposalRequestSchema,
   type AssistantProposalResponse,
 } from "@/lib/assistant-proposal-api";
+import type { CategoryFilter } from "@/lib/catalog-types";
+import { getCategoryFilters } from "@/server/assistant-proposal/category-filters";
+import { composeProposal } from "@/server/assistant-proposal/compose";
 import { InMemoryRateLimiter } from "@/server/meta-events/rate-limit";
-import { requestJev } from "@/server/assistant-proposal/jev-client";
 import { buildAssistantPrompt } from "@/server/assistant-proposal/prompt";
-import { routeJevOutput } from "@/server/assistant-proposal/route-decision";
-import { JevAssistantOutputSchema } from "@/server/assistant-proposal/schema";
 
 // 30 requests per 60 seconds per IP, 10 requests per 60 seconds per process
 export const IP_LIMIT = 30;
@@ -35,6 +35,25 @@ export function extractClientKey(request: NextRequest): string {
     return real;
   }
   return "anonymous";
+}
+
+async function readAvailableFilters(
+  categorySlug: string | null,
+): Promise<CategoryFilter[]> {
+  if (!categorySlug) return [];
+
+  try {
+    return await getCategoryFilters(categorySlug);
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        component: "assistant-proposal",
+        action: "category_filters_unavailable",
+        error: error instanceof Error ? error.message : "unknown",
+      }),
+    );
+    return [];
+  }
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
@@ -64,40 +83,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  // 3. Compose prompt & call Jev with 3-second abort signal
-  const prompt = buildAssistantPrompt(parsedRequest.data);
-
-  let rawJevOutput: unknown;
-  try {
-    const signal = AbortSignal.timeout(JEV_TIMEOUT_MS);
-    rawJevOutput = await requestJev(prompt, signal);
-  } catch {
-    const hideResponse: AssistantProposalResponse = { status: "hide" };
-    return NextResponse.json(hideResponse, { status: 200 });
-  }
-
-  // 4. Validate Jev output schema
-  const parsedJev = JevAssistantOutputSchema.safeParse(rawJevOutput);
-  if (!parsedJev.success) {
-    const hideResponse: AssistantProposalResponse = { status: "hide" };
-    return NextResponse.json(hideResponse, { status: 200 });
-  }
-
-  // 5. Evaluate route decision
-  const decision = routeJevOutput(parsedJev.data);
-  if (decision.decision === "shortcut") {
-    const showResponse: AssistantProposalResponse = {
-      status: "show",
-      kind: "decision_fatigue",
-      title: "Pomóc zawęzić wybór?",
-      message: decision.message,
-      action: "narrow-choice",
-      actionLabel: "Przejdź do filtrów",
-    };
-    return NextResponse.json(showResponse, { status: 200 });
-  }
-
-  // Phase 1: needs_openai returns hide (OpenAI branch added in Phase 2)
-  const hideResponse: AssistantProposalResponse = { status: "hide" };
-  return NextResponse.json(hideResponse, { status: 200 });
+  // 3. Compose the proposal through Jev and, when needed, OpenAI
+  const availableFilters = await readAvailableFilters(
+    parsedRequest.data.state.categorySlug,
+  );
+  const prompt = buildAssistantPrompt(parsedRequest.data, availableFilters);
+  const signal = AbortSignal.timeout(JEV_TIMEOUT_MS);
+  const proposal = await composeProposal(
+    prompt,
+    signal,
+    availableFilters,
+  );
+  return NextResponse.json(proposal, { status: 200 });
 }

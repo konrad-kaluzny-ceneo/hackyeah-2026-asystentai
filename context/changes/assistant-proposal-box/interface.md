@@ -99,42 +99,40 @@ Discriminated union:
 type AssistantProposalResponse =
   | {
       status: "show";
-      kind: "decision_fatigue";
-      title: string;
-      message: string;
-      action: "narrow-choice";
-      actionLabel: string;
+      action: "narrow-choice" | "clear-search-and-filters";
+      data: {
+        target: "filters" | "catalog";
+        filterKeys: string[];
+      };
     }
   | { status: "hide" };
 ```
 
 ### Przykład `show` (skrót Jev)
 
-Serwer może uzupełnić `title` / `actionLabel` stałymi wartościami produktowymi (spójnymi z S-02):
-
 ```json
 {
   "status": "show",
-  "kind": "decision_fatigue",
-  "title": "Pomóc zawęzić wybór?",
-  "message": "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
   "action": "narrow-choice",
-  "actionLabel": "Przejdź do filtrów"
+  "data": {
+    "target": "filters",
+    "filterKeys": ["capacity"]
+  }
 }
 ```
 
 ### Przykład `show` (OpenAI)
 
-Ten sam kształt; `title` i `message` z mocniejszego modelu:
+OpenAI zwraca wyłącznie decyzję i jej dane:
 
 ```json
 {
   "status": "show",
-  "kind": "decision_fatigue",
-  "title": "Trzy podobne lodówki — jeden parametr",
-  "message": "Wybierz pojemność albo wysokość w filtrach, żeby szybciej porównać modele.",
-  "action": "narrow-choice",
-  "actionLabel": "Przejdź do filtrów"
+  "action": "clear-search-and-filters",
+  "data": {
+    "target": "catalog",
+    "filterKeys": []
+  }
 }
 ```
 
@@ -149,10 +147,9 @@ Ten sam kształt; `title` i `message` z mocniejszego modelu:
 Reguły:
 
 - `status: "hide"` — brak boxa dla tego wywołania (błąd modelu, limit Jev, timeout Jev 3 s, zły JSON Jev, porażka OpenAI, rate limit, faza 1 S-04 gdy `needs_openai`).
-- Przy `show`: `title`, `message`, `actionLabel` — niepuste stringi po trim.
-- `action` zawsze `"narrow-choice"` dla tej ścieżki (link `#filters` po stronie UI; brak porównania w MVP).
-- Skrót Jev: treść głównie w `message`; serwer uzupełnia `title` i `actionLabel`.
-- OpenAI: pełne `title` + `message`; serwer nadal ustawia `action` / `actionLabel`.
+- `action` jest decyzją OpenAI z zamkniętego enuma: `"narrow-choice"` albo `"clear-search-and-filters"`.
+- `data` jest obiektem payloadu akcji: `target` wskazuje obszar aplikacji, a `filterKeys` może wskazać maksymalnie trzy filtry.
+- Skrót Jev i OpenAI zwracają ten sam minimalny kształt `action` + `data`.
 
 ## Semantyka `hide` vs pusty wynik
 

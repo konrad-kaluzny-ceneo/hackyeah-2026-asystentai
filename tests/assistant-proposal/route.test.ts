@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import * as categoryFilters from "@/server/assistant-proposal/category-filters";
 import { POST, resetLimitersForTest } from "@/app/api/assistant-proposal/route";
 import { parseAssistantProposalResponse } from "@/lib/assistant-proposal-api";
 import * as jevClient from "@/server/assistant-proposal/jev-client";
+import * as openaiClient from "@/server/assistant-proposal/openai-client";
+
+vi.mock("@/server/assistant-proposal/category-filters", () => ({
+  getCategoryFilters: vi.fn(),
+}));
 
 function makeRequest(body: unknown, headers: Record<string, string> = {}) {
   return new Request("http://localhost/api/assistant-proposal", {
@@ -62,6 +68,15 @@ describe("POST /api/assistant-proposal", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     resetLimitersForTest();
+    vi.mocked(categoryFilters.getCategoryFilters).mockResolvedValue([
+      {
+        key: "capacity",
+        label: "Pojemność",
+        kind: "range",
+        min: 100,
+        max: 500,
+      },
+    ]);
   });
 
   it("returns show response when Jev meets shortcut criteria", async () => {
@@ -73,6 +88,12 @@ describe("POST /api/assistant-proposal", () => {
         message_draft: "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
       },
     });
+    const openaiSpy = vi
+      .spyOn(openaiClient, "requestStrongerReply")
+      .mockResolvedValue({
+        action: "narrow-choice",
+        data: { target: "filters", filterKeys: [] },
+      });
 
     const response = await POST(
       makeRequest(validRequestBody, { "x-real-ip": "10.0.0.1" }),
@@ -82,16 +103,14 @@ describe("POST /api/assistant-proposal", () => {
     const json = await response.json();
     expect(json).toEqual({
       status: "show",
-      kind: "decision_fatigue",
-      title: "Pomóc zawęzić wybór?",
-      message: "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
       action: "narrow-choice",
-      actionLabel: "Przejdź do filtrów",
+      data: { target: "filters", filterKeys: [] },
     });
 
     // Validates against shared contract schema
     expect(parseAssistantProposalResponse(json)).toEqual(json);
     expect(jevSpy).toHaveBeenCalledOnce();
+    expect(openaiSpy).not.toHaveBeenCalled();
   });
 
   it("returns hide when Jev client throws or aborts", async () => {
@@ -123,7 +142,7 @@ describe("POST /api/assistant-proposal", () => {
     expect(json).toEqual({ status: "hide" });
   });
 
-  it("returns hide when confidence is below 0.75 in Phase 1 (needs_openai)", async () => {
+  it("returns OpenAI show response when Jev output needs the stronger model", async () => {
     vi.spyOn(jevClient, "requestJev").mockResolvedValue({
       situation: "DECISION_FATIGUE",
       proposal: {
@@ -132,6 +151,15 @@ describe("POST /api/assistant-proposal", () => {
         message_draft: "Może warto sprawdzić inne wymiary.",
       },
     });
+    const openaiSpy = vi
+      .spyOn(openaiClient, "requestStrongerReply")
+      .mockResolvedValue({
+        action: "narrow-choice",
+        data: {
+          target: "filters",
+          filterKeys: ["capacity", "not-a-real-filter"],
+        },
+      });
 
     const response = await POST(
       makeRequest(validRequestBody, { "x-real-ip": "10.0.0.4" }),
@@ -139,7 +167,46 @@ describe("POST /api/assistant-proposal", () => {
 
     expect(response.status).toBe(200);
     const json = await response.json();
-    expect(json).toEqual({ status: "hide" });
+    expect(json).toEqual({
+      status: "show",
+      action: "narrow-choice",
+      data: { target: "filters", filterKeys: ["capacity"] },
+    });
+    expect(parseAssistantProposalResponse(json)).toEqual(json);
+    expect(openaiSpy).toHaveBeenCalledOnce();
+    expect(openaiSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ situation: "DECISION_FATIGUE" }),
+      [
+        {
+          key: "capacity",
+          label: "Pojemność",
+          kind: "range",
+          min: 100,
+          max: 500,
+        },
+      ],
+    );
+  });
+
+  it("returns hide when the stronger model fails", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue({
+      situation: "PRODUCT_HESITATION",
+      proposal: {
+        confidence: 0.82,
+        hedging_required: false,
+        message_draft: "Wróć do wcześniej oglądanego modelu.",
+      },
+    });
+    vi.spyOn(openaiClient, "requestStrongerReply").mockRejectedValue(
+      new Error("OpenAI unavailable"),
+    );
+
+    const response = await POST(
+      makeRequest(validRequestBody, { "x-real-ip": "10.0.0.6" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "hide" });
   });
 
   it("returns 400 when request body fails validation", async () => {

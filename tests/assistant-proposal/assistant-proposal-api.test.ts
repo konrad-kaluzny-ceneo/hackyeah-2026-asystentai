@@ -8,79 +8,32 @@ import {
 
 describe("assistant-proposal-api contract", () => {
   describe("AssistantProposalResponseSchema", () => {
-    it("accepts a valid 'show' response and trims strings", () => {
+    it("accepts a valid 'show' response with action data", () => {
       const payload = {
         status: "show",
-        kind: "decision_fatigue",
-        title: "  Pomóc zawęzić wybór?  ",
-        message: "  Zawęź wyniki według pojemności.  ",
         action: "narrow-choice",
-        actionLabel: "  Przejdź do filtrów  ",
+        data: { target: "filters", filterKeys: ["capacity"] },
       };
 
       const parsed = parseAssistantProposalResponse(payload);
-      expect(parsed).toEqual({
-        status: "show",
-        kind: "decision_fatigue",
-        title: "Pomóc zawęzić wybór?",
-        message: "Zawęź wyniki według pojemności.",
-        action: "narrow-choice",
-        actionLabel: "Przejdź do filtrów",
-      });
+      expect(parsed).toEqual(payload);
     });
 
-    it("rejects 'show' if message or title is empty after trim", () => {
-      const emptyTitle = {
-        status: "show",
-        kind: "decision_fatigue",
-        title: "   ",
-        message: "Ok",
-        action: "narrow-choice",
-        actionLabel: "Filtry",
-      };
-      expect(safeParseAssistantProposalResponse(emptyTitle).success).toBe(false);
-
-      const emptyMessage = {
-        status: "show",
-        kind: "decision_fatigue",
-        title: "Tytuł",
-        message: "",
-        action: "narrow-choice",
-        actionLabel: "Filtry",
-      };
-      expect(safeParseAssistantProposalResponse(emptyMessage).success).toBe(false);
-
-      const emptyActionLabel = {
-        status: "show",
-        kind: "decision_fatigue",
-        title: "Tytuł",
-        message: "Wiadomość",
-        action: "narrow-choice",
-        actionLabel: "   ",
-      };
-      expect(safeParseAssistantProposalResponse(emptyActionLabel).success).toBe(false);
-    });
-
-    it("rejects 'show' with invalid action or kind", () => {
+    it("rejects 'show' with invalid action data", () => {
       const badAction = {
         status: "show",
-        kind: "decision_fatigue",
-        title: "Tytuł",
-        message: "Wiadomość",
         action: "other-action",
-        actionLabel: "Filtry",
+        data: { target: "filters", filterKeys: [] },
       };
-      expect(safeParseAssistantProposalResponse(badAction).success).toBe(false);
 
-      const badKind = {
+      const badTarget = {
         status: "show",
-        kind: "search_friction",
-        title: "Tytuł",
-        message: "Wiadomość",
         action: "narrow-choice",
-        actionLabel: "Filtry",
+        data: { target: "unknown", filterKeys: [] },
       };
-      expect(safeParseAssistantProposalResponse(badKind).success).toBe(false);
+
+      expect(safeParseAssistantProposalResponse(badAction).success).toBe(false);
+      expect(safeParseAssistantProposalResponse(badTarget).success).toBe(false);
     });
 
     it("accepts a valid 'hide' response", () => {

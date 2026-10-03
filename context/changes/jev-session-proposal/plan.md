@@ -209,9 +209,9 @@ Jev 3 s → `hide`. OpenAI bez limitu czasu w route (konsument w S-05 czeka bez 
 
 #### Automated
 
-- [ ] 2.1 `npm test` — gałąź OpenAI
-- [ ] 2.2 Test integracyjny route
-- [ ] 2.3 `npm run typecheck`
+- [x] 2.1 `npm test` — gałąź OpenAI
+- [x] 2.2 Test integracyjny route
+- [x] 2.3 `npm run typecheck`
 
 #### Manual
 

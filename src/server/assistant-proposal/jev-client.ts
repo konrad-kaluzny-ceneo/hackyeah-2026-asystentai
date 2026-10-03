@@ -1,18 +1,38 @@
-/**
- * Jev (Typesafe) API client for assistant proposal classification.
- */
+import { z } from "zod";
 
-export const DEFAULT_TYPESAFE_URL = "https://api.typesafe.ai/v1/chat/completions";
+export const DEFAULT_TYPESAFE_URL = "https://api.typesafe.ai/v1/systemone";
+export const DEFAULT_TYPESAFE_MODEL = "jev-latest";
 
-function extractJsonText(raw: string): string {
-  const trimmed = raw.trim();
-  // Strip ```json ... ``` markdown block if wrapped
-  const match = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-  if (match) {
-    return match[1].trim();
-  }
-  return trimmed;
+const SituationSchema = z.enum([
+  "DECISION_FATIGUE",
+  "PRODUCT_HESITATION",
+  "NO_PROGRESS_STALL",
+  "UI_FRICTION",
+  "SMOOTH_EXPLORATION",
+]);
+
+const ActionTypeSchema = z.enum([
+  "NARROW_BY_SPEC",
+  "COMPARE_MODELS",
+  "RESET_FILTERS",
+  "DO_NOTHING",
+]);
+
+function choiceAnswerSchema<T extends z.ZodType<string>>(choice: T) {
+  return z.object({
+    type: z.literal("choice"),
+    choice,
+    confidence: z.number().min(0).max(1),
+    probabilities: z.record(z.string(), z.number().min(0).max(1)),
+  });
 }
+
+const TypeSafeResponseSchema = z.object({
+  answers: z.object({
+    situation: choiceAnswerSchema(SituationSchema),
+    action_type: choiceAnswerSchema(ActionTypeSchema),
+  }),
+});
 
 export async function requestJev(
   prompt: string,
@@ -33,11 +53,44 @@ export async function requestJev(
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
-      "x-api-key": apiKey,
     },
     body: JSON.stringify({
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.1,
+      state: prompt,
+      model: process.env.TYPESAFE_MODEL || DEFAULT_TYPESAFE_MODEL,
+      questions: {
+        situation: {
+          type: "choice",
+          instructions:
+            "Która sytuacja najlepiej opisuje obecną sesję zakupową?",
+          criteria: {
+            DECISION_FATIGUE:
+              "Kupujący porównuje wiele podobnych modeli i ma trudność z zawężeniem wyboru.",
+            PRODUCT_HESITATION:
+              "Kupujący wielokrotnie wraca do konkretnego produktu, ale nie podejmuje decyzji.",
+            NO_PROGRESS_STALL:
+              "Kupujący wykonuje działania, ale sesja nie prowadzi do wyraźnego postępu.",
+            UI_FRICTION:
+              "Zachowanie wskazuje przede wszystkim na trudność z obsługą interfejsu lub filtrów.",
+            SMOOTH_EXPLORATION:
+              "Kupujący spokojnie przegląda ofertę i nie potrzebuje interwencji.",
+          },
+        },
+        action_type: {
+          type: "choice",
+          instructions:
+            "Jaka pojedyncza reakcja asystenta najlepiej pasuje do tej sesji?",
+          criteria: {
+            NARROW_BY_SPEC:
+              "Zaproponuj zawężenie wyników według jednego ważnego parametru.",
+            COMPARE_MODELS:
+              "Zaproponuj bezpośrednie porównanie oglądanych modeli.",
+            RESET_FILTERS:
+              "Zaproponuj usunięcie aktywnych filtrów, które blokują postęp.",
+            DO_NOTHING:
+              "Nie pokazuj propozycji, ponieważ sesja nie wymaga pomocy.",
+          },
+        },
+      },
     }),
     signal,
   });
@@ -46,30 +99,27 @@ export async function requestJev(
     throw new Error(`Typesafe API returned HTTP ${response.status}`);
   }
 
-  const data: unknown = await response.json();
-  if (typeof data === "object" && data !== null) {
-    const candidate = data as {
-      choices?: Array<{ message?: { content?: unknown } }>;
-      proposal?: unknown;
-      situation?: unknown;
-    };
-
-    // If API returned OpenAI-style choices:
-    if (candidate.choices && candidate.choices.length > 0) {
-      const content = candidate.choices[0]?.message?.content;
-      if (typeof content === "string") {
-        return JSON.parse(extractJsonText(content));
-      }
-      if (typeof content === "object" && content !== null) {
-        return content;
-      }
-    }
-
-    // Direct JSON output:
-    if ("situation" in candidate || "proposal" in candidate) {
-      return data;
-    }
+  const parsedResponse = TypeSafeResponseSchema.safeParse(await response.json());
+  if (!parsedResponse.success) {
+    throw new Error("Invalid response format from Jev API");
   }
 
-  throw new Error("Invalid response format from Jev API");
+  const { situation, action_type: actionType } = parsedResponse.data.answers;
+  const confidence = Math.min(situation.confidence, actionType.confidence);
+  const canUseShortcut =
+    situation.choice === "DECISION_FATIGUE" &&
+    actionType.choice === "NARROW_BY_SPEC";
+
+  return {
+    situation: situation.choice,
+    signal_strength: situation.confidence,
+    proposal: {
+      action_type: actionType.choice,
+      confidence,
+      hedging_required: confidence < 0.75,
+      message_draft: canUseShortcut
+        ? "Porównujesz kilka podobnych modeli. Zawęź wyniki według jednego ważnego parametru, żeby łatwiej wybrać."
+        : null,
+    },
+  };
 }

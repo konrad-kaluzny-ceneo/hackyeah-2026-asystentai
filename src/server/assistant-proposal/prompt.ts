@@ -1,6 +1,10 @@
 import type { AssistantProposalRequest } from "@/lib/assistant-proposal-api";
+import type { CategoryFilter } from "@/lib/catalog-types";
 
-export function buildAssistantPrompt(request: AssistantProposalRequest): string {
+export function buildAssistantPrompt(
+  request: AssistantProposalRequest,
+  availableFilters: readonly CategoryFilter[] = [],
+): string {
   const { state, events } = request;
 
   const category = state.categorySlug ?? "wszystkie";
@@ -10,6 +14,11 @@ export function buildAssistantPrompt(request: AssistantProposalRequest): string 
     .map(([k, v]) => `${k}: ${v}`)
     .join(", ");
   const activeFilters = filtersList.length > 0 ? filtersList : "brak";
+  const availableFiltersText = availableFilters.length > 0
+    ? availableFilters
+        .map((filter) => JSON.stringify(filter))
+        .join("\n")
+    : "brak";
 
   const viewedProducts: string[] = [];
   for (const ev of events) {
@@ -31,6 +40,8 @@ KONTEKST KATALOGU:
 - Kategoria: ${category}
 - Wyszukiwanie: ${query}
 - Aktywne filtry: ${activeFilters}
+- Dostępne filtry kategorii (używaj wyłącznie ich kluczy):
+${availableFiltersText}
 - Liczba pasujących produktów: ${state.resultCount}
 - Oglądane produkty w tej sesji: ${viewedProducts.length > 0 ? viewedProducts.join(", ") : "brak"}
 - Ostatnie akcje użytkownika: ${eventsSummary || "brak"}

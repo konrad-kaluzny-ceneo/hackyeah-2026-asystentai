@@ -6,22 +6,25 @@ import type { CatalogEvent, CatalogState } from "@/lib/catalog-types";
 // Response Contract (context/changes/assistant-proposal-box/interface.md)
 // ============================================================================
 
+export const ASSISTANT_ACTIONS = [
+  "narrow-choice",
+  "clear-search-and-filters",
+] as const;
+
+export const AssistantActionSchema = z.enum(ASSISTANT_ACTIONS);
+
+export const AssistantActionDataSchema = z.object({
+  target: z.enum(["filters", "catalog"]),
+  filterKeys: z.array(z.string().min(1)).max(3),
+});
+
+export type AssistantAction = z.infer<typeof AssistantActionSchema>;
+export type AssistantActionData = z.infer<typeof AssistantActionDataSchema>;
+
 export const AssistantProposalShowSchema = z.object({
   status: z.literal("show"),
-  kind: z.literal("decision_fatigue"),
-  title: z
-    .string()
-    .transform((val) => val.trim())
-    .refine((val) => val.length > 0, { message: "title cannot be empty" }),
-  message: z
-    .string()
-    .transform((val) => val.trim())
-    .refine((val) => val.length > 0, { message: "message cannot be empty" }),
-  action: z.literal("narrow-choice"),
-  actionLabel: z
-    .string()
-    .transform((val) => val.trim())
-    .refine((val) => val.length > 0, { message: "actionLabel cannot be empty" }),
+  action: AssistantActionSchema,
+  data: AssistantActionDataSchema,
 });
 
 export const AssistantProposalHideSchema = z.object({
