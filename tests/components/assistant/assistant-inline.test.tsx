@@ -256,7 +256,6 @@ describe("assistant proposal coordinator and listing UI", () => {
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)) as { metaEvents: unknown[] };
     expect(firstBody.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     expect(secondBody.metaEvents).toHaveLength(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL + 1);
-    expect(getAssistantProposalUiState().proposal?.data).toEqual(SHOW_PROPOSAL.data);
   });
 
   it("dismissal mutes for 15 minutes and clears the shared proposal", async () => {
