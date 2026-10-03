@@ -72,7 +72,7 @@ export function DebugOverlay() {
               {state.lastSentMetaEvents.length === 0 ? (
                 <p className="mt-2 text-zinc-500">none yet</p>
               ) : (
-                <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto pr-1">
+                <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
                   {state.lastSentMetaEvents.map((event) => (
                     <li
                       key={event.eventId}

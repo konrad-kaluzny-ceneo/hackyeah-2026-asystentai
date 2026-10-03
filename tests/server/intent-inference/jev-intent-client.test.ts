@@ -32,6 +32,7 @@ describe("JEV intent client", () => {
       answers: {
         intents: {
           type: "choice",
+          choice: "researching",
           confidence: 0.84,
           probabilities: Object.fromEntries(
             SHOPPING_INTENT_KINDS.map((kind, index) => [kind, index / 10]),
@@ -42,6 +43,7 @@ describe("JEV intent client", () => {
     });
 
     expect(response.answers.intents.probabilities.overloaded).toBe(0.6);
+    expect(response.answers.intents.choice).toBe("researching");
   });
 
   it("rejects an incomplete probability response", () => {

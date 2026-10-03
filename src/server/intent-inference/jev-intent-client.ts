@@ -37,6 +37,7 @@ const JevIntentResponseSchema = z.object({
   answers: z.object({
     intents: z.object({
       type: z.literal("choice"),
+      choice: z.string().trim().min(1).max(128).optional(),
       confidence: ProbabilitySchema,
       probabilities: ProbabilitiesSchema,
     }).strict(),
@@ -92,9 +93,17 @@ export async function requestJevIntent(
     throw new Error("TYPESAFE_API_KEY is not configured");
   }
 
-  const response = await fetch(
-    process.env.TYPESAFE_API_URL ?? DEFAULT_TYPESAFE_API_URL,
-    {
+  const endpoint = process.env.TYPESAFE_API_URL ?? DEFAULT_TYPESAFE_API_URL;
+  logLine({
+    action: "request_sent",
+    model: request.model,
+    eventCount: request.state.recentMetaEvents.length,
+    endpoint,
+  });
+
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -102,19 +111,51 @@ export async function requestJevIntent(
       },
       body: JSON.stringify(request),
       signal,
-    },
-  );
+    });
+  } catch (error) {
+    logLine({ action: "request_failed", error: errorMessage(error) });
+    throw error;
+  }
   if (!response.ok) {
+    logLine({
+      action: "response_received",
+      ok: false,
+      status: response.status,
+    });
     throw new Error(`TypeSafe returned HTTP ${response.status}`);
   }
 
   let payload: unknown;
   try {
     payload = await response.json();
-  } catch {
+  } catch (error) {
+    logLine({ action: "response_invalid", error: errorMessage(error) });
     throw new Error("TypeSafe returned invalid JSON");
   }
-  return parseJevIntentResponse(payload);
+  try {
+    const parsed = parseJevIntentResponse(payload);
+    logLine({
+      action: "response_received",
+      ok: true,
+      status: response.status,
+      model: parsed.model,
+      confidence: parsed.answers.intents.confidence,
+      inputTokens: parsed.usage.input_tokens,
+      outputTokens: parsed.usage.output_tokens,
+    });
+    return parsed;
+  } catch (error) {
+    logLine({ action: "response_invalid", error: errorMessage(error) });
+    throw error;
+  }
+}
+
+function logLine(fields: Record<string, unknown>): void {
+  console.log(JSON.stringify({ component: "jev-intent", ...fields }));
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown";
 }
 
 function safeMetaEvent(event: MetaEvent): Record<string, unknown> {

@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/meta-events/route";
 import * as service from "@/server/meta-events/service";
+import * as intentInference from "@/server/intent-inference/trigger";
+
+vi.mock("@/server/intent-inference/trigger", () => ({
+  inferAndSaveIntentSnapshot: vi.fn(),
+}));
 
 import { makeMetaEvent, resetFixtureSeed } from "./fixtures";
 
@@ -22,6 +27,7 @@ describe("POST /api/meta-events", () => {
   beforeEach(() => {
     resetFixtureSeed();
     vi.restoreAllMocks();
+    vi.mocked(intentInference.inferAndSaveIntentSnapshot).mockReset();
   });
 
   it("accepts a valid batch and persists it via saveBatch", async () => {
@@ -49,6 +55,7 @@ describe("POST /api/meta-events", () => {
     expect(json.acceptedEventIds).toEqual(["evt-a-000001"]);
     expect(json.rejected).toEqual([]);
     expect(saveBatchSpy).toHaveBeenCalledOnce();
+    expect(intentInference.inferAndSaveIntentSnapshot).toHaveBeenCalledOnce();
   });
 
   it("returns 200 with rejection entries when the payload fails validation (no client retry)", async () => {
@@ -104,6 +111,7 @@ describe("POST /api/meta-events", () => {
     expect(json.rejected).toEqual([
       { eventId: "evt-dup-000001", reason: "duplicate" },
     ]);
+    expect(intentInference.inferAndSaveIntentSnapshot).not.toHaveBeenCalled();
   });
 
   it("returns 500 when persistence throws", async () => {

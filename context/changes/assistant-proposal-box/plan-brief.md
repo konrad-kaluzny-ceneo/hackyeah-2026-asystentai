@@ -5,7 +5,7 @@
 
 ## What & Why
 
-Connect the existing behavior MetaEvent pipeline to the single assistant proposal box without a browser-side fatigue decision. The client sends its first bounded snapshot when five MetaEvents from successful batches have been recorded, then asks again on each new event while no proposal is visible. Jev classifies the summary, and a deterministic local stub returns the demo proposal for any recognized situation with confidence strictly above `0.75`.
+Connect the existing behavior MetaEvent pipeline to the single assistant proposal box without a browser-side fatigue decision. The client sends its first bounded snapshot when one MetaEvent from a successful batch has been recorded, then asks again on each new event while no proposal is visible. Jev classifies the summary, and a deterministic local stub returns the demo proposal for any recognized situation with confidence strictly above `0.75`.
 
 This broadens S-05 beyond its original UI-only boundary. The live OpenAI client remains deferred; the stub makes the complete request and display flow demonstrable without an OpenAI key or external call.
 
@@ -17,7 +17,7 @@ The proposal route currently accepts only MetaEvents. Its confidence gate is sti
 
 ## Desired End State
 
-The app retains the latest 10 unique MetaEvents in a production-purpose in-memory store, separate from the debug overlay and raw event buffer. At five events, and for every later event while there is no visible proposal and the user is not muted, the client sends `{ metaEvents }` only to `/api/assistant-proposal`. It does not decide whether the shopper has fatigue.
+The app retains the latest 10 unique MetaEvents in a production-purpose in-memory store, separate from the debug overlay and raw event buffer. At one event, and for every later event while there is no visible proposal and the user is not muted, the client sends `{ metaEvents }` only to `/api/assistant-proposal`. It does not decide whether the shopper has fatigue.
 
 The server validates those events and builds a Jev prompt without raw events, catalog facts, or session/page-view identifiers. Any recognized Jev situation with `proposal.confidence > 0.75` invokes a fixed-response stub and shows one generic Jev proposal. Unknown situations, confidence at or below the threshold, missing event context, invalid output, timeout, rate limiting, or failure return `hide`.
 
@@ -26,12 +26,12 @@ The server validates those events and builds a Jev prompt without raw events, ca
 | Decision | Choice | Why |
 | --- | --- | --- |
 | Jev request context | MetaEvents only | Catalog facts remain local and are not used as the Jev request gate. |
-| Request trigger | Five distinct successfully sent MetaEvents, then each new event until a proposal is visible | Moves state classification to the server and implements the user's requested cadence. |
+| Request trigger | One distinct successfully sent MetaEvent, then each new event until a proposal is visible | Moves state classification to the server and implements the user's requested cadence. |
 | Confidence boundary | Strictly greater than `0.75`; exactly `0.75` hides | Matches the requested threshold. |
 | Recognized situations | `DECISION_FATIGUE`, `PRODUCT_HESITATION`, `NO_PROGRESS_STALL`, `UI_FRICTION`, `SMOOTH_EXPLORATION` | Match the situation vocabulary in the Jev prompt; unknown values hide. |
 | High-confidence output | The same generic fixed local demo proposal for every recognized situation | Exercises the full flow without a real OpenAI request or labeling every result as fatigue. |
 | Recent event window | Latest 10 unique MetaEvents after successful dispatch | Bounds request size and uses the existing dispatcher callback. |
-| No usable MetaEvents | Do not call Jev before the fifth event | Prevents early/empty-context or tracker-disabled requests. |
+| No usable MetaEvents | Do not call Jev before the first event | Prevents empty-context or tracker-disabled requests. |
 | Existing friction behavior | Keep `search_friction` local and preserve one-box priority | Keeps the S-03 recovery path intact. |
 
 ## Scope

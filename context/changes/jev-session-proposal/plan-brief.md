@@ -9,11 +9,11 @@ Serwer analizuje minimalne podsumowanie MetaEvents przez Jev (Typesafe). Każda 
 
 ## Starting Point
 
-S-05 wywołuje route od piątego poprawnie wysłanego MetaEventu, a potem przy każdym kolejnym zdarzeniu, dopóki nie ma propozycji; UI nie używa `DecisionEngine` jako bramki fatigue. Pusty wynik pozostaje lokalnym recovery. Brak klienta LLM w aplikacji. Klucze tylko po stronie serwera.
+S-05 wywołuje route od pierwszego poprawnie wysłanego MetaEventu, a potem przy każdym kolejnym zdarzeniu, dopóki nie ma propozycji; UI nie używa `DecisionEngine` jako bramki fatigue. Pusty wynik pozostaje lokalnym recovery. Brak klienta LLM w aplikacji. Klucze tylko po stronie serwera.
 
 ## Desired End State
 
-Route przyjmuje 1–10 MetaEvents w body do 64 KiB i zwraca JSON zgodny z `interface.md`. Prompt Jev pomija surowe dane, ścieżki, identyfikatory oraz stan i fakty katalogu. Jev ma limit 3 s, rate limit 30/min IP i 10/min proces. S-05 wywołuje route po pięciu MetaEvents, a potem przy kolejnych zdarzeniach do wyświetlenia propozycji.
+Route przyjmuje 1–10 MetaEvents w body do 64 KiB i zwraca JSON zgodny z `interface.md`. Prompt Jev pomija surowe dane, ścieżki, identyfikatory oraz stan i fakty katalogu. Jev ma limit 3 s, rate limit 30/min IP i 10/min proces. S-05 wywołuje route po pierwszym MetaEvent, a potem przy kolejnych zdarzeniach do wyświetlenia propozycji.
 
 ## Key Decisions Made
 
@@ -28,7 +28,7 @@ Route przyjmuje 1–10 MetaEvents w body do 64 KiB i zwraca JSON zgodny z `inter
 | Generowanie propozycji | Deterministyczny lokalny stub dla `confidence > 0.75` | Demo ćwiczy cały przepływ bez połączenia OpenAI |
 | OpenAI | Prawdziwy klient odroczony | Stub zostanie później zastąpiony integracją S-04 |
 | Porażka Jev / stub / limit | `{ status: "hide" }` | Stałe S-02 nie jest fallbackiem |
-| Wywołanie route | Od piątego MetaEvent i potem na każde nowe zdarzenie, dopóki nie ma propozycji | S-05 nie rozstrzyga fatigue lokalnie |
+| Wywołanie route | Od pierwszego MetaEventu i potem na każde nowe zdarzenie, dopóki nie ma propozycji | S-05 nie rozstrzyga fatigue lokalnie |
 | Body POST | `{ metaEvents }`, 1–10 elementów | Bez bieżącego stanu katalogu i eventów katalogowych |
 | Limit Jev | 30/min IP, 10/min proces | Demo + ochrona kosztów |
 | Czas | 3 s na Jev; lokalny stub | Bez zewnętrznego wywołania OpenAI |

@@ -1,6 +1,6 @@
 # Kontrakt: propozycja asystenta z MetaEvents
 
-Wspólna umowa dla serverowego przepływu Jev i boxa S-05. UI woła route po zapisaniu pięciu MetaEvents z poprawnie wysłanych batchy, a potem przy każdym nowym MetaEvent, dopóki nie ma widocznej propozycji. Serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents i sam decyduje, czy rozpoznana sytuacja ma wystarczającą pewność.
+Wspólna umowa dla serverowego przepływu Jev i boxa S-05. UI woła route po zapisaniu pierwszego MetaEventu z poprawnie wysłanego batcha, a potem przy każdym nowym MetaEvent, dopóki nie ma widocznej propozycji. Serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents i sam decyduje, czy rozpoznana sytuacja ma wystarczającą pewność.
 
 **Kontrakty w kodzie:** `src/lib/assistant-proposal-api.ts` zawiera request/response UI; `src/behavior/meta-event-schema.ts` jest współdzielonym, ścisłym schematem MetaEvent. `/api/meta-events` zachowuje dotychczasowy format batcha.
 
@@ -12,7 +12,7 @@ Wspólna umowa dla serverowego przepływu Jev i boxa S-05. UI woła route po zap
 | `src/lib/assistant-proposal-api.ts` | S-04 / S-05 | Wspólny request MetaEvents-only oraz parser odpowiedzi |
 | `src/app/api/assistant-proposal/route.ts` | S-04 | Walidacja, limity, Jev, bramka pewności i lokalny stub |
 | `src/server/assistant-proposal/*` | S-04 | Klient Jev, prompt z minimalnym podsumowaniem i stub przyszłego OpenAI |
-| `src/components/assistant/assistant-proposal-coordinator.tsx` | S-05 | Persistent coordinator: próg 5 MetaEvents, retry po nowych zdarzeniach, Jev request i mute gate |
+| `src/components/assistant/assistant-proposal-coordinator.tsx` | S-05 | Persistent coordinator: próg 1 MetaEvent, retry po nowych zdarzeniach, Jev request i mute gate |
 | `src/lib/assistant-proposal-state.ts` | S-05 | Wspólny stan jednego server proposal i widocznego local recovery |
 | `src/components/assistant/assistant-inline.tsx` | S-05 | Render propozycji, lokalne empty-search recovery i mute boxa |
 | `src/behavior/assistant-meta-event-history.ts` | S-05 | Ostatnie 10 MetaEvents z poprawnie wysłanych batchy |
@@ -70,11 +70,11 @@ Przykład:
 
 Body zawiera wyłącznie MetaEvents; nie zawiera `CatalogState` ani `CatalogEvent[]`. Zdarzenia przechodzą ścisłą walidację, w tym flag prywatności i allowlisty metryk. Historia klienta jest ograniczona do 10 unikalnych eventów po poprawnym POST do `/api/meta-events`.
 
-Przy pierwszych pięciu unikalnych MetaEvents w historii klient root coordinator wysyła request, także gdy kupujący jest na stronie produktu i box listingu nie jest zamontowany. Każdy kolejny unikalny MetaEvent uruchamia nową klasyfikację, jeśli nie ma widocznej propozycji i asystent nie jest wyciszony. Body zawiera ostatnie maksymalnie 10 zdarzeń. Serwer nie przekazuje Jev pełnego obiektu MetaEvent ani osobnego stanu katalogu. Prompt jest zbudowany z nazw eventów, względnego czasu, typu strony, typu subjectu i metryk z allowlisty. Pomija identyfikatory sesji/eventu, ścieżki, absolutne znaczniki czasu, surowe eventy i `quality.strength`; nie dołącza osobnych `CatalogState` ani `CatalogEvent[]`.
+Przy pierwszym unikalnym MetaEvent w historii klient root coordinator wysyła request, także gdy kupujący jest na stronie produktu i box listingu nie jest zamontowany. Każdy kolejny unikalny MetaEvent uruchamia nową klasyfikację, jeśli nie ma widocznej propozycji i asystent nie jest wyciszony. Body zawiera ostatnie maksymalnie 10 zdarzeń. Serwer nie przekazuje Jev pełnego obiektu MetaEvent ani osobnego stanu katalogu. Prompt jest zbudowany z nazw eventów, względnego czasu, typu strony, typu subjectu i metryk z allowlisty. Pomija identyfikatory sesji/eventu, ścieżki, absolutne znaczniki czasu, surowe eventy i `quality.strength`; nie dołącza osobnych `CatalogState` ani `CatalogEvent[]`.
 
 ## Request gate i zachowanie serwera
 
-- S-05 nie używa lokalnego `DecisionEngine` do decyzji o fatigue ani innym stanie. Przy co najmniej 5 MetaEvents woła route od razu, a potem ponawia przy każdym nowym MetaEvent, dopóki żadna propozycja nie jest widoczna i asystent nie jest wyciszony.
+- S-05 nie używa lokalnego `DecisionEngine` do decyzji o fatigue ani innym stanie. Przy co najmniej 1 MetaEvent woła route od razu, a potem ponawia przy każdym nowym MetaEvent, dopóki żadna propozycja nie jest widoczna i asystent nie jest wyciszony.
 - `search_friction` pozostaje lokalne; jeśli jego propozycja jest widoczna, druga propozycja nie jest pobierana ani wyświetlana.
 - Jev jest wywoływany dopiero po walidacji requestu.
 - Rozpoznane wartości `situation` to `DECISION_FATIGUE`, `PRODUCT_HESITATION`, `NO_PROGRESS_STALL`, `UI_FRICTION` i `SMOOTH_EXPLORATION`.

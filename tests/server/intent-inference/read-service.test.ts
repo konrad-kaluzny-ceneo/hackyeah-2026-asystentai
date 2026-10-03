@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { buildIntentTimeline } from "@/server/intent-inference/read-service";
-import { emptyIntentProbabilities } from "@/lib/intent-timeline";
+import {
+  buildStackedIntentSeries,
+  emptyIntentProbabilities,
+} from "@/lib/intent-timeline";
 import type { IntentProbabilities } from "@/domain/shopping-intent";
 
 const NOW = Date.parse("2026-10-03T12:00:30.000Z");
@@ -37,6 +40,14 @@ describe("buildIntentTimeline", () => {
     expect(pointAt(overloaded, 19)).toBe(0);
     expect(pointAt(overloaded, 20)).toBe(0.8);
     expect(pointAt(overloaded, 30)).toBe(0.8);
+
+    const stacked = buildStackedIntentSeries(timeline.series);
+    expect(stacked).toHaveLength(8);
+    expect(stacked.every(({ points }) => points.length === 31)).toBe(true);
+    expect(stacked.find(({ id }) => id === "exploring")?.points[19]).toMatchObject({
+      lower: 0,
+      upper: 0.4,
+    });
   });
 
   it("returns a zero-filled window when there are no snapshots", () => {

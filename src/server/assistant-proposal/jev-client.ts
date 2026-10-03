@@ -142,27 +142,63 @@ export async function requestJev(
     return requestJevPrompt(request, apiKey, signal);
   }
 
-  const response = await fetch(TYPESAFE_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(request),
-    signal,
+  logLine({
+    action: "request_sent",
+    model: request.model,
+    catalogEventCount: request.state.recentCatalogEvents.length,
+    viewedProductCount: request.state.viewedProducts.length,
+    endpoint: TYPESAFE_API_URL,
   });
+
+  let response: Response;
+  try {
+    response = await fetch(TYPESAFE_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+      signal,
+    });
+  } catch (error) {
+    logLine({ action: "request_failed", error: errorMessage(error) });
+    throw error;
+  }
   if (!response.ok) {
+    logLine({
+      action: "response_received",
+      ok: false,
+      status: response.status,
+    });
     throw new Error(`TypeSafe returned HTTP ${response.status}`);
   }
 
   let payload: unknown;
   try {
     payload = await response.json();
-  } catch {
+  } catch (error) {
+    logLine({ action: "response_invalid", error: errorMessage(error) });
     throw new Error("TypeSafe returned invalid JSON");
   }
 
-  return parseJevAssistantResponse(payload);
+  try {
+    const parsed = parseJevAssistantResponse(payload);
+    logLine({
+      action: "response_received",
+      ok: true,
+      status: response.status,
+      model: parsed.model,
+      situationChoice: parsed.answers.situation.choice,
+      recommendedFilterChoice: parsed.answers.recommended_filter.choice,
+      inputTokens: parsed.usage.input_tokens,
+      outputTokens: parsed.usage.output_tokens,
+    });
+    return parsed;
+  } catch (error) {
+    logLine({ action: "response_invalid", error: errorMessage(error) });
+    throw error;
+  }
 }
 
 async function requestJevPrompt(
@@ -217,4 +253,12 @@ function stripJsonFence(value: string): string {
   const trimmed = value.trim();
   const match = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
   return match?.[1]?.trim() ?? trimmed;
+}
+
+function logLine(fields: Record<string, unknown>): void {
+  console.log(JSON.stringify({ component: "jev-assistant", ...fields }));
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown";
 }

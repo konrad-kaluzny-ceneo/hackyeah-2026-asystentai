@@ -93,7 +93,7 @@ export function attachDomTrackers(options: DomTrackersOptions): () => void {
           );
         }
       },
-      { threshold: 0.5 },
+      { threshold: 0 },
     );
     // Observe only explicitly-tagged elements. We never observe the entire
     // DOM (privacy + perf); the demo application tags what matters.
