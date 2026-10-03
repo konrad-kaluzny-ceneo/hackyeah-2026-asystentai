@@ -9,7 +9,7 @@ Serwer analizuje minimalne podsumowanie MetaEvents przez Jev (Typesafe). Każda 
 
 ## Starting Point
 
-Box na listingu obecnie nadal używa `DecisionEngine` jako bramki requestu dla fatigue; S-05 przenosi klasyfikację stanu na serwer. Pusty wynik pozostaje lokalnym recovery. Brak klienta LLM w aplikacji. Klucze tylko po stronie serwera.
+S-05 wywołuje route od piątego poprawnie wysłanego MetaEventu, a potem przy każdym kolejnym zdarzeniu, dopóki nie ma propozycji; UI nie używa `DecisionEngine` jako bramki fatigue. Pusty wynik pozostaje lokalnym recovery. Brak klienta LLM w aplikacji. Klucze tylko po stronie serwera.
 
 ## Desired End State
 

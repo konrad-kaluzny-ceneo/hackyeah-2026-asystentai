@@ -6,8 +6,10 @@ import {
   clearAssistantMetaEventHistory,
   recordAssistantMetaEventBatch,
 } from "@/behavior/assistant-meta-event-history";
+import { AssistantProposalCoordinator } from "@/components/assistant/assistant-proposal-coordinator";
 import { AssistantInline } from "@/components/assistant/assistant-inline";
 import { muteAssistantFor, readAssistantMutedUntil } from "@/lib/assistant-events";
+import { clearAssistantProposalUiState } from "@/lib/assistant-proposal-state";
 import type { CatalogState, Category, Product } from "@/lib/catalog-types";
 import { makeMetaEvent, resetFixtureSeed } from "../../behavior/fixtures";
 
@@ -82,12 +84,21 @@ function metaEvent(index: number) {
 async function renderAssistant(state = catalogState) {
   await act(async () => {
     root.render(
-      <AssistantInline
-        state={state}
-        catalog={catalog}
-        onClearSearchAndFilters={clearSearch}
-      />,
+      <>
+        <AssistantProposalCoordinator />
+        <AssistantInline
+          state={state}
+          catalog={catalog}
+          onClearSearchAndFilters={clearSearch}
+        />
+      </>,
     );
+  });
+}
+
+async function renderCoordinatorOnly() {
+  await act(async () => {
+    root.render(<AssistantProposalCoordinator />);
   });
 }
 
@@ -105,6 +116,7 @@ async function addMetaEvents(...indexes: number[]) {
 
 beforeEach(() => {
   clearAssistantMetaEventHistory();
+  clearAssistantProposalUiState();
   resetFixtureSeed();
   window.sessionStorage.clear();
   container = document.createElement("div");
@@ -119,11 +131,26 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   clearAssistantMetaEventHistory();
+  clearAssistantProposalUiState();
   container.remove();
   vi.unstubAllGlobals();
 });
 
 describe("AssistantInline MetaEvent proposal lifecycle", () => {
+  it("sends the threshold request while the shopper is off the listing page", async () => {
+    await renderCoordinatorOnly();
+    await addMetaEvents(1, 2, 3, 4);
+    await flushRequestTasks();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await addMetaEvents(5);
+    await flushRequestTasks();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await renderAssistant();
+    expect(container.querySelector("h2")?.textContent).toBe(FIXED_PROPOSAL.title);
+  });
+
   it("waits for five events, then sends only MetaEvents and renders a known-state proposal", async () => {
     await renderAssistant();
     await addMetaEvents(1, 2, 3, 4);
