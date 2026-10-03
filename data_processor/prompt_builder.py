@@ -11,6 +11,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT = PROJECT_ROOT / "data" / "preprocessed_ecommerce_events.csv"
 DEFAULT_OUTPUT = PROJECT_ROOT / "data" / "jev_prompts.jsonl"
+DEFAULT_GROUND_TRUTH = PROJECT_ROOT / "data" / "sessions_ground_truth.csv"
 
 WINDOW_SIZE = 8
 
@@ -123,23 +124,43 @@ def select_triggers(processed: pd.DataFrame) -> pd.DataFrame:
     return hits.sort_values(["session_id", "event_seq"]).groupby("session_id", as_index=False).tail(1)
 
 
-def build_records(processed: pd.DataFrame) -> list[dict[str, str]]:
+def load_ground_truth(path: Path | None) -> dict[str, str]:
+    if path is None or not path.exists():
+        return {}
+    labels = pd.read_csv(path)
+    if "session_id" not in labels.columns or "persona" not in labels.columns:
+        return {}
+    mapping: dict[str, str] = {}
+    for _, row in labels.iterrows():
+        persona = row["persona"]
+        if persona is None or (isinstance(persona, float) and pd.isna(persona)):
+            continue
+        mapping[str(row["session_id"])] = str(persona)
+    return mapping
+
+
+def build_records(
+    processed: pd.DataFrame,
+    ground_truth: dict[str, str] | None = None,
+) -> list[dict[str, str]]:
     processed = processed.copy()
     processed["timestamp"] = pd.to_datetime(processed["timestamp"], utc=True, format="ISO8601")
+    labels = ground_truth or {}
     triggers = select_triggers(processed)
     records: list[dict[str, str]] = []
     for _, trigger in triggers.iterrows():
         session = processed[processed["session_id"] == trigger["session_id"]].sort_values("event_seq")
         window = session[session["event_seq"] <= trigger["event_seq"]].tail(WINDOW_SIZE)
-        records.append(
-            {
-                "session_id": trigger["session_id"],
-                "persona": trigger.get("persona"),
-                "trigger_action": trigger["action_type"],
-                "trigger_event_id": trigger["event_id"],
-                "prompt": build_prompt(session, trigger, window),
-            }
-        )
+        record: dict[str, str] = {
+            "session_id": trigger["session_id"],
+            "trigger_action": trigger["action_type"],
+            "trigger_event_id": trigger["event_id"],
+            "prompt": build_prompt(session, trigger, window),
+        }
+        persona = labels.get(str(trigger["session_id"]))
+        if persona:
+            record["persona"] = persona
+        records.append(record)
     return records
 
 
@@ -147,6 +168,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build Jev prompts from preprocessed events")
     parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--ground-truth",
+        type=Path,
+        default=DEFAULT_GROUND_TRUTH,
+        help="Optional session-level persona labels used only for evaluation metadata",
+    )
     parser.add_argument("--print-first", action="store_true", help="Print the first prompt to stdout")
     return parser.parse_args()
 
@@ -154,17 +181,27 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     processed = pd.read_csv(args.input)
-    records = build_records(processed)
+    labels = load_ground_truth(args.ground_truth)
+    records = build_records(processed, labels)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
     print(f"Wrote {len(records)} prompts to {args.output}")
     if records:
-        by_persona = {}
+        labeled = sum(1 for record in records if record.get("persona"))
+        unlabeled = len(records) - labeled
+        print(f"Prompts with ground-truth persona: {labeled}")
+        if unlabeled:
+            print(f"Prompts without persona: {unlabeled}")
+        by_persona: dict[str, int] = {}
         for record in records:
-            by_persona[record["persona"]] = by_persona.get(record["persona"], 0) + 1
-        print(f"Prompts by persona: {by_persona}")
+            persona = record.get("persona")
+            if not persona:
+                continue
+            by_persona[persona] = by_persona.get(persona, 0) + 1
+        if by_persona:
+            print(f"Prompts by persona: {by_persona}")
     if args.print_first and records:
         print("\n----- FIRST PROMPT -----\n")
         print(records[0]["prompt"])

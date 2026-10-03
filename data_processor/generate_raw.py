@@ -22,6 +22,7 @@ import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = PROJECT_ROOT / "data" / "raw_ecommerce_events.csv"
+DEFAULT_GROUND_TRUTH_OUTPUT = PROJECT_ROOT / "data" / "sessions_ground_truth.csv"
 
 RAW_COLUMNS = [
     "event_id",
@@ -31,7 +32,6 @@ RAW_COLUMNS = [
     "event_date",
     "user_id",
     "anonymous_id",
-    "persona",
     "event_type",
     "page_type",
     "page_url",
@@ -223,7 +223,6 @@ class SessionBuilder:
             "event_date": client_ts.date().isoformat(),
             "user_id": self.user_id,
             "anonymous_id": self.anonymous_id,
-            "persona": self.persona,
             "event_type": event_type,
             "page_type": overrides.pop("page_type", self.page_type),
             "page_url": overrides.pop("page_url", self.page_url),
@@ -575,24 +574,38 @@ PERSONA_BUILDERS = {
 }
 
 
+GROUND_TRUTH_COLUMNS = [
+    "session_id",
+    "persona",
+    "start_time",
+    "user_id",
+    "anonymous_id",
+    "device_type",
+]
+
+
 def generate_sessions(
     *,
     sessions_per_persona: int,
     seed: int,
     start: datetime,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rng = random.Random(seed)
     rows: list[dict[str, Any]] = []
+    labels: list[dict[str, Any]] = []
     clock = start
+    session_index = 0
 
     for persona, build in PERSONA_BUILDERS.items():
-        for i in range(sessions_per_persona):
+        for _ in range(sessions_per_persona):
             clock += timedelta(minutes=rng.randint(4, 18), seconds=rng.randint(0, 50))
             device_name = "mobile" if rng.random() < 0.28 else "desktop"
             logged_in = rng.random() < 0.45
+            session_id = f"sess_{session_index:04d}_{uuid.UUID(int=rng.getrandbits(128)).hex[:8]}"
+            session_index += 1
             builder = SessionBuilder(
                 persona=persona,
-                session_id=f"sess_{persona[:4]}_{i:03d}_{uuid.UUID(int=rng.getrandbits(128)).hex[:8]}",
+                session_id=session_id,
                 anonymous_id=f"anon_{uuid.UUID(int=rng.getrandbits(128)).hex[:12]}",
                 user_id=f"usr_{rng.randint(10000, 99999)}" if logged_in else None,
                 start_time=clock,
@@ -601,7 +614,17 @@ def generate_sessions(
             )
             build(builder)
             rows.extend(builder.events)
-    return rows
+            labels.append(
+                {
+                    "session_id": builder.session_id,
+                    "persona": persona,
+                    "start_time": _iso(builder.start_time),
+                    "user_id": builder.user_id,
+                    "anonymous_id": builder.anonymous_id,
+                    "device_type": builder.device["device_type"],
+                }
+            )
+    return rows, labels
 
 
 def write_raw_csv(rows: list[dict[str, Any]], output: Path) -> Path:
@@ -611,25 +634,35 @@ def write_raw_csv(rows: list[dict[str, Any]], output: Path) -> Path:
     return output
 
 
+def write_ground_truth_csv(labels: list[dict[str, Any]], output: Path) -> Path:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    frame = pd.DataFrame(labels, columns=GROUND_TRUTH_COLUMNS)
+    frame.to_csv(output, index=False)
+    return output
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate raw ecommerce telemetry CSV")
     parser.add_argument("--sessions-per-persona", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--ground-truth-output", type=Path, default=DEFAULT_GROUND_TRUTH_OUTPUT)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     start = datetime(2026, 10, 3, 9, 15, tzinfo=timezone.utc)
-    rows = generate_sessions(
+    rows, labels = generate_sessions(
         sessions_per_persona=args.sessions_per_persona,
         seed=args.seed,
         start=start,
     )
     path = write_raw_csv(rows, args.output)
-    personas = pd.DataFrame(rows).groupby("persona")["session_id"].nunique().to_dict()
+    truth_path = write_ground_truth_csv(labels, args.ground_truth_output)
+    personas = pd.DataFrame(labels).groupby("persona")["session_id"].nunique().to_dict()
     print(f"Wrote {len(rows)} raw events to {path}")
+    print(f"Wrote {len(labels)} session labels to {truth_path}")
     print(f"Sessions by persona: {personas}")
 
 
