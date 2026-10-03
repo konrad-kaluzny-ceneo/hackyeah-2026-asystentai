@@ -139,11 +139,7 @@ afterEach(async () => {
 describe("AssistantInline MetaEvent proposal lifecycle", () => {
   it("sends the threshold request while the shopper is off the listing page", async () => {
     await renderCoordinatorOnly();
-    await addMetaEvents(1, 2, 3, 4);
-    await flushRequestTasks();
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    await addMetaEvents(5);
+    await addMetaEvents(1);
     await flushRequestTasks();
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
@@ -151,13 +147,9 @@ describe("AssistantInline MetaEvent proposal lifecycle", () => {
     expect(container.querySelector("h2")?.textContent).toBe(FIXED_PROPOSAL.title);
   });
 
-  it("waits for five events, then sends only MetaEvents and renders a known-state proposal", async () => {
+  it("sends only MetaEvents after the first event and renders a known-state proposal", async () => {
     await renderAssistant();
-    await addMetaEvents(1, 2, 3, 4);
-    await flushRequestTasks();
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    await addMetaEvents(5);
+    await addMetaEvents(1);
     await flushRequestTasks();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -165,7 +157,7 @@ describe("AssistantInline MetaEvent proposal lifecycle", () => {
     expect(url).toBe("/api/assistant-proposal");
     expect(init.method).toBe("POST");
     expect(JSON.parse(String(init.body))).toEqual({
-      metaEvents: [1, 2, 3, 4, 5].map(metaEvent),
+      metaEvents: [1].map(metaEvent),
     });
     expect(container.querySelectorAll('[data-element-id="assistant-proposal"]')).toHaveLength(1);
     expect(container.querySelector("h2")?.textContent).toBe(FIXED_PROPOSAL.title);
@@ -177,27 +169,26 @@ describe("AssistantInline MetaEvent proposal lifecycle", () => {
       .mockResolvedValueOnce(response({ status: "hide" }))
       .mockResolvedValueOnce(response(FIXED_PROPOSAL));
     await renderAssistant();
-    await addMetaEvents(1, 2, 3, 4);
-    await addMetaEvents(5, 6);
+    await addMetaEvents(1, 2);
     await flushRequestTasks();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
-      metaEvents: [1, 2, 3, 4, 5].map(metaEvent),
+      metaEvents: [1].map(metaEvent),
     });
     expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
-      metaEvents: [1, 2, 3, 4, 5, 6].map(metaEvent),
+      metaEvents: [1, 2].map(metaEvent),
     });
 
-    await addMetaEvents(7);
+    await addMetaEvents(3);
     await flushRequestTasks();
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body))).toEqual({
-      metaEvents: [1, 2, 3, 4, 5, 6, 7].map(metaEvent),
+      metaEvents: [1, 2, 3].map(metaEvent),
     });
     expect(container.querySelectorAll('[data-element-id="assistant-proposal"]')).toHaveLength(1);
 
-    await addMetaEvents(8);
+    await addMetaEvents(4);
     await flushRequestTasks();
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
@@ -231,11 +222,11 @@ describe("AssistantInline MetaEvent proposal lifecycle", () => {
       .mockResolvedValueOnce(response({ status: "show", kind: "unknown" }))
       .mockResolvedValueOnce(response(FIXED_PROPOSAL));
     await renderAssistant();
-    await addMetaEvents(1, 2, 3, 4, 5);
+    await addMetaEvents(1);
     await flushRequestTasks();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
 
-    await addMetaEvents(6);
+    await addMetaEvents(2);
     await flushRequestTasks();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(container.querySelector("h2")?.textContent).toBe(FIXED_PROPOSAL.title);
@@ -247,7 +238,7 @@ describe("AssistantInline MetaEvent proposal lifecycle", () => {
       () => new Promise<Response>((resolve) => { resolveRequest = resolve; }),
     );
     await renderAssistant();
-    await addMetaEvents(1, 2, 3, 4, 5);
+    await addMetaEvents(1);
     await flushRequestTasks();
     const requestSignal = fetchMock.mock.calls[0]?.[1]?.signal;
     expect(requestSignal?.aborted).toBe(false);
@@ -268,7 +259,7 @@ describe("AssistantInline MetaEvent proposal lifecycle", () => {
 
   it("dismissal hides the box and mutes the assistant for 15 minutes", async () => {
     await renderAssistant();
-    await addMetaEvents(1, 2, 3, 4, 5);
+    await addMetaEvents(1);
     await flushRequestTasks();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).not.toBeNull();
 
@@ -278,10 +269,10 @@ describe("AssistantInline MetaEvent proposal lifecycle", () => {
     });
 
     expect(readAssistantMutedUntil()).toBeGreaterThanOrEqual(mutedAt + 15 * 60 * 1000);
-    expect(readAssistantMutedUntil()).toBeLessThanOrEqual(mutedAt + 15 * 60 * 1000 + 5);
+    expect(readAssistantMutedUntil()).toBeLessThanOrEqual(mutedAt + 15 * 60 * 1000 + 100);
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
 
-    await addMetaEvents(6);
+    await addMetaEvents(2);
     await flushRequestTasks();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

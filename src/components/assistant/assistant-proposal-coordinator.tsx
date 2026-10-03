@@ -53,7 +53,10 @@ export function AssistantProposalCoordinator() {
     !muted &&
     proposalUiState.proposal === null &&
     !proposalUiState.searchRecoveryVisible;
-  requestAllowedRef.current = requestAllowed;
+
+  useEffect(() => {
+    requestAllowedRef.current = requestAllowed;
+  }, [requestAllowed]);
 
   useEffect(() => {
     mountedRef.current = true;

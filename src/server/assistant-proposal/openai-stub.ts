@@ -10,8 +10,9 @@ export type AssistantDraft = Readonly<{
  * Replace this local implementation with a model call in a later slice.
  */
 export async function generateProposalWithOpenAiStub(
-  _jevOutput: JevAssistantOutput,
+  jevOutput: JevAssistantOutput,
 ): Promise<AssistantDraft> {
+  void jevOutput;
   return {
     title: "Mogę podpowiedzieć następny krok",
     message:

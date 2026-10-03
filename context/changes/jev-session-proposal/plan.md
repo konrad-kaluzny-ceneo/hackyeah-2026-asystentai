@@ -8,7 +8,7 @@ Kontrakt (przykłady JSON, kody HTTP, podział plików): [`context/changes/assis
 
 ## Current State Analysis
 
-Box na listingu nadal ma lokalną ścieżkę pustych wyników, ale decyzja fatigue nie jest już warunkiem requestu do S-04. S-05 wysyła bounded MetaEvents od piątego zdarzenia; Jev klasyfikuje sytuację po stronie serwera.
+Box na listingu nadal ma lokalną ścieżkę pustych wyników, ale decyzja fatigue nie jest już warunkiem requestu do S-04. S-05 wysyła bounded MetaEvents od pierwszego zdarzenia; Jev klasyfikuje sytuację po stronie serwera.
 
 Pipeline `data_processor/` nie jest runtime. Aplikacja nie ma klienta LLM. Jedyny route POST produktowy to meta eventy.
 
@@ -47,7 +47,7 @@ Request zawiera od 1 do 10 ścisłych MetaEvents (maks. 64 KiB), bez osobnych `C
 - **Stub:** zwraca stałe `title` + `message`; route ustawia `action: "narrow-choice"` i `actionLabel`. Stub nie wykonuje sieciowego wywołania ani nie wymaga klucza.
 - **OpenAI:** prawdziwy klient i `OPENAI_API_KEY` są poza bieżącym zakresem; stub jest miejscem przyszłej podmiany.
 - **Spend:** licznik rośnie przy przyjęciu żądania, przed wołaniem Jev.
-- **UI (S-05):** brak loadera; konsument woła endpoint od piątego MetaEvent i ponawia przy każdym nowym zdarzeniu, gdy nie ma widocznej propozycji.
+- **UI (S-05):** brak loadera; konsument woła endpoint od pierwszego MetaEvent i ponawia przy każdym nowym zdarzeniu, gdy nie ma widocznej propozycji.
 
 ## Phase 1: Bramka Jev
 

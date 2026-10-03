@@ -7,6 +7,7 @@ import {
   InMemoryRateLimiter,
 } from "@/server/meta-events/rate-limit";
 import { saveBatch } from "@/server/meta-events/service";
+import { inferAndSaveIntentSnapshot } from "@/server/intent-inference/trigger";
 import {
   BATCH_LIMITS,
   BatchPayloadSchema,
@@ -114,8 +115,9 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   // -- Persist ------------------------------------------------------------------
   let result;
+  const db = getDb();
   try {
-    result = await saveBatch(batch, { db: getDb() });
+    result = await saveBatch(batch, { db });
   } catch (error) {
     logLine({
       level: "error",
@@ -144,6 +146,19 @@ export async function POST(request: NextRequest): Promise<Response> {
     clientKeyHash: hashKey(clientKey),
     receivedAt,
   });
+
+  const acceptedEvents = batch.events.filter((event) =>
+    result.acceptedEventIds.includes(event.eventId),
+  );
+  if (acceptedEvents.length > 0) {
+    try {
+      await inferAndSaveIntentSnapshot(acceptedEvents, { db });
+    } catch (error) {
+      // Intent inference is best-effort; a JEV outage must not make a
+      // successfully persisted MetaEvent batch retry.
+      console.error("Failed to persist JEV intent snapshot", error);
+    }
+  }
 
   return NextResponse.json(
     {

@@ -1,7 +1,7 @@
 import type { MetaEvent } from "./types";
 
 export const MAX_ASSISTANT_META_EVENTS = 10;
-export const MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL = 5;
+export const MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL = 1;
 const MAX_REMEMBERED_EVENT_IDS = 1_000;
 
 export type AssistantProposalTrigger = Readonly<{

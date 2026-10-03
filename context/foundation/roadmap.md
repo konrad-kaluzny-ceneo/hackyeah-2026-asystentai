@@ -36,9 +36,10 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
 | S-04 | jev-session-proposal | … (serwer) dostać JSON z Jev i deterministycznego stubu dla każdej znanej sytuacji o wysokiej pewności | — | US-03, FR-010 | ready |
-| S-05 | assistant-proposal-box | … (UI) wysłać bounded MetaEvents od piątego zdarzenia i zobaczyć box, gdy Jev rozpozna stan z wysoką pewnością | S-04 | US-01, FR-007, FR-010 | ready |
+| S-05 | assistant-proposal-box | … (UI) wysłać bounded MetaEvents od pierwszego zdarzenia i zobaczyć box, gdy Jev rozpozna stan z wysoką pewnością | S-04 | US-01, FR-007, FR-010 | ready |
 | S-06 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
 | S-07 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-06 | FR-012 | active |
+| S-08 | intent-timeline | … zespół oglądał realne prawdopodobieństwa 8 intencji JEV per sesja w debug overlay | S-04 | FR-013 | done |
 
 ## Streams
 
@@ -72,7 +73,7 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 
 ### DDD correction
 
-`src/behavior` is an observation context, not the shopping-signal domain. `DecisionEngine` still classifies catalog facts, but S-05 no longer uses its fatigue result to trigger a server request. After five successfully sent MetaEvents, the client sends a bounded MetaEvent summary to Jev; Jev classifies the situation on the server. See `context/foundation/domain.md`.
+`src/behavior` is an observation context, not the shopping-signal domain. `DecisionEngine` still classifies catalog facts, but S-05 no longer uses its fatigue result to trigger a server request. After one successfully sent MetaEvent, the client sends a bounded MetaEvent summary to Jev; Jev classifies the situation on the server. The same accepted batch triggers the server-side intent snapshot flow used by the timeline. See `context/foundation/domain.md`.
 
 - `MetaEvent.quality.strength` is detector confidence. The decision engine does not use it.
 - `comparison_oscillation` and `product_revisit` are not `decision_fatigue`.
@@ -186,7 +187,7 @@ Source / Lineage:
 
 ### S-05: Box propozycji na listingu (UI)
 
-- **Outcome:** klient wysyła ostatnie MetaEvents do S-04 po zapisaniu pięciu zdarzeń, a potem przy każdym nowym zdarzeniu, dopóki nie ma widocznej propozycji; UI nie podejmuje decyzji o fatigue. Serwer klasyfikuje sytuację przez Jev i pokazuje jeden box ze stałą odpowiedzią stubu dla każdej znanej sytuacji z confidence `> 0.75`; niższa pewność lub nieznana sytuacja ukrywa box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
+- **Outcome:** klient wysyła ostatnie MetaEvents do S-04 po zapisaniu pierwszego zdarzenia, a potem przy każdym nowym zdarzeniu, dopóki nie ma widocznej propozycji; UI nie podejmuje decyzji o fatigue. Serwer klasyfikuje sytuację przez Jev i pokazuje jeden box ze stałą odpowiedzią stubu dla każdej znanej sytuacji z confidence `> 0.75`; niższa pewność lub nieznana sytuacja ukrywa box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
 - **Change ID:** assistant-proposal-box
 - **PRD refs:** US-01, FR-007, FR-010
 - **Prerequisites:** S-04 (route zgodny z `interface.md`)
@@ -245,7 +246,30 @@ Source / Lineage:
 - **Unknowns:**
   - Progi dwell dla `price_focus` na stronie produktu — kalibracja. Block: no.
 - **Risk:** Asystent może być rzadko pokazywany na demo, więc `assistant_proposal_dismissed` będzie rzadki. Akceptowalne — to czysty feedback negatywny.
-- **Status:** active
+- **Status:** done
+
+### S-08: Timeline intencji JEV per sesja
+
+- **Outcome:** system zapisuje atomowe snapshoty ośmiu prawdopodobieństw intencji JEV per anonimowa sesja z timestampem, a `GET /api/emotions-timeline?sessionId=...` zwraca realną oś czasu z forward-fill ostatniego znanego stanu. Debug overlay pokazuje intencje zamiast mockowanych emocji.
+- **Change ID:** intent-timeline
+- **PRD refs:** FR-013
+- **Prerequisites:** S-04
+- **Parallel with:** S-05, S-07
+- **Blockers:** —
+- **Acceptance:**
+  - tabela `session_intent_snapshots` przechowuje osiem wartości `0..1`, model, wersję algorytmu i czas obliczenia;
+  - klient JEV przekazuje maksymalnie 10 ostatnich bezpiecznych meta-eventów i wymaga wszystkich ośmiu probabilistyk;
+  - endpoint dla poprawnego `sessionId` zwraca 8 serii i uzupełnia sekundy ostatnim stanem, bez mocka;
+  - wykres odświeża dane co sekundę i pokazuje `jev` albo `empty`;
+  - wywołanie bez `sessionId` zachowuje mock tylko dla kompatybilności dev-demo.
+- **Unknowns:** częstotliwość triggera JEV i polityka retencji snapshotów — Owner: lane inferencji. Block: no.
+- **Risk:** brak triggera oznacza pustą oś czasu; `source: "empty"` odróżnia ten stan od danych modelu.
+- **Status:** done
+
+Source / Lineage:
+
+- Added on 2026-10-03 after merge of `feature/jev-session-proposal`.
+- Trigger JEV runs after an accepted `/api/meta-events` batch and persists a validated snapshot before the timeline reads it.
 
 Source / Lineage:
 
@@ -266,6 +290,7 @@ Source / Lineage:
 | S-05 | assistant-proposal-box | Wire listing box to MetaEvents-only Jev proposal flow | yes | Lane: Michał. Po kontrakcie S-04. Plan w `context/changes/assistant-proposal-box/`. |
 | S-06 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | no | Done (`7d9e7bc`) |
 | S-07 | behavior-meta-events-2 | Price focus, search refinement loop, proposal dismissed | yes | Tagi na cenie/boxie asystenta + raw search_submitted |
+| S-08 | intent-timeline | Persist JEV intent probabilities and render session timeline | yes | Eight intents, forward-fill, same timeline URL; trigger is a separate lane. |
 
 ## Open Roadmap Questions
 

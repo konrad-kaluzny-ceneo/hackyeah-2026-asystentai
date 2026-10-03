@@ -3,7 +3,7 @@ import {
   type MetaEvent,
   type MetaEventName,
 } from "@/behavior/types";
-import type { AssistantProposalRequest } from "@/lib/assistant-proposal-api";
+import type { MetaEventsAssistantProposalRequest } from "@/lib/assistant-proposal-api";
 
 const SAFE_METRIC_TOKEN = /^[A-Za-z0-9_.,:/+-]{1,128}$/;
 
@@ -45,7 +45,7 @@ function formatEvent(event: MetaEvent, offsetMs: number): string {
 
 /** Builds a minimized Jev prompt; identifiers, paths, and raw payloads are omitted. */
 export function buildAssistantPrompt(
-  request: AssistantProposalRequest,
+  request: MetaEventsAssistantProposalRequest,
 ): string {
   const events = [...request.metaEvents].sort(
     (first, second) => Date.parse(first.detectedAt) - Date.parse(second.detectedAt),

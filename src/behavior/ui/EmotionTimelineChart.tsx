@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 
 import {
-  EMOTION_VISIBILITY_THRESHOLD,
-  EMOTION_WINDOW_SECONDS,
-  buildStackedEmotionSeries,
-  type StackedEmotionPoint,
-  type EmotionSeries,
-  type EmotionTimelineResponse,
-} from "./emotion-timeline";
+  INTENT_TIMELINE_WINDOW_SECONDS,
+  buildStackedIntentSeries,
+  type StackedIntentPoint,
+  type IntentSeries,
+  type IntentTimelineResponse,
+} from "@/lib/intent-timeline";
+import { getSessionId } from "../collector/session";
 
 const CHART_WIDTH = 900;
 const CHART_HEIGHT = 240;
@@ -21,7 +21,9 @@ export function chartX(
   second: number,
   windowStartSecond: number,
 ): number {
-  return ((second - windowStartSecond) / EMOTION_WINDOW_SECONDS) * CHART_WIDTH;
+  return (
+    ((second - windowStartSecond) / INTENT_TIMELINE_WINDOW_SECONDS) * CHART_WIDTH
+  );
 }
 
 export function chartY(value: number, scaleMax = 1): number {
@@ -35,7 +37,7 @@ export function shortenComment(comment: string, maxLength = 34): string {
 }
 
 export function EmotionTimelineChart() {
-  const [timeline, setTimeline] = useState<EmotionTimelineResponse | null>(null);
+  const [timeline, setTimeline] = useState<IntentTimelineResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,14 +46,17 @@ export function EmotionTimelineChart() {
 
     const loadTimeline = async () => {
       try {
-        const response = await fetch("/api/emotions-timeline", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          `/api/emotions-timeline?sessionId=${encodeURIComponent(getSessionId())}`,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        const nextTimeline = (await response.json()) as EmotionTimelineResponse;
+        const nextTimeline = (await response.json()) as IntentTimelineResponse;
         if (active) {
           setTimeline(nextTimeline);
           setError(null);
@@ -75,29 +80,38 @@ export function EmotionTimelineChart() {
 
   if (timeline === null) {
     return (
-      <div className="flex h-[200px] min-h-[200px] items-center justify-center rounded border border-dashed border-zinc-300 bg-white/70 text-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/40">
-        {error === null ? "ładowanie danych mock..." : `błąd timeline: ${error}`}
+      <div className="flex h-full min-h-[180px] w-full items-center justify-center rounded border border-dashed border-zinc-300 bg-white/70 text-zinc-400 dark:border-zinc-600 dark:bg-zinc-900/40">
+        {error === null ? "ładowanie intencji..." : `błąd timeline: ${error}`}
       </div>
     );
   }
 
   const visibleDuration = timeline.windowEndSecond - timeline.windowStartSecond;
   const midpointSecond = timeline.windowStartSecond + visibleDuration / 2;
-  const stackedSeries = buildStackedEmotionSeries(timeline.series);
+  const stackedSeries = buildStackedIntentSeries(timeline.series);
   const stackedMax = Math.max(
     1,
     ...stackedSeries.flatMap(({ points }) => points.map(({ upper }) => upper)),
   );
 
   return (
-    <div className="min-w-0">
-      <div className="overflow-x-auto rounded border border-dashed border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-900/40">
-        <svg
-          aria-label="Mockowa oś czasu emocji użytkownika"
-          className="h-[200px] min-w-[720px] w-full"
-          viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-          role="img"
-        >
+    <div className="flex min-h-[180px] min-w-0 flex-1 items-stretch gap-3">
+      <div className="w-32 shrink-0 overflow-hidden pt-1">
+        <div className="flex flex-col gap-1">
+          {timeline.series.map((intent) => (
+            <LegendItem key={intent.id} intent={intent} />
+          ))}
+        </div>
+      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded border border-dashed border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-900/40">
+          <svg
+            aria-label="Oś czasu intencji zakupowych użytkownika"
+            className="block h-full min-h-[180px] min-w-0 w-full"
+            preserveAspectRatio="none"
+            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+            role="img"
+          >
           <rect x="0" y={PLOT_TOP} width={CHART_WIDTH} height={PLOT_BOTTOM - PLOT_TOP} fill="transparent" />
           {[0, stackedMax / 2, stackedMax].map((value) => (
             <line
@@ -132,40 +146,40 @@ export function EmotionTimelineChart() {
           >
             teraz {timeline.currentSecond}s
           </text>
-          {stackedSeries.map((emotion) => (
+          {stackedSeries.map((intent) => (
             <path
-              key={emotion.id}
-              d={buildAreaPath(emotion.points, timeline.windowStartSecond, stackedMax)}
-              fill={emotion.color}
+              key={intent.id}
+              d={buildAreaPath(intent.points, timeline.windowStartSecond, stackedMax)}
+              fill={intent.color}
               fillOpacity="0.55"
-              stroke={emotion.color}
+              stroke={intent.color}
               strokeWidth="1"
               strokeLinejoin="round"
             >
-              <title>{emotion.label}</title>
+              <title>{intent.label}</title>
             </path>
           ))}
           {timeline.annotations.map((annotation, index) => {
-            const emotion = timeline.series.find(
-              (candidate) => candidate.id === annotation.emotionId,
+            const intent = timeline.series.find(
+              (candidate) => candidate.id === annotation.intentId,
             );
-            if (emotion === undefined) return null;
+            if (intent === undefined) return null;
             const x = chartX(annotation.second, timeline.windowStartSecond);
             const textAnchor = x < 70 ? "start" : x > CHART_WIDTH - 70 ? "end" : "middle";
             const textX = textAnchor === "start" ? x + 5 : textAnchor === "end" ? x - 5 : x;
             return (
-              <g key={`${annotation.emotionId}-${annotation.second}`}>
+              <g key={`${annotation.intentId}-${annotation.second}`}>
                 <line
                   x1={x}
                   x2={x}
                   y1={PLOT_TOP}
                   y2={PLOT_BOTTOM}
-                  stroke={emotion.color}
+                  stroke={intent.color}
                   strokeDasharray="3 3"
                   strokeWidth="1"
                   opacity="0.7"
                 />
-                <circle cx={x} cy={chartY(stackedMax / 2, stackedMax)} r="3" fill={emotion.color}>
+                <circle cx={x} cy={chartY(stackedMax / 2, stackedMax)} r="3" fill={intent.color}>
                   <title>{annotation.comment}</title>
                 </circle>
                 <text
@@ -173,7 +187,7 @@ export function EmotionTimelineChart() {
                   y={index % 3 * 14 + 11}
                   textAnchor={textAnchor}
                   fontSize="10"
-                  fill={emotion.color}
+                  fill={intent.color}
                 >
                   {shortenComment(annotation.comment)}
                 </text>
@@ -205,27 +219,21 @@ export function EmotionTimelineChart() {
               </text>
             </>
           )}
-        </svg>
-      </div>
-      <div className="mt-2 max-h-14 overflow-y-auto pr-1">
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {timeline.series.map((emotion) => (
-            <LegendItem key={emotion.id} emotion={emotion} />
-          ))}
+          </svg>
         </div>
+        <p className="mt-1 text-[10px] text-zinc-400">
+          {timeline.source} · stacked area · okno {timeline.windowStartSecond}–{timeline.windowEndSecond}s · odświeżanie co 1 s · prawdopodobieństwa JEV 0–100%
+        </p>
       </div>
-      <p className="mt-1 text-[10px] text-zinc-400">
-        mock · stacked area · okno {timeline.windowStartSecond}–{timeline.windowEndSecond}s · odświeżanie co 1 s · wartości poniżej {EMOTION_VISIBILITY_THRESHOLD * 100}% pominięte
-      </p>
     </div>
   );
 }
 
-function LegendItem({ emotion }: { emotion: EmotionSeries }) {
+function LegendItem({ intent }: { intent: IntentSeries }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1 text-[10px] text-zinc-500" title={emotion.label}>
-      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: emotion.color }} />
-      <span className="truncate">{emotion.label}</span>
+    <span className="inline-flex max-w-full items-center gap-1 text-[10px] text-zinc-500" title={intent.label}>
+      <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: intent.color }} />
+      <span className="truncate">{intent.label}</span>
     </span>
   );
 }
@@ -235,7 +243,7 @@ function formatAxisSecond(second: number): string {
 }
 
 function buildAreaPath(
-  points: readonly StackedEmotionPoint[],
+  points: readonly StackedIntentPoint[],
   windowStartSecond: number,
   scaleMax: number,
 ): string {

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Connect the behavior MetaEvent pipeline to assistant proposals without asking the browser to decide whether the shopper has decision fatigue. Once the client has five distinct MetaEvents from successfully delivered `/api/meta-events` batches, it calls `/api/assistant-proposal`; each later MetaEvent triggers another request while no proposal is visible. The server asks Jev to classify the bounded event summary and returns a deterministic demo proposal for any recognized situation with confidence strictly above 0.75. Lower confidence, unknown situations, and failures produce no Jev proposal. Real OpenAI integration remains future work.
+Connect the behavior MetaEvent pipeline to assistant proposals without asking the browser to decide whether the shopper has decision fatigue. Once the client has one distinct MetaEvent from a successfully delivered `/api/meta-events` batch, it calls `/api/assistant-proposal`; each later MetaEvent triggers another request while no proposal is visible. The server asks Jev to classify the bounded event summary and returns a deterministic demo proposal for any recognized situation with confidence strictly above 0.75. Lower confidence, unknown situations, and failures produce no Jev proposal. Real OpenAI integration remains future work.
 
 ## Current State Analysis
 
@@ -21,7 +21,7 @@ Connect the behavior MetaEvent pipeline to assistant proposals without asking th
 
 ## Desired End State
 
-When the client history first reaches five distinct MetaEvents from successful `/api/meta-events` batches, the client sends `POST /api/assistant-proposal` with only the latest bounded MetaEvent snapshot. Every later distinct event triggers another request while no proposal is visible and the assistant is not muted. The browser does not use `DecisionEngine` to decide whether fatigue or another state has been reached. The server validates and summarizes the events for Jev without sending raw events or catalog state. A recognized Jev situation with confidence strictly above `0.75` reaches the deterministic local proposal stub; unknown situations, confidence at or below `0.75`, invalid input/output, timeout, rate limit, or model error return `hide`. The local empty-search recovery remains local and keeps the single-box priority.
+When the client history first reaches one distinct MetaEvent from a successful `/api/meta-events` batch, the client sends `POST /api/assistant-proposal` with only the latest bounded MetaEvent snapshot. Every later distinct event triggers another request while no proposal is visible and the assistant is not muted. The browser does not use `DecisionEngine` to decide whether fatigue or another state has been reached. The server validates and summarizes the events for Jev without sending raw events or catalog state. A recognized Jev situation with confidence strictly above `0.75` reaches the deterministic local proposal stub; unknown situations, confidence at or below `0.75`, invalid input/output, timeout, rate limit, or model error return `hide`. The local empty-search recovery remains local and keeps the single-box priority.
 
 The existing single-box behavior remains: local `search_friction` stays local, there is no loader, stale requests are ignored, and dismissal mutes the assistant for 15 minutes. The real OpenAI API client and key are not part of this change.
 
@@ -29,13 +29,13 @@ The existing single-box behavior remains: local `search_friction` stays local, t
 
 - Sending raw events, raw-event checkpoints, catalog state, or `CatalogEvent[]` to Jev.
 - Reusing `src/behavior/ui/debug-store.ts` as an assistant data source.
-- Calling Jev before five distinct successfully sent MetaEvents, for a visible local `search_friction` proposal, while muted, or when the behavior tracker is disabled.
+- Calling Jev before one distinct successfully sent MetaEvent, for a visible local `search_friction` proposal, while muted, or when the behavior tracker is disabled.
 - Implementing a real OpenAI request, API key handling, or a second proposal box.
 - Changing detector definitions, thresholds, or `DecisionEngine` criteria.
 
 ## Implementation Approach
 
-The application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and queues one immutable snapshot when the fifth and each later distinct event arrives. A coordinator mounted in the root behavior shell drains these triggers in order while no proposal is visible and the assistant is not muted, including while the shopper is on a product page. Each request carries at most 10 MetaEvents. The shared request remains `{ metaEvents: MetaEvent[] }`. The route validates that bounded request, gives Jev a server-built summary, validates Jev's situation against the known prompt vocabulary, then hides or invokes the deterministic demo stub based on the strict confidence threshold. Existing route rate limits and Jev's three-second timeout remain in force.
+The application-purpose store receives full MetaEvents from the tracker's successful-batch callback, keeps only the most recent 10 unique events, and queues one immutable snapshot when the first and each later distinct event arrives. A coordinator mounted in the root behavior shell drains these triggers in order while no proposal is visible and the assistant is not muted, including while the shopper is on a product page. Each request carries at most 10 MetaEvents. The shared request remains `{ metaEvents: MetaEvent[] }`. The route validates that bounded request, gives Jev a server-built summary, validates Jev's situation against the known prompt vocabulary, then hides or invokes the deterministic demo stub based on the strict confidence threshold. Existing route rate limits and Jev's three-second timeout remain in force.
 
 ## Phase 1: Retain Recent MetaEvents for the Assistant
 
