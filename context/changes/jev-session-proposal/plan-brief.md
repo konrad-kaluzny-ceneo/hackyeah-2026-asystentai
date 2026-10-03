@@ -5,11 +5,11 @@
 
 ## What & Why
 
-Dla sesji decision fatigue serwer układa jedną odpowiedź na żywo: Jev (Typesafe) klasyfikuje fakty katalogu; przy pewnym `DECISION_FATIGUE` tekst idzie ze skrótu Jev, inaczej OpenAI. Wynik trafia do klienta przez `POST /api/assistant-proposal` — **bez** pracy nad boxem w tym change.
+Dla sesji decision fatigue serwer układa jedną odpowiedź na żywo: Jev (TypeSafe) zwraca typowaną decyzję o sytuacji i filtr; przy pewnym `DECISION_FATIGUE` serwer składa lokalny tekst, a niepewny wynik przechodzi do OpenAI. Wynik trafia do klienta przez `POST /api/assistant-proposal` — **bez** pracy nad boxem w tym change.
 
 ## Starting Point
 
-Box na listingu dziś pokazuje stałe zdania z `DecisionEngine`. Pusty wynik i decision fatigue są rozpoznawane. Brak klienta LLM w aplikacji. Klucze tylko po stronie serwera.
+Box na listingu dziś pokazuje stałe zdania z `DecisionEngine`. Pusty wynik i decision fatigue są rozpoznawane. Brak klienta modeli w aplikacji. Klucze tylko po stronie serwera. Katalog runtime jest dostępny z Postgresa przez `src/lib/catalog-repository.ts`; `data/categories.json` i `data/products.json` służą do seedowania.
 
 ## Desired End State
 
@@ -21,9 +21,9 @@ Route zwraca JSON zgodny z `interface.md`: `show` z `title`, `message`, akcją `
 | --- | --- | --- |
 | Granica slice’a | Kontrakt HTTP + serwer | UI jest w `assistant-proposal-box` (Michał) |
 | PoC offline | Porzucony | Prompt z pliku nie opisuje sesji na demo |
-| Sprawdzenie | Schemat `JevAssistantResponse` | Bramka przed zdaniem dla kupującego |
+| Sprawdzenie | Typowane odpowiedzi System One | Bramka przed zdaniem dla kupującego |
 | Popularny przypadek | Tylko `DECISION_FATIGUE` | Zgodne z gwiazdą przewodnią |
-| Pewność | `confidence` ≥ 0,75 i `hedging_required` false | Granica ze system promptu próbnego |
+| Pewność | Pewność decyzji ≥ 0,75 | Jev nie generuje tekstu ani flagi hedgingu |
 | Jev | `TYPESAFE_API_KEY` | Pierwsze wywołanie ma własny klucz |
 | Mocniejszy model | OpenAI, `OPENAI_API_KEY` | Osobne wywołanie poza skrótem |
 | Porażka Jev / OpenAI / limit | `{ status: "hide" }` | Stałe S-02 nie jest fallbackiem |
