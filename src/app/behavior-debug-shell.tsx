@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 
 import { THRESHOLDS } from "@/behavior/config/thresholds";
 import {
+  clearAssistantMetaEventHistory,
+  recordAssistantMetaEventBatch,
+} from "@/behavior/assistant-meta-event-history";
+import {
   CATALOG_PRODUCT_VIEW_EVENT,
   type CatalogProductViewDetail,
 } from "@/lib/catalog-ui-events";
@@ -35,7 +39,15 @@ export function BehaviorDebugShell() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const tracker = initBehaviorTracker({ onBatchSent: recordBatchSent });
+    clearAssistantMetaEventHistory();
+    let isActive = true;
+    const tracker = initBehaviorTracker({
+      onBatchSent: (batch) => {
+        if (!isActive) return;
+        recordAssistantMetaEventBatch(batch.events);
+        recordBatchSent(batch);
+      },
+    });
     trackerRef.current = tracker;
     setDebugState({
       trackerEnabled: tracker !== null,
@@ -67,6 +79,8 @@ export function BehaviorDebugShell() {
     }, REPORT_INTERVAL_MS);
 
     return () => {
+      isActive = false;
+      clearAssistantMetaEventHistory();
       window.clearInterval(intervalId);
       window.removeEventListener(CATALOG_PRODUCT_VIEW_EVENT, onCatalogProductView);
       void tracker.destroy();
