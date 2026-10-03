@@ -195,9 +195,9 @@ Jev 3 s → `hide`. OpenAI bez limitu czasu w route (konsument w S-05 czeka bez 
 
 #### Automated
 
-- [ ] 1.1 `assistant-proposal-api.ts` + test Zod odpowiedzi
-- [ ] 1.2 `npm test` — skrót, schemat, porażka Jev, limit
-- [ ] 1.3 `npm run typecheck`
+- [x] 1.1 `assistant-proposal-api.ts` + test Zod odpowiedzi
+- [x] 1.2 `npm test` — skrót, schemat, porażka Jev, limit
+- [x] 1.3 `npm run typecheck`
 
 #### Manual
 

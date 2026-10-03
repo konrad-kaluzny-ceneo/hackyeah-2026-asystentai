@@ -1,7 +1,7 @@
 ---
 change_id: jev-session-proposal
 title: Odpowiedź z Jev albo z OpenAI
-status: plan_reviewed
+status: implementing
 created: 2026-10-03
 updated: 2026-10-03
 archived_at: null
