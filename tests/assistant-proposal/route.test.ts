@@ -128,6 +128,21 @@ describe("POST /api/assistant-proposal", () => {
     expect(jevSpy).toHaveBeenCalledOnce();
   });
 
+  it("rethrows provider errors in development", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.spyOn(jevClient, "requestJev").mockRejectedValue(
+      new Error("Typesafe unavailable"),
+    );
+
+    try {
+      await expect(
+        POST(makeRequest(validRequestBody, { "x-real-ip": "10.0.0.7" })),
+      ).rejects.toThrow("Typesafe unavailable");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("returns hide when Jev returns invalid schema output", async () => {
     vi.spyOn(jevClient, "requestJev").mockResolvedValue({
       not_a_valid_field: true,
@@ -185,6 +200,7 @@ describe("POST /api/assistant-proposal", () => {
           max: 500,
         },
       ],
+      expect.any(AbortSignal),
     );
   });
 

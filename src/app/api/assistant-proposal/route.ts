@@ -52,6 +52,9 @@ async function readAvailableFilters(
         error: error instanceof Error ? error.message : "unknown",
       }),
     );
+    if (process.env.NODE_ENV === "development") {
+      throw error;
+    }
     return [];
   }
 }
@@ -93,6 +96,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     prompt,
     signal,
     availableFilters,
+    request.signal,
   );
   return NextResponse.json(proposal, { status: 200 });
 }

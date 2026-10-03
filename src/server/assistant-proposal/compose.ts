@@ -13,20 +13,23 @@ const HIDE_RESPONSE: AssistantProposalResponse = { status: "hide" };
 
 export async function composeProposal(
   prompt: string,
-  signal: AbortSignal,
+  jevSignal: AbortSignal,
   availableFilters: readonly CategoryFilter[] = [],
+  requestSignal?: AbortSignal,
 ): Promise<AssistantProposalResponse> {
   let rawJevOutput: unknown;
   try {
-    rawJevOutput = await requestJev(prompt, signal);
+    rawJevOutput = await requestJev(prompt, jevSignal);
   } catch (error) {
     logFailure("jev_request", error);
+    rethrowInDevelopment(error);
     return HIDE_RESPONSE;
   }
 
   const parsedJev = JevAssistantOutputSchema.safeParse(rawJevOutput);
   if (!parsedJev.success) {
     logFailure("jev_schema", parsedJev.error);
+    rethrowInDevelopment(parsedJev.error);
     return HIDE_RESPONSE;
   }
 
@@ -43,11 +46,19 @@ export async function composeProposal(
     const reply = await requestStrongerReply(
       parsedJev.data,
       availableFilters,
+      requestSignal,
     );
     return toProposalResponse(reply, availableFilters);
   } catch (error) {
     logFailure("openai_request", error);
+    rethrowInDevelopment(error);
     return HIDE_RESPONSE;
+  }
+}
+
+function rethrowInDevelopment(error: unknown): void {
+  if (process.env.NODE_ENV === "development") {
+    throw error;
   }
 }
 
