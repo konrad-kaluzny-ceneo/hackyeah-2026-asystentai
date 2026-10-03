@@ -24,9 +24,7 @@ Page types are decided by the URL pathname via regex rules in
    `unknown`. (The roadmap's F-02 will add `/katalog/produkt/[id]` etc;
    their rules belong to that slice, not before.)
 
-4. **Test the rule** — extend
-   [tests/behavior/page-classifier.test.ts](../tests/behavior/page-classifier.test.ts)
-   with positive and negative cases. Pay attention to:
+4. **Verify the rule** — check positive and negative paths, including:
    - trailing slash handling,
    - first-match-wins (order your patterns deliberately),
    - boundary characters — `(?:\/|$)` after the prefix prevents `/catalogFoo`
@@ -42,3 +40,7 @@ Page types are decided by the URL pathname via regex rules in
   checkout step — that's a funnel, not a new page type). Use
   `currentJourneyStage` or meta-event subjects to distinguish.
 - You're guessing at future structure; rules without real routes rot.
+
+The current app classifies `/produkt/[productSlug]` as `product` and
+`/katalog` plus `/katalog/[categorySlug]` as `catalog`. Search stays on the
+Polish catalog routes; its query string is excluded from event route templates.

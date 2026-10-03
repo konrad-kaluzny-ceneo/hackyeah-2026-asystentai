@@ -1,33 +1,50 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import CatalogListing from "@/components/catalog/catalog-listing";
-import { categories, getCategory, getProductsForCategory } from "@/lib/catalog-data";
+import { CatalogUnavailable } from "@/components/catalog/catalog-unavailable";
+import {
+  getCategoryBySlug,
+  getProductsForCategory,
+} from "@/lib/catalog-repository";
 
 type CategoryPageProps = {
   params: Promise<{ categorySlug: string }>;
   searchParams: Promise<{ q?: string | string[] }>;
 };
 
-export function generateStaticParams() {
-  return categories.map(({ slug }) => ({ categorySlug: slug }));
-}
-
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  await connection();
   const { categorySlug } = await params;
-  const category = getCategory(categorySlug);
-  return { title: category?.name ?? "Kategoria", description: category?.description };
+  try {
+    const category = await getCategoryBySlug(categorySlug);
+    return { title: category?.name ?? "Kategoria", description: category?.description };
+  } catch {
+    return { title: "Kategoria AGD" };
+  }
 }
 
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
+  await connection();
   const [{ categorySlug }, queryParams] = await Promise.all([params, searchParams]);
-  const category = getCategory(categorySlug);
+  let category;
+  let products;
+  try {
+    category = await getCategoryBySlug(categorySlug);
+    if (category) products = await getProductsForCategory(category.slug);
+  } catch (error) {
+    console.error("Category listing query failed", error);
+    return <CatalogUnavailable />;
+  }
   if (!category) notFound();
 
   return (
-    <main className="flex-1 bg-[#f7f8f6]">
+    <main
+      className="flex-1 bg-[#f7f8f6]"
+    >
       <CatalogListing
         category={category}
-        products={getProductsForCategory(category.slug)}
+        products={products ?? []}
         initialQuery={(Array.isArray(queryParams.q) ? queryParams.q[0] : queryParams.q)?.trim() ?? ""}
       />
     </main>

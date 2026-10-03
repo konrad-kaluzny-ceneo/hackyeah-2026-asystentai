@@ -21,17 +21,23 @@ export function getDb(): Database {
     return db;
   }
   const url = process.env.DATABASE_URL;
-  if (url === undefined || url.length === 0) {
+  if (url === undefined || url.trim().length === 0) {
     throw new Error(
       "DATABASE_URL is not set. Configure it (see .env.example) or disable persistence.",
     );
   }
-  if (!/^postgres(?:ql)?:\/\//i.test(url)) {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error("DATABASE_URL must be a valid PostgreSQL connection URL.");
+  }
+  if (parsedUrl.protocol !== "postgres:" && parsedUrl.protocol !== "postgresql:") {
     throw new Error(
-      "DATABASE_URL must be a PostgreSQL connection string (postgresql://...).",
+      `DATABASE_URL must use a PostgreSQL scheme (postgres:// or postgresql://); received ${parsedUrl.protocol || "no scheme"}.`,
     );
   }
-  pool = new Pool({ connectionString: url });
+  pool = new Pool({ connectionString: url, max: 1 });
   db = drizzle(pool, { schema });
   return db;
 }

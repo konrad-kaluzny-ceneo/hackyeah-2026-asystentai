@@ -23,6 +23,8 @@ export type Product = {
   id: string;
   slug: string;
   categorySlug: string;
+  categoryId: string;
+  brandId: string;
   brand: string;
   model: string;
   name: string;
@@ -36,13 +38,16 @@ export type Product = {
 type EventBase = { id: string; timestamp: string };
 
 export type CatalogEvent =
-  | (EventBase & { type: "listing_view"; categorySlug: string })
+  | (EventBase & { type: "listing_view"; categorySlug: string; categoryId: string })
   | (EventBase & {
       type: "product_view";
       categorySlug: string;
       productSlug: string;
+      productId: string;
+      categoryId: string;
+      brandId: string;
     })
-  | (EventBase & { type: "return_to_listing"; categorySlug: string })
+  | (EventBase & { type: "return_to_listing"; categorySlug: string; categoryId: string })
   | (EventBase & {
       type: "search_changed";
       categorySlug: string | null;

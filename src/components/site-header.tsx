@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
-import { categories } from "@/lib/catalog-data";
 import { trackCatalogEvent } from "@/lib/assistant-events";
 import { CLEAR_GLOBAL_SEARCH_EVENT } from "@/lib/catalog-ui-events";
+import type { Category } from "@/lib/catalog-types";
 
-export default function SiteHeader() {
+export default function SiteHeader({ categories }: { categories: Category[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");

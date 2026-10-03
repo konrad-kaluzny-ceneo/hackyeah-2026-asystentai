@@ -8,17 +8,19 @@ import {
   readCatalogEvents,
 } from "@/lib/assistant-events";
 import { DecisionEngine } from "@/lib/decision-engine";
-import type { AssistantProposal, CatalogState } from "@/lib/catalog-types";
+import type { AssistantProposal, CatalogState, Category, Product } from "@/lib/catalog-types";
 
 const MUTE_DURATION_MS = 15 * 60 * 1000;
 
 type AssistantInlineProps = {
   state: CatalogState;
+  catalog: { categories: Category[]; products: Product[] };
   onClearSearchAndFilters: () => void;
 };
 
 export function AssistantInline({
   state,
+  catalog,
   onClearSearchAndFilters,
 }: AssistantInlineProps) {
   const [proposal, setProposal] = useState<AssistantProposal | null>(null);
@@ -34,7 +36,7 @@ export function AssistantInline({
         muteTimer = window.setTimeout(refreshProposal, mutedUntil - Date.now());
         return;
       }
-      setProposal(DecisionEngine(readCatalogEvents(), state));
+      setProposal(DecisionEngine(readCatalogEvents(), state, catalog));
     };
 
     refreshProposal();
@@ -43,7 +45,7 @@ export function AssistantInline({
       window.removeEventListener(CATALOG_SESSION_CHANGED, refreshProposal);
       if (muteTimer !== undefined) window.clearTimeout(muteTimer);
     };
-  }, [state]);
+  }, [catalog, state]);
 
   if (!proposal) return null;
 

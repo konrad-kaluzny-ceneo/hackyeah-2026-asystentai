@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 
 import { THRESHOLDS } from "@/behavior/config/thresholds";
 import {
+  CATALOG_PRODUCT_VIEW_EVENT,
+  type CatalogProductViewDetail,
+} from "@/lib/catalog-ui-events";
+import {
   initBehaviorTracker,
   type BehaviorTracker,
 } from "@/behavior/initializer";
@@ -42,6 +46,20 @@ export function BehaviorDebugShell() {
       return undefined;
     }
 
+    const onCatalogProductView = (event: Event) => {
+      const detail = (event as CustomEvent<CatalogProductViewDetail>).detail;
+      if (!detail) return;
+      tracker.collector.emit("product_viewed", {
+        elementId: "product-detail",
+        subject: {
+          productId: detail.productId,
+          categoryId: detail.categoryId,
+          brandId: detail.brandId,
+        },
+      });
+    };
+    window.addEventListener(CATALOG_PRODUCT_VIEW_EVENT, onCatalogProductView);
+
     const intervalId = window.setInterval(() => {
       const current = trackerRef.current;
       if (current === null) return;
@@ -50,6 +68,7 @@ export function BehaviorDebugShell() {
 
     return () => {
       window.clearInterval(intervalId);
+      window.removeEventListener(CATALOG_PRODUCT_VIEW_EVENT, onCatalogProductView);
       void tracker.destroy();
       trackerRef.current = null;
       setDebugState({ trackerEnabled: false });
