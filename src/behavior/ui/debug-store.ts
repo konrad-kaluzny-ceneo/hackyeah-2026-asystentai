@@ -88,7 +88,8 @@ export function setDebugState(partial: Partial<DebugState>): void {
 
 /**
  * Called by the dispatcher's `onBatchSent` hook. Prepends the freshly-sent
- * events to the sliding window and bumps the cumulative counter.
+ * events, newest first, and bumps the cumulative counter. An oversized batch
+ * keeps its latest events inside the sliding window.
  */
 export function recordBatchSent(args: {
   batchId: string;
@@ -107,7 +108,10 @@ export function recordBatchSent(args: {
     strength: e.quality.strength,
     evidenceCount: e.quality.evidenceCount,
   }));
-  const merged = [...summaries, ...state.lastSentMetaEvents].slice(
+  const newestFirst = summaries
+    .slice(-MAX_LAST_SENT_META_EVENTS)
+    .reverse();
+  const merged = [...newestFirst, ...state.lastSentMetaEvents].slice(
     0,
     MAX_LAST_SENT_META_EVENTS,
   );

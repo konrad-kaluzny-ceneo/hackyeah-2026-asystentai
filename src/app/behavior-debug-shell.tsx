@@ -60,6 +60,10 @@ export function BehaviorDebugShell() {
     trackerRef.current?.collector.syncPathname();
   }, [pathname]);
 
+  if (process.env.NODE_ENV !== "development") {
+    return null;
+  }
+
   return <DebugOverlay />;
 }
 

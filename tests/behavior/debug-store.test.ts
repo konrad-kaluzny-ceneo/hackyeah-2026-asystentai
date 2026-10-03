@@ -79,8 +79,11 @@ describe("debug-store", () => {
       sentAt: new Date(0).toISOString(),
       events: many,
     });
-    expect(getDebugState().lastSentMetaEvents).toHaveLength(
-      MAX_LAST_SENT_META_EVENTS,
+    const retained = getDebugState().lastSentMetaEvents;
+    expect(retained).toHaveLength(MAX_LAST_SENT_META_EVENTS);
+    expect(retained[0].eventId).toBe(many[many.length - 1].eventId);
+    expect(retained[retained.length - 1].eventId).toBe(
+      many[many.length - MAX_LAST_SENT_META_EVENTS].eventId,
     );
     expect(getDebugState().totalMetaSentThisSession).toBe(many.length);
   });

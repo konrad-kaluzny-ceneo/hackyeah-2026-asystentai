@@ -94,11 +94,15 @@ export function createDispatcher(options: DispatcherOptions): DispatcherHandle {
       // Remove only what we sent — anything enqueued during the request stays.
       const sent = new Set(batch.map((e) => e.eventId));
       queue = queue.filter((e) => !sent.has(e.eventId));
-      options.onBatchSent?.({
-        batchId: payload.batchId,
-        sentAt: payload.sentAt,
-        events: payload.events,
-      });
+      try {
+        options.onBatchSent?.({
+          batchId: payload.batchId,
+          sentAt: payload.sentAt,
+          events: payload.events,
+        });
+      } catch {
+        // Diagnostics must not reject delivery or stop the flush loop.
+      }
       return;
     }
     if (attempt >= retryBackoffMs.length) {

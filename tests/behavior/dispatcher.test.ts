@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createDispatcher } from "@/behavior/dispatcher/dispatcher";
+import {
+  createDispatcher,
+  type DispatcherHandle,
+} from "@/behavior/dispatcher/dispatcher";
 import { createTransport } from "@/behavior/dispatcher/transport";
 import type { MetaEventBatchPayload } from "@/behavior/types";
 
@@ -50,20 +53,58 @@ describe("Dispatcher", () => {
         return true;
       },
     };
+    const reported: MetaEventBatchPayload[] = [];
     const d = createDispatcher({
       transport,
       generateBatchId: makeIdGenerator("batch"),
       now: clock.now,
       debounceMs: 0,
       onBatchSent: (batch) => {
-        expect(batch.events).toEqual(batches[0].events);
-        expect(batch.batchId).toBe(batches[0].batchId);
-        expect(batch.sentAt).toBe(batches[0].sentAt);
+        reported.push({
+          schemaVersion: "1.0",
+          batchId: batch.batchId,
+          sentAt: batch.sentAt,
+          events: [...batch.events],
+        });
       },
     });
     d.enqueue(makeMetaEvent("rage_click"));
     await d.flushNow();
     expect(batches).toHaveLength(1);
+    expect(reported).toHaveLength(1);
+    expect(reported[0].events).toEqual(batches[0].events);
+    expect(reported[0].batchId).toBe(batches[0].batchId);
+    expect(reported[0].sentAt).toBe(batches[0].sentAt);
+  });
+
+  it("keeps flushing later batches when the diagnostics hook throws", async () => {
+    const clock = makeClock(0);
+    const batches: MetaEventBatchPayload[] = [];
+    const second = makeMetaEvent("dead_click_cluster");
+    let dispatcher: DispatcherHandle;
+    const transport = {
+      send: async (payload: MetaEventBatchPayload) => {
+        batches.push(payload);
+        if (batches.length === 1) {
+          dispatcher.enqueue(second);
+        }
+        return true;
+      },
+    };
+    dispatcher = createDispatcher({
+      transport,
+      generateBatchId: makeIdGenerator("batch"),
+      now: clock.now,
+      maxBatchEvents: 2,
+      debounceMs: 60_000,
+      onBatchSent: () => {
+        throw new Error("overlay failed");
+      },
+    });
+    dispatcher.enqueue(makeMetaEvent("rage_click"));
+    await dispatcher.flushNow();
+    expect(batches).toHaveLength(2);
+    expect(dispatcher.queueSize()).toBe(0);
   });
 
   it("splits oversized queues into multiple batches honoring maxBatchEvents", async () => {
@@ -195,6 +236,47 @@ describe("Transport", () => {
     });
     expect(ok).toBe(true);
     expect(beaconCalls).toBe(0);
+  });
+
+  it("uses sendBeacon before a plain fetch when the document is exiting", async () => {
+    const original = Object.getOwnPropertyDescriptor(document, "visibilityState");
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+    let plainFetchCalls = 0;
+    let beaconCalls = 0;
+    try {
+      const transport = createTransport({
+        endpoint: "/api/meta-events",
+        sendBeacon: () => {
+          beaconCalls += 1;
+          return true;
+        },
+        fetchImpl: (async (_url: string, init?: RequestInit) => {
+          if (init?.keepalive === true) {
+            throw new Error("keepalive failed");
+          }
+          plainFetchCalls += 1;
+          return { ok: true };
+        }) as unknown as typeof fetch,
+      });
+      const ok = await transport.send({
+        schemaVersion: "1.0",
+        batchId: "batch-exit",
+        sentAt: new Date(0).toISOString(),
+        events: [],
+      });
+      expect(ok).toBe(true);
+      expect(beaconCalls).toBe(1);
+      expect(plainFetchCalls).toBe(0);
+    } finally {
+      if (original === undefined) {
+        delete (document as { visibilityState?: DocumentVisibilityState }).visibilityState;
+      } else {
+        Object.defineProperty(document, "visibilityState", original);
+      }
+    }
   });
 
   it("falls back to sendBeacon when fetch cannot obtain a response", async () => {

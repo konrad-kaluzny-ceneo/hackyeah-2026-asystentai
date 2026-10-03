@@ -90,6 +90,19 @@ describe("Collector navigation", () => {
     collector.destroy();
   });
 
+  it("does not handle a pathname change after destroy", () => {
+    const nativePushState = window.history.pushState;
+    const { collector, buffer, transitions } = setup();
+    collector.destroy();
+    const sizeAfterDestroy = buffer.size();
+
+    nativePushState.call(window.history, null, "", "/katalog");
+    collector.syncPathname();
+
+    expect(buffer.size()).toBe(sizeAfterDestroy);
+    expect(transitions).toHaveLength(0);
+  });
+
   it("emits on popstate to a previously-visited path", () => {
     const { collector, buffer, transitions } = setup();
     window.history.pushState(null, "", "/katalog");

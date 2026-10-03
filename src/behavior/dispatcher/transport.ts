@@ -52,7 +52,10 @@ export function createTransport(options: TransportOptions): Transport {
           });
           return response.ok;
         } catch {
-          // Retry without keepalive before using the fire-and-forget fallback.
+          if (isDocumentExiting()) {
+            return deliverWithBeacon(sendBeacon, options.endpoint, body);
+          }
+          // An active page can still wait for a response without keepalive.
           try {
             const response = await fetchImpl(options.endpoint, {
               method: "POST",
@@ -65,14 +68,28 @@ export function createTransport(options: TransportOptions): Transport {
           }
         }
       }
-      if (sendBeacon !== undefined) {
-        try {
-          return sendBeacon(options.endpoint, body);
-        } catch {
-          return false;
-        }
-      }
-      return false;
+      return deliverWithBeacon(sendBeacon, options.endpoint, body);
     },
   };
+}
+
+function isDocumentExiting(): boolean {
+  return (
+    typeof document !== "undefined" && document.visibilityState === "hidden"
+  );
+}
+
+function deliverWithBeacon(
+  sendBeacon: TransportOptions["sendBeacon"],
+  endpoint: string,
+  body: string,
+): boolean {
+  if (sendBeacon === undefined) {
+    return false;
+  }
+  try {
+    return sendBeacon(endpoint, body);
+  } catch {
+    return false;
+  }
 }

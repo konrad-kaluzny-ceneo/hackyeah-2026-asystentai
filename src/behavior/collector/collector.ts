@@ -268,7 +268,7 @@ export function createCollector(options: CollectorOptions): CollectorHandle {
   }
 
   function handlePotentialTransition(): void {
-    if (typeof window === "undefined") {
+    if (destroyed || typeof window === "undefined") {
       return;
     }
     const candidate = window.location.pathname;
