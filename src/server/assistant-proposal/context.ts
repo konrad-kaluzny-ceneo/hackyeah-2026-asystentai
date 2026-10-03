@@ -2,19 +2,19 @@ import {
   getCategoryBySlug,
   getProductBySlug,
 } from "@/lib/catalog-repository";
-import type { AssistantProposalRequest } from "@/lib/assistant-proposal-api";
+import type { CatalogAssistantProposalRequest } from "@/lib/assistant-proposal-api";
 import type { Category, Product } from "@/lib/catalog-types";
 
 const MAX_VIEWED_PRODUCTS = 5;
 
 export type AssistantProposalContext = {
-  readonly request: AssistantProposalRequest;
+  readonly request: CatalogAssistantProposalRequest;
   readonly category: Category | null;
   readonly viewedProducts: readonly Product[];
 };
 
 export async function buildAssistantProposalContext(
-  request: AssistantProposalRequest,
+  request: CatalogAssistantProposalRequest,
 ): Promise<AssistantProposalContext> {
   const categorySlug = request.state.categorySlug;
   if (categorySlug === null) {
@@ -28,7 +28,7 @@ export async function buildAssistantProposalContext(
 
   const latestProductViews = new Map<
     string,
-    Extract<AssistantProposalRequest["events"][number], { type: "product_view" }>
+    Extract<CatalogAssistantProposalRequest["events"][number], { type: "product_view" }>
   >();
   for (const event of request.events) {
     if (event.type === "product_view" && event.categorySlug === categorySlug) {

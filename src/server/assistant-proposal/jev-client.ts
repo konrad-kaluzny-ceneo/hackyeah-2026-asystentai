@@ -121,13 +121,25 @@ export function buildJevRequest(context: AssistantProposalContext): JevSystemOne
   };
 }
 
-export async function requestJev(
+export function requestJev(
   request: JevSystemOneRequest,
   signal: AbortSignal,
-): Promise<JevAssistantResponse> {
+): Promise<JevAssistantResponse>;
+export function requestJev(
+  prompt: string,
+  signal?: AbortSignal,
+): Promise<unknown>;
+export async function requestJev(
+  request: JevSystemOneRequest | string,
+  signal?: AbortSignal,
+): Promise<JevAssistantResponse | unknown> {
   const apiKey = process.env.TYPESAFE_API_KEY;
   if (apiKey === undefined || apiKey.trim().length === 0) {
     throw new Error("TYPESAFE_API_KEY is not configured");
+  }
+
+  if (typeof request === "string") {
+    return requestJevPrompt(request, apiKey, signal);
   }
 
   const response = await fetch(TYPESAFE_API_URL, {
@@ -151,4 +163,58 @@ export async function requestJev(
   }
 
   return parseJevAssistantResponse(payload);
+}
+
+async function requestJevPrompt(
+  prompt: string,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  const response = await fetch(
+    process.env.TYPESAFE_API_URL ?? "https://api.typesafe.ai/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+      }),
+      signal,
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`TypeSafe returned HTTP ${response.status}`);
+  }
+
+  const payload: unknown = await response.json();
+  if (typeof payload !== "object" || payload === null) {
+    throw new Error("Invalid response format from Jev API");
+  }
+
+  const candidate = payload as {
+    choices?: Array<{ message?: { content?: unknown } }>;
+    situation?: unknown;
+    proposal?: unknown;
+  };
+  const content = candidate.choices?.[0]?.message?.content;
+  if (typeof content === "string") {
+    return JSON.parse(stripJsonFence(content));
+  }
+  if (typeof content === "object" && content !== null) {
+    return content;
+  }
+  if ("situation" in candidate || "proposal" in candidate) {
+    return payload;
+  }
+  throw new Error("Invalid response format from Jev API");
+}
+
+function stripJsonFence(value: string): string {
+  const trimmed = value.trim();
+  const match = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+  return match?.[1]?.trim() ?? trimmed;
 }

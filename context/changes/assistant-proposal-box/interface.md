@@ -1,99 +1,84 @@
-# Kontrakt: propozycja asystenta (decision fatigue)
+# Kontrakt: propozycja asystenta z MetaEvents
 
-Wspólna umowa między **S-04** (`jev-session-proposal`, Edyta) a **S-05** (`assistant-proposal-box`, Michał). Serwer implementuje route; UI konsumuje odpowiedź.
+Wspólna umowa dla serverowego przepływu Jev i boxa S-05. UI woła route tylko przy decyzji fatigue; serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents. Odpowiedź o wysokiej pewności przechodzi przez lokalny stub propozycji.
 
-**Single source of truth w kodzie:** `src/lib/assistant-proposal-api.ts` — tworzy i utrzymuje **S-04** (Zod + typy TS). **S-05** tylko importuje; nie duplikuje schematu.
+**Kontrakty w kodzie:** `src/lib/assistant-proposal-api.ts` zawiera request/response UI; `src/behavior/meta-event-schema.ts` jest współdzielonym, ścisłym schematem MetaEvent. `/api/meta-events` zachowuje dotychczasowy format batcha.
 
 ## Podział plików
 
 | Plik / obszar | Owner | Uwagi |
 | --- | --- | --- |
-| `src/lib/assistant-proposal-api.ts` | Edyta (S-04) | Request/response Zod, parser odpowiedzi |
-| `src/app/api/assistant-proposal/route.ts` | Edyta | POST, rate limit, mapowanie na kontrakt |
-| `src/server/assistant-proposal/*` | Edyta | Jev, OpenAI, compose, schemat wyjścia Jev |
-| `src/lib/decision-engine.ts` | poza S-04/S-05* | *Zmiany progów osobnym slice; S-05 tylko woła silnik |
-| `src/components/assistant/assistant-inline.tsx` | Michał (S-05) | Fetch, mute, render |
-| `src/lib/assistant-events.ts` | Michał (S-05) | Tylko jeśli potrzeba pod lifecycle boxa; bez zmian semantyki eventów |
-| Ten plik `interface.md` | oboje | Zmiana kształtu JSON → aktualizacja tutaj + oba plany |
+| `src/behavior/meta-event-schema.ts` | wspólny | Ścisły schemat zdarzenia i allowlista metryk; używany po stronie klienta i serwera |
+| `src/lib/assistant-proposal-api.ts` | S-04 / S-05 | Wspólny request MetaEvents-only oraz parser odpowiedzi |
+| `src/app/api/assistant-proposal/route.ts` | S-04 | Walidacja, limity, Jev, bramka pewności i lokalny stub |
+| `src/server/assistant-proposal/*` | S-04 | Klient Jev, prompt z minimalnym podsumowaniem i stub przyszłego OpenAI |
+| `src/components/assistant/assistant-inline.tsx` | S-05 | Fetch, mute, render i lifecycle boxa (Phase 3) |
+| `src/behavior/assistant-meta-event-history.ts` | S-05 | Ostatnie 10 MetaEvents z poprawnie wysłanych batchy |
 
 ## Endpoint
 
 `POST /api/assistant-proposal`
 
-- Content-Type: `application/json`
-- Brak identyfikatora sesji w body (limiter po IP jak meta eventy).
-- Sukces biznesowy: **zawsze HTTP 200** z body `show` | `hide` (patrz niżej). UI nie interpretuje `4xx`/`5xx` jako treści propozycji.
-
-### Kody HTTP
-
-| Kod | Kiedy | Body (orientacyjnie) | Zachowanie UI (S-05) |
-| --- | --- | --- | --- |
-| `200` | Poprawne przetworzenie | `AssistantProposalResponse` | `show` → box; `hide` → brak boxa |
-| `400` | Złe body (Zod) | `{ error: string }` — jak meta-events | Traktować jak brak propozycji (nie pokazywać boxa fatigue) |
-| `405` | Nie POST | — | Nie wołać z UI |
-| `500` | Wyjątek nieobsłużony w route | `{ error: string }` opcjonalnie | Jak `hide` — brak boxa |
+- `Content-Type: application/json`
+- Maksymalny body: 64 KiB; maksymalnie 10 zdarzeń.
+- Odpowiedzi biznesowe i odrzucone żądania: HTTP 200 z `show` albo `hide`.
+- Jev ma timeout 3 s; limity: 30/min/IP i 10/min/proces.
 
 ## Request
 
 ```ts
 type AssistantProposalRequest = {
-  state: CatalogState;
-  events: CatalogEvent[];
+  metaEvents: MetaEvent[]; // od 1 do 10, każde zdarzenie zgodne z MetaEventSchema
 };
 ```
 
-`CatalogState` i `CatalogEvent` — ten sam kształt co w `src/lib/catalog-types.ts`.
-
-### Przykład request
+Przykład:
 
 ```json
 {
-  "state": {
-    "categorySlug": "lodowki",
-    "query": "",
-    "filters": {},
-    "resultCount": 12,
-    "page": 1
-  },
-  "events": [
+  "metaEvents": [
     {
-      "id": "e1",
-      "timestamp": "2026-10-03T14:00:00.000Z",
-      "type": "product_view",
-      "categorySlug": "lodowki",
-      "productSlug": "lodowka-a"
-    },
-    {
-      "id": "e2",
-      "timestamp": "2026-10-03T14:01:00.000Z",
-      "type": "product_view",
-      "categorySlug": "lodowki",
-      "productSlug": "lodowka-b"
-    },
-    {
-      "id": "e3",
-      "timestamp": "2026-10-03T14:02:00.000Z",
-      "type": "return_to_listing",
-      "categorySlug": "lodowki"
-    },
-    {
-      "id": "e4",
-      "timestamp": "2026-10-03T14:02:01.000Z",
-      "type": "listing_view",
-      "categorySlug": "lodowki"
+      "schemaVersion": "1.0",
+      "eventId": "evt-example-0001",
+      "name": "rage_click",
+      "detectedAt": "2026-10-03T14:00:00.000Z",
+      "window": {
+        "startedAt": "2026-10-03T13:59:55.000Z",
+        "endedAt": "2026-10-03T14:00:00.000Z",
+        "durationMs": 5000
+      },
+      "identity": {
+        "sessionId": "session-example-1",
+        "pageViewId": "pageview-example-1"
+      },
+      "page": { "type": "catalog", "pathname": "/katalog" },
+      "ecommerce": { "activeFilters": [], "activeFiltersCount": 0 },
+      "metrics": { "clickCount": 4, "windowMs": 5000 },
+      "quality": {
+        "strength": 0.8,
+        "evidenceCount": 4,
+        "algorithmVersion": "1.0",
+        "partialData": false
+      },
+      "privacy": { "containsFreeText": false, "rawDataUploaded": false }
     }
   ]
 }
 ```
 
-**Kiedy UI woła endpoint (S-05, poza implementacją S-04):**
+Body zawiera wyłącznie MetaEvents; nie zawiera `CatalogState` ani `CatalogEvent[]`. Zdarzenia przechodzą ścisłą walidację, w tym flag prywatności i allowlisty metryk. Historia klienta jest ograniczona do 10 unikalnych eventów po poprawnym POST do `/api/meta-events`.
 
-- Tylko gdy `DecisionEngine(...)` zwróci propozycję z `kind: "decision_fatigue"`.
-- Nie wołać przy `search_friction`, `null` ani gdy asystent jest wyciszony (15 min).
+Serwer nie przekazuje Jev pełnego obiektu MetaEvent ani osobnego stanu katalogu. Prompt jest zbudowany z nazw eventów, względnego czasu, typu strony, typu subjectu i metryk z allowlisty. Pomija identyfikatory sesji/eventu, ścieżki, absolutne znaczniki czasu, surowe eventy i `quality.strength`; nie dołącza osobnych `CatalogState` ani `CatalogEvent[]`.
+
+## Request gate i zachowanie serwera
+
+- S-05 woła route przy `decision_fatigue`, gdy ma niepustą historię; `search_friction` pozostaje lokalne.
+- Jev jest wywoływany dopiero po walidacji requestu.
+- Tylko `situation === "DECISION_FATIGUE"` i `proposal.confidence > 0.75` wywołuje lokalny stub propozycji.
+- Przy pewności równej `0.75` lub niższej, innej sytuacji, pustym/nieprawidłowym body, błędzie walidacji Jev, timeout, rate limit albo błędzie stubu route zwraca `hide`.
+- Stub zwraca stały tekst demonstracyjny i nie wykonuje żądania sieciowego. Prawdziwy klient OpenAI pozostaje przyszłym zadaniem.
 
 ## Response (HTTP 200)
-
-Discriminated union:
 
 ```ts
 type AssistantProposalResponse =
@@ -108,56 +93,23 @@ type AssistantProposalResponse =
   | { status: "hide" };
 ```
 
-### Przykład `show` (skrót Jev)
-
-Serwer może uzupełnić `title` / `actionLabel` stałymi wartościami produktowymi (spójnymi z S-02):
+Przykład `show` ze stubu:
 
 ```json
 {
   "status": "show",
   "kind": "decision_fatigue",
   "title": "Pomóc zawęzić wybór?",
-  "message": "Zawęź wyniki według pojemności — oglądałeś trzy podobne modele.",
+  "message": "Wybierzmy jeden parametr, na przykład pojemność, aby szybciej zawęzić wyniki.",
   "action": "narrow-choice",
   "actionLabel": "Przejdź do filtrów"
 }
 ```
 
-### Przykład `show` (OpenAI)
-
-Ten sam kształt; `title` i `message` z mocniejszego modelu:
+Przykład `hide`:
 
 ```json
-{
-  "status": "show",
-  "kind": "decision_fatigue",
-  "title": "Trzy podobne lodówki — jeden parametr",
-  "message": "Wybierz pojemność albo wysokość w filtrach, żeby szybciej porównać modele.",
-  "action": "narrow-choice",
-  "actionLabel": "Przejdź do filtrów"
-}
+{ "status": "hide" }
 ```
 
-### Przykład `hide`
-
-```json
-{
-  "status": "hide"
-}
-```
-
-Reguły:
-
-- `status: "hide"` — brak boxa dla tego wywołania (błąd modelu, limit Jev, timeout Jev 3 s, zły JSON Jev, porażka OpenAI, rate limit, faza 1 S-04 gdy `needs_openai`).
-- Przy `show`: `title`, `message`, `actionLabel` — niepuste stringi po trim.
-- `action` zawsze `"narrow-choice"` dla tej ścieżki (link `#filters` po stronie UI; brak porównania w MVP).
-- Skrót Jev: treść głównie w `message`; serwer uzupełnia `title` i `actionLabel`.
-- OpenAI: pełne `title` + `message`; serwer nadal ustawia `action` / `actionLabel`.
-
-## Semantyka `hide` vs pusty wynik
-
-- `search_friction` **nie** używa tego endpointu — UI bierze copy z `DecisionEngine` (S-03).
-
-## Wersjonowanie
-
-Zmiana kształtu JSON → ten plik + `assistant-proposal-api.ts` + oba plany change. UI i route importują wyłącznie moduł współdzielony.
+`search_friction` nie używa tego endpointu. Box zachowuje jedno widoczne zalecenie i istniejące 15-minutowe wyciszenie.

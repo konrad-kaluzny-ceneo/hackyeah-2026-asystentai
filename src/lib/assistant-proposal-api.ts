@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { MetaEventSchema } from "@/behavior/meta-event-schema";
+
+export const MAX_ASSISTANT_PROPOSAL_EVENTS = 10;
 
 const NonEmptyId = z.string().trim().min(1).max(128);
 const IsoDateString = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
@@ -46,7 +49,7 @@ const CatalogEventSchema = z.discriminatedUnion("type", [
   }).strict(),
 ]);
 
-export const AssistantProposalRequestSchema = z.object({
+export const CatalogAssistantProposalRequestSchema = z.object({
   state: z.object({
     categorySlug: NonEmptyId.nullable(),
     query: z.string().max(500),
@@ -57,7 +60,22 @@ export const AssistantProposalRequestSchema = z.object({
   events: z.array(CatalogEventSchema).max(100),
 }).strict();
 
-export type AssistantProposalRequest = z.infer<typeof AssistantProposalRequestSchema>;
+export const MetaEventsAssistantProposalRequestSchema = z.object({
+  metaEvents: z.array(MetaEventSchema).min(1).max(MAX_ASSISTANT_PROPOSAL_EVENTS),
+}).strict();
+
+export const AssistantProposalRequestSchema = z.union([
+  CatalogAssistantProposalRequestSchema,
+  MetaEventsAssistantProposalRequestSchema,
+]);
+
+export type CatalogAssistantProposalRequest = z.infer<
+  typeof CatalogAssistantProposalRequestSchema
+>;
+export type MetaEventsAssistantProposalRequest = z.infer<
+  typeof MetaEventsAssistantProposalRequestSchema
+>;
+export type AssistantProposalRequest = CatalogAssistantProposalRequest;
 
 export const AssistantProposalResponseSchema = z.discriminatedUnion("status", [
   z.object({
@@ -75,4 +93,8 @@ export type AssistantProposalResponse = z.infer<typeof AssistantProposalResponse
 
 export function parseAssistantProposalResponse(value: unknown): AssistantProposalResponse {
   return AssistantProposalResponseSchema.parse(value);
+}
+
+export function safeParseAssistantProposalResponse(value: unknown) {
+  return AssistantProposalResponseSchema.safeParse(value);
 }

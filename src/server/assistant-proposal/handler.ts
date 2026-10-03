@@ -1,7 +1,7 @@
 import {
   AssistantProposalRequestSchema,
-  type AssistantProposalRequest,
   type AssistantProposalResponse,
+  type CatalogAssistantProposalRequest,
 } from "@/lib/assistant-proposal-api";
 import { InMemoryRateLimiter } from "@/server/meta-events/rate-limit";
 import type { AssistantProposalContext } from "@/server/assistant-proposal/context";
@@ -15,7 +15,7 @@ const DEFAULT_JEV_TIMEOUT_MS = 3_000;
 export type AssistantProposalHandlerDependencies = {
   readonly perIpRateLimiter: InMemoryRateLimiter;
   readonly processRateLimiter: InMemoryRateLimiter;
-  readonly loadContext: (request: AssistantProposalRequest) => Promise<AssistantProposalContext>;
+  readonly loadContext: (request: CatalogAssistantProposalRequest) => Promise<AssistantProposalContext>;
   readonly requestJev: (
     request: JevSystemOneRequest,
     signal: AbortSignal,
@@ -44,6 +44,9 @@ export function createAssistantProposalHandler(
 
     const parsedRequest = AssistantProposalRequestSchema.safeParse(body);
     if (!parsedRequest.success) {
+      return Response.json({ error: "invalid_payload" }, { status: 400 });
+    }
+    if ("metaEvents" in parsedRequest.data) {
       return Response.json({ error: "invalid_payload" }, { status: 400 });
     }
 
