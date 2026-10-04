@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { CatalogSearchForm } from "@/components/catalog/catalog-search-form";
+import { AssistantProposalWidget } from "@/components/assistant/assistant-proposal-widget";
 import { CatalogUnavailable } from "@/components/catalog/catalog-unavailable";
 import { getCategories, getProducts } from "@/lib/catalog-repository";
 import type { Category, Product } from "@/lib/catalog-types";
@@ -70,6 +71,7 @@ export default async function Home() {
       </section>
 
       <section className="mx-auto w-full max-w-7xl px-5 pb-16 sm:px-8">
+        <AssistantProposalWidget />
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[.16em] text-[#718779]">Na początek</p>

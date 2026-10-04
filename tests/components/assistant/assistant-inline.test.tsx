@@ -297,7 +297,7 @@ describe("assistant proposal coordinator and listing UI", () => {
     expect(container.querySelector("h2")?.textContent).toBe("Pomóc zawęzić wybór?");
     const widget = container.querySelector<HTMLElement>('[data-assistant-popover="filters"]');
     expect(widget).not.toBeNull();
-    expect(widget?.className).toContain("fixed");
+    expect(widget?.className).toContain("assistant-proposal-enter");
     const filtersLink = container.querySelector<HTMLAnchorElement>(
       '[data-element-id="assistant-action"]',
     );

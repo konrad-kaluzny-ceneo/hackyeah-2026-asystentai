@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import CatalogListing from "@/components/catalog/catalog-listing";
+import { AssistantProposalWidget } from "@/components/assistant/assistant-proposal-widget";
 import { CatalogUnavailable } from "@/components/catalog/catalog-unavailable";
 import { getCategories, getProducts } from "@/lib/catalog-repository";
 import type { Category, Product } from "@/lib/catalog-types";
@@ -56,6 +57,7 @@ export default async function CatalogPage({
           <h1 className="mt-2 text-3xl font-semibold tracking-[-.035em] sm:text-4xl">Katalog sprzętu AGD</h1>
           <p className="mt-3 text-sm leading-6 text-[#718078]">Przejdź do wybranej kategorii, aby zobaczyć modele i zawęzić wyniki według parametrów.</p>
         </div>
+        <AssistantProposalWidget />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((category, index) => (
             <Link key={category.id} href={`/katalog/${category.slug}`} className="group relative min-h-72 overflow-hidden rounded-3xl bg-[#e3ebe4]">

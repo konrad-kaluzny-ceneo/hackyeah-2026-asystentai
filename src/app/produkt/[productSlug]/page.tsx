@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
+import { AssistantProposalWidget } from "@/components/assistant/assistant-proposal-widget";
 import { ProductCard } from "@/components/catalog/catalog-listing";
 import { CatalogUnavailable } from "@/components/catalog/catalog-unavailable";
 import {
@@ -79,6 +80,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <div data-element-id="product-price" className="mt-7 border-y border-[#e5eae6] py-5">
             <p className="text-xs font-semibold uppercase tracking-wider text-[#8b9890]">Cena demonstracyjna</p>
             <p className="mt-1 text-4xl font-bold tracking-tight text-[#243f31]">{formatPrice(product.price)}</p>
+          </div>
+          <div className="mt-6">
+            <AssistantProposalWidget />
           </div>
           <div className="mt-6 rounded-2xl border border-[#dce7de] bg-[#eef4ef] p-4">
             <p className="text-sm font-semibold text-[#304b38]">Szukasz modelu do konkretnych potrzeb?</p>

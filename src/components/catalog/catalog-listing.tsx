@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AssistantInline } from "@/components/assistant/assistant-inline";
+import { AssistantProposalWidget } from "@/components/assistant/assistant-proposal-widget";
 import { trackCatalogEvent } from "@/lib/assistant-events";
 import { subscribeAssistantCatalogAction } from "@/lib/assistant-proposal-state";
 import { CLEAR_GLOBAL_SEARCH_EVENT, CATALOG_SEARCH_SUBMITTED_EVENT } from "@/lib/catalog-ui-events";
@@ -244,6 +245,14 @@ export default function CatalogListing({
               <span className="text-xs text-[#98a39b]">Modele demonstracyjne</span>
             </div>
           </div>
+
+          <AssistantProposalWidget />
+          <AssistantInline
+            state={state}
+            catalog={{ categories: category ? [category] : [], products }}
+            onClearSearchAndFilters={clearSearchAndFilters}
+          />
+
           {visibleProducts.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {pageProducts.map((product) => <ProductCard key={product.id} product={product} />)}
@@ -255,14 +264,6 @@ export default function CatalogListing({
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#758279]">Zmień frazę albo poluzuj filtry. Możesz też zacząć wyszukiwanie od początku.</p>
             </div>
           )}
-
-          <div className="mt-6">
-            <AssistantInline
-              state={state}
-              catalog={{ categories: category ? [category] : [], products }}
-              onClearSearchAndFilters={clearSearchAndFilters}
-            />
-          </div>
 
           {totalPages > 1 && (
             <nav aria-label="Strony wyników" className="mt-8 flex items-center justify-center gap-2">
