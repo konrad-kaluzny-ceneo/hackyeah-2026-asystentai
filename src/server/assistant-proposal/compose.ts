@@ -8,10 +8,26 @@ import { requestJev } from "./jev-client";
 import { requestStrongerReply } from "./openai-client";
 import { routeJevOutput } from "./route-decision";
 import { JevAssistantOutputSchema } from "./schema";
+import { getLatestIntentSnapshot } from "@/server/intent-inference/read-service";
 
 const HIDE_RESPONSE: AssistantProposalResponse = { status: "hide" };
 const SHORTCUT_TITLE = "Pomóc zawęzić wybór?";
 let openAIRequestInFlight = false;
+
+const CATEGORY_RESEARCH_TIPS: Record<string, { title: string; message: string }> = {
+  lodowki: {
+    title: "Warto wiedzieć o lodówkach",
+    message: "Klasa energetyczna to nie wszystko: porównaj też roczne zużycie prądu w kWh. Większa lodówka może zużywać więcej energii mimo tej samej klasy.",
+  },
+  pralki: {
+    title: "Warto wiedzieć o pralkach",
+    message: "Wsad w kilogramach oznacza masę suchego prania. Maksymalny wsad zależy też od programu: do wełny i tkanin delikatnych zwykle trzeba załadować mniej.",
+  },
+  zmywarki: {
+    title: "Warto wiedzieć o zmywarkach",
+    message: "Dłuższy program Eco nie musi zużywać więcej energii. Oszczędza ją dzięki niższej temperaturze, a dłuższy czas pomaga domyć naczynia.",
+  },
+};
 
 export async function composeProposal(
   prompt: string,
@@ -19,6 +35,11 @@ export async function composeProposal(
   requestSignal?: AbortSignal,
   metaEvents: readonly MetaEvent[] = [],
 ): Promise<AssistantProposalResponse> {
+  if (requestSignal?.aborted) return HIDE_RESPONSE;
+  const researchProposal = await categoryResearchProposal(metaEvents);
+  if (requestSignal?.aborted) return HIDE_RESPONSE;
+  if (researchProposal) return researchProposal;
+
   let rawJevOutput: unknown;
   try {
     rawJevOutput = await requestJev(prompt, jevSignal);
@@ -63,7 +84,7 @@ export async function composeProposal(
   }
 
   if (openAIRequestInFlight) {
-    return HIDE_RESPONSE;
+    return fallbackProposal(mapped);
   }
 
   openAIRequestInFlight = true;
@@ -83,14 +104,46 @@ export async function composeProposal(
       },
     };
   } catch (error) {
-    if (isAbortError(error)) {
-      return fallbackProposal(mapped);
-    }
-    logFailure("openai_request", error);
-    rethrowInDevelopment(error);
+    if (requestSignal?.aborted) return HIDE_RESPONSE;
+    logFailure("openai_request", error, "fallback_show");
     return fallbackProposal(mapped);
   } finally {
     openAIRequestInFlight = false;
+  }
+}
+
+async function categoryResearchProposal(
+  metaEvents: readonly MetaEvent[],
+): Promise<AssistantProposalResponse | null> {
+  const latestCategoryEvent = [...metaEvents]
+    .sort((first, second) => second.detectedAt.localeCompare(first.detectedAt))
+    .find((event) => event.subject?.categoryId);
+  const categorySlug = latestCategoryEvent?.subject?.categoryId;
+  if (!categorySlug || !Object.hasOwn(CATEGORY_RESEARCH_TIPS, categorySlug)) return null;
+  const sessionId = latestCategoryEvent.identity.sessionId;
+  if (metaEvents.some((event) => event.identity.sessionId !== sessionId)) return null;
+
+  try {
+    const snapshot = await getLatestIntentSnapshot(sessionId);
+    if (!snapshot || snapshot.intents.researching < 0.5) return null;
+    if (Object.entries(snapshot.intents).some(([intent, probability]) =>
+      intent !== "researching" && probability >= snapshot.intents.researching,
+    )) return null;
+
+    const mapped = await mapJevActionToProposalAction({
+      action_type: "EXPLAIN_CHOICE", confidence: snapshot.intents.researching,
+      hedging_required: false,
+    }, [latestCategoryEvent]);
+    if (!mapped) return null;
+    return {
+      status: "show",
+      ...CATEGORY_RESEARCH_TIPS[categorySlug],
+      ...mapped,
+      data: { ...mapped.data, illustration: "fox-thinking" },
+    };
+  } catch (error) {
+    logFailure("research_intent", error, "continue_normal_flow");
+    return null;
   }
 }
 
@@ -149,10 +202,6 @@ function fallbackMessageForAction(action: AssistantAction): string {
   }
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && /aborted|timeout/i.test(error.message);
-}
-
 function illustrationForAction(action: AssistantAction): AssistantProposalIllustration {
   switch (action) {
     case "set-budget":
@@ -177,11 +226,11 @@ function rethrowInDevelopment(error: unknown): void {
   }
 }
 
-function logFailure(stage: string, error: unknown): void {
+function logFailure(stage: string, error: unknown, action = "fallback_hide"): void {
   console.warn(
     JSON.stringify({
       component: "assistant-proposal",
-      action: "fallback_hide",
+      action,
       stage,
       error: error instanceof Error ? error.message : "unknown",
     }),

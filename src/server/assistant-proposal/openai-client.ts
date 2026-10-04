@@ -61,6 +61,7 @@ export async function requestStrongerReply(
       model: process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL,
       instructions: `Na podstawie zwalidowanego wyniku analizy Jev napisz JEDNĄ krótką propozycję po polsku dla kupującego.
 
+Ten etap otrzymuje już sygnał zakwalifikowany do pokazania pomocy. Przygotuj użyteczny komunikat, zamiast ponownie decydować o jego ukryciu. Przy niepewności użyj języka warunkowego, nie rezygnuj z podpowiedzi.
 Wybierz DOKŁADNIE JEDNĄ akcję z przekazanego przez Jev wyboru (proposal.action_type). Nie zmieniaj jej na inną.
 
 Dostępne wartości action i wymagania:
@@ -72,7 +73,7 @@ Dostępne wartości action i wymagania:
 - go-to-product: Link do /produkt/<productSlug>; data.target="product", data.productSlug z action_payload.
 - sort-by-price: sortowanie listy; data.target="catalog", data.sort z action_payload.
 - explain-choice: tylko treść, bez nawigacji; data.target="catalog".
-- none: nie pokazuj przycisku; data.target="catalog". Wybierz tę opcję wyłącznie wtedy, gdy propozycja byłaby naprawdę nieprzydatna; przy poprawnym sygnale preferuj explain-choice z krótką poradą.
+- none: wartość zgodności kontraktu; nie wybieraj jej w tym etapie, ponieważ serwer już zatwierdził użyteczną akcję.
 
 W data.categorySlug wpisz kategorię z kontekstu zdarzeń, jeśli jest znana. Jeśli nie jest potrzebna, zwróć null. Pola productSlug, categorySlug i sort muszą być obecne; użyj null, gdy nie dotyczą wybranej akcji.
 
@@ -80,7 +81,7 @@ Wybierz dokładnie jedną ilustrację dla komunikatu:
 - fox-thinking: lisek myśli i pomaga uporządkować wątpliwości; pasuje do niezdecydowania, porównywania lub wyjaśnienia wyboru.
 - fox-guiding: lisek wskazuje kartę i prowadzi do następnego kroku; pasuje do filtrów, sortowania i przejścia do produktu.
 - fox-celebrating: lisek cieszy się z postępu; pasuje do odblokowania użytkownika, dobrego dopasowania lub konkretnej rekomendacji.
-Zwróć identyfikator w data.illustration, nigdy ścieżkę pliku ani URL. Jeśli akcja nie ma wartości, nie twórz propozycji.
+Zwróć identyfikator w data.illustration, nigdy ścieżkę pliku ani URL.
 
 Zwróć naturalny tytuł (max ${MAX_ASSISTANT_PROPOSAL_TITLE_LENGTH} znaków), jedno zdanie wiadomości (max ${MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH} znaków) oraz krótką etykietę przycisku (max ${MAX_ASSISTANT_PROPOSAL_ACTION_LABEL_LENGTH} znaków). Nie wymyślaj faktów spoza wyniku Jev. Jeśli Jev wskazał użyteczną akcję, nie zwracaj none tylko dlatego, że sygnał jest nieidealny.
 Zwróć wyłącznie obiekt JSON z polami title, message, action, actionLabel, data.`,

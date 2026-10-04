@@ -16,6 +16,7 @@
     "db:seed": "node --import tsx scripts/seed-catalog.ts"
   },
   "dependencies": {
+    "d3-shape": "^3.2.0",
     "drizzle-orm": "^0.45.3",
     "next": "16.3.7",
     "openai": "^7.25.0",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@next/env": "16.3.7",
     "@tailwindcss/postcss": "^4",
+    "@types/d3-shape": "^3.2.0",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",

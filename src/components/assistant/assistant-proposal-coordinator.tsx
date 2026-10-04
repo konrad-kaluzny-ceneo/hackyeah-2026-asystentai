@@ -153,8 +153,6 @@ export function AssistantProposalCoordinator() {
           return;
         }
 
-        requestAllowedRef.current = false;
-        clearAssistantProposalTriggers();
         const proposal: AssistantProposal = {
           id: `jev-proposal:${trigger.eventId}`,
           kind: "jev_proposal",
@@ -167,6 +165,8 @@ export function AssistantProposalCoordinator() {
             trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
         };
         if (shouldSuppressAssistantProposal(proposal)) return;
+        requestAllowedRef.current = false;
+        clearAssistantProposalTriggers();
         recordAssistantProposalShown(proposal);
         setAssistantServerProposal(proposal);
         proposalAccepted = true;

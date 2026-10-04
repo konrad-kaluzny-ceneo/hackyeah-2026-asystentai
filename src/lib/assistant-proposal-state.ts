@@ -86,12 +86,10 @@ export function clearAssistantProposalUiState(): void {
 }
 
 const SHOWN_PROPOSALS_STORAGE_KEY = "assistant:shown-proposals";
-const LAST_PROPOSAL_STORAGE_KEY = "assistant:last-proposal";
-const PROPOSAL_COOLDOWN_MS = 90_000;
+const PROPOSAL_COOLDOWN_MS = 6_000;
 const MAX_SHOWN_PROPOSALS = 30;
 
-type LastProposal = {
-  action: AssistantProposal["action"];
+type ShownProposal = {
   key: string;
   shownAt: number;
 };
@@ -120,14 +118,9 @@ export function shouldSuppressAssistantProposal(
   proposal: Pick<AssistantProposal, "action" | "data">,
 ): boolean {
   const key = proposalKey(proposal);
-  const shown = readSessionJson<string[]>(SHOWN_PROPOSALS_STORAGE_KEY, []);
-  if (shown.includes(key)) return true;
-
-  const last = readSessionJson<LastProposal | null>(LAST_PROPOSAL_STORAGE_KEY, null);
-  return (
-    last !== null &&
-    last.action === proposal.action &&
-    Date.now() - last.shownAt < PROPOSAL_COOLDOWN_MS
+  const shown = readSessionJson<ShownProposal[]>(SHOWN_PROPOSALS_STORAGE_KEY, []);
+  return Array.isArray(shown) && shown.some((item) =>
+    item?.key === key && Date.now() - item.shownAt < PROPOSAL_COOLDOWN_MS,
   );
 }
 
@@ -136,17 +129,14 @@ export function recordAssistantProposalShown(
 ): void {
   if (typeof window === "undefined") return;
   const key = proposalKey(proposal);
-  const shown = readSessionJson<string[]>(SHOWN_PROPOSALS_STORAGE_KEY, []).filter(
-    (item) => item !== key,
-  );
-  shown.push(key);
+  const stored = readSessionJson<ShownProposal[]>(SHOWN_PROPOSALS_STORAGE_KEY, []);
+  const shown = Array.isArray(stored) ? stored.filter(
+    (item) => item?.key !== key && typeof item?.shownAt === "number",
+  ) : [];
+  shown.push({ key, shownAt: Date.now() });
   window.sessionStorage.setItem(
     SHOWN_PROPOSALS_STORAGE_KEY,
     JSON.stringify(shown.slice(-MAX_SHOWN_PROPOSALS)),
-  );
-  window.sessionStorage.setItem(
-    LAST_PROPOSAL_STORAGE_KEY,
-    JSON.stringify({ action: proposal.action, key, shownAt: Date.now() } satisfies LastProposal),
   );
 }
 

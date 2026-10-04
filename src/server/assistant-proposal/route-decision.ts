@@ -5,14 +5,21 @@ export type RouteDecision =
   | { decision: "needs_openai" }
   | { decision: "hide" };
 
-export const INTENT_TRIGGER_THRESHOLD = 0.5;
+export const INTENT_TRIGGER_THRESHOLD = 0.9;
+const CALM_INTENTS = new Set(["exploring", "SMOOTH_EXPLORATION"]);
 
-/** Only a single strong JEV intent may activate the assistant response flow. */
+/** Combined non-calm JEV intent probability activates the assistant response flow. */
 export function routeJevOutput(output: JevAssistantOutput): RouteDecision {
   const message = output.proposal.message_draft?.trim() ?? "";
-  const hasStrongIntent = Object.values(output.intent_probabilities).some(
-    (probability) => probability > INTENT_TRIGGER_THRESHOLD,
+  const nonCalmIntentProbability = Object.entries(
+    output.intent_probabilities,
+  ).reduce(
+    (total, [intent, probability]) =>
+      CALM_INTENTS.has(intent) ? total : total + probability,
+    0,
   );
+  const hasStrongIntent =
+    nonCalmIntentProbability > INTENT_TRIGGER_THRESHOLD;
 
   if (
     !hasStrongIntent ||

@@ -33,23 +33,31 @@ describe("routeJevOutput", () => {
     });
   });
 
-  it("hides when no single intent clears the trigger threshold", () => {
-    expect(routeJevOutput(output("DECISION_FATIGUE", 0.5))).toEqual({
-      decision: "hide",
-    });
-  });
-
-  it("does not trigger from a sum when every individual intent is below threshold", () => {
+  it("hides when non-calm intent probability does not clear the threshold", () => {
     expect(
       routeJevOutput({
         ...output("DECISION_FATIGUE", 0.4),
         intent_probabilities: {
-          DECISION_FATIGUE: 0.4,
-          PRODUCT_HESITATION: 0.35,
-          NO_PROGRESS_STALL: 0.25,
+          SMOOTH_EXPLORATION: 0.6,
+          DECISION_FATIGUE: 0.2,
+          PRODUCT_HESITATION: 0.2,
         },
       }),
     ).toEqual({ decision: "hide" });
+  });
+
+  it("uses OpenAI when the combined non-calm probability clears the threshold", () => {
+    expect(
+      routeJevOutput({
+        ...output("NO_PROGRESS_STALL", 0.2, true),
+        intent_probabilities: {
+          exploring: 0.05,
+          DECISION_FATIGUE: 0.35,
+          PRODUCT_HESITATION: 0.3,
+          NO_PROGRESS_STALL: 0.3,
+        },
+      }),
+    ).toEqual({ decision: "needs_openai" });
   });
 
   it("uses OpenAI for hedged, empty-draft, or non-fatigue output", () => {

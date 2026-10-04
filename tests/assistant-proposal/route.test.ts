@@ -4,6 +4,8 @@ import { POST, resetLimitersForTest, MAX_REQUEST_BODY_BYTES } from "@/app/api/as
 import { parseAssistantProposalResponse } from "@/lib/assistant-proposal-api";
 import * as jevClient from "@/server/assistant-proposal/jev-client";
 import * as openaiClient from "@/server/assistant-proposal/openai-client";
+import * as intentReadService from "@/server/intent-inference/read-service";
+import { emptyIntentProbabilities } from "@/lib/intent-timeline";
 import { makeMetaEvent, resetFixtureSeed } from "../behavior/fixtures";
 
 function makeRequest(body: unknown, headers: Record<string, string> = {}) {
@@ -57,6 +59,66 @@ describe("POST /api/assistant-proposal", () => {
     vi.restoreAllMocks();
     resetLimitersForTest();
     resetFixtureSeed();
+    vi.spyOn(intentReadService, "getLatestIntentSnapshot").mockResolvedValue(null);
+  });
+
+  it.each([
+    ["lodowki", "roczne zużycie prądu"],
+    ["pralki", "masę suchego prania"],
+    ["zmywarki", "program Eco"],
+  ])("shows a useful %s fact for a dominant researching intent", async (categoryId, expectedFact) => {
+    vi.mocked(intentReadService.getLatestIntentSnapshot).mockResolvedValue({
+      computedAt: new Date(), intents: { ...emptyIntentProbabilities(), researching: 0.7, exploring: 0.3 },
+    });
+    const jevSpy = vi.spyOn(jevClient, "requestJev");
+    const openaiSpy = vi.spyOn(openaiClient, "requestStrongerReply");
+    const response = await POST(makeRequest({ metaEvents: [
+      { ...validEvent, subject: { type: "category", categoryId } },
+    ] }));
+    const json = await response.json();
+    expect(json).toMatchObject({
+      status: "show", action: "explain-choice",
+      data: { categorySlug: categoryId, illustration: "fox-thinking" },
+    });
+    expect(json.message).toContain(expectedFact);
+    expect(parseAssistantProposalResponse(json)).toEqual(json);
+    expect(intentReadService.getLatestIntentSnapshot).toHaveBeenCalledWith(validEvent.identity.sessionId);
+    expect(jevSpy).not.toHaveBeenCalled();
+    expect(openaiSpy).not.toHaveBeenCalled();
+  });
+
+  it("uses the most recent category rather than the most frequent category for a research tip", async () => {
+    vi.mocked(intentReadService.getLatestIntentSnapshot).mockResolvedValue({
+      computedAt: new Date(), intents: { ...emptyIntentProbabilities(), researching: 0.8 },
+    });
+    const response = await POST(makeRequest({ metaEvents: [
+      { ...validEvent, eventId: "latest-category", detectedAt: "2026-10-03T14:01:00.000Z", subject: { type: "category", categoryId: "pralki" } },
+      validEvent,
+      { ...validEvent, eventId: "older-category", detectedAt: "2026-10-03T13:59:00.000Z" },
+    ] }));
+    expect(await response.json()).toMatchObject({
+      status: "show", data: { categorySlug: "pralki" },
+    });
+  });
+
+  it.each([
+    { researching: 0.4, exploring: 0.3 },
+    { researching: 0.6, overloaded: 0.8 },
+    { researching: 0.5, comparing: 0.5 },
+  ])("keeps the normal proposal flow for insufficient or non-dominant researching: %j", async (intents) => {
+    vi.mocked(intentReadService.getLatestIntentSnapshot).mockResolvedValue({
+      computedAt: new Date(), intents: { ...emptyIntentProbabilities(), ...intents },
+    });
+    const jevSpy = vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(0.95));
+    const response = await POST(makeRequest(validRequestBody));
+    expect(await response.json()).toMatchObject({ status: "show", action: "narrow-choice" });
+    expect(jevSpy).toHaveBeenCalledOnce();
+  });
+
+  it("keeps normal assistance available if the intent snapshot lookup fails", async () => {
+    vi.mocked(intentReadService.getLatestIntentSnapshot).mockRejectedValue(new Error("Snapshot unavailable"));
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(0.95));
+    expect(await (await POST(makeRequest(validRequestBody))).json()).toMatchObject({ status: "show", action: "narrow-choice" });
   });
 
   it.each([
@@ -258,7 +320,7 @@ describe("POST /api/assistant-proposal", () => {
     const secondResponse = await POST(
       makeRequest(validRequestBody, { "x-real-ip": "10.0.0.12" }),
     );
-    expect(await secondResponse.json()).toEqual({ status: "hide" });
+    expect(await secondResponse.json()).toMatchObject({ status: "show", action: "narrow-choice" });
     expect(openaiSpy).toHaveBeenCalledOnce();
 
     resolveOpenAI?.({
@@ -329,6 +391,36 @@ describe("POST /api/assistant-proposal", () => {
     const response = await POST(makeRequest(validRequestBody));
     expect(response.status).toBe(200);
     expect((await response.json()).status).toBe("show");
+  });
+
+  it("shows a valid fallback for OpenAI errors in development too", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(0.7, { hedgingRequired: true }));
+    vi.spyOn(openaiClient, "requestStrongerReply").mockRejectedValue(new Error("Invalid OpenAI response"));
+    try {
+      const response = await POST(makeRequest(validRequestBody));
+      const json = await response.json();
+      expect(response.status).toBe(200);
+      expect(json.status).toBe("show");
+      expect(parseAssistantProposalResponse(json)).toEqual(json);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("does not show a fallback when the caller cancels the OpenAI request", async () => {
+    const controller = new AbortController();
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(0.7, { hedgingRequired: true }));
+    vi.spyOn(openaiClient, "requestStrongerReply").mockImplementation(async () => {
+      controller.abort();
+      throw new Error("Request was aborted.");
+    });
+    const request = new Request("http://localhost/api/assistant-proposal", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(validRequestBody), signal: controller.signal,
+    }) as unknown as Parameters<typeof POST>[0];
+    const response = await POST(request);
+    expect(await response.json()).toEqual({ status: "hide" });
   });
 
   it("uses the mapped action when OpenAI returns none", async () => {

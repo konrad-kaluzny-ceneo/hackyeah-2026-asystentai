@@ -147,9 +147,49 @@ afterEach(async () => {
   clearAssistantProposalUiState();
   container.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("assistant proposal coordinator and listing UI", () => {
+  it("can show a different proposal after a duplicate response is suppressed", async () => {
+    let now = Date.now();
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    fetchMock.mockResolvedValueOnce(response(SHOW_PROPOSAL))
+      .mockResolvedValueOnce(response(SHOW_PROPOSAL))
+      .mockResolvedValueOnce(response({
+        ...SHOW_PROPOSAL, action: "set-budget", actionLabel: "Ustaw budżet",
+        data: { target: "filters", filterKeys: ["price"], categorySlug: "lodowki" },
+      }));
+    await renderCoordinatorOnly();
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-element-id="assistant-dismiss"]')?.click());
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getAssistantProposalUiState().proposal).toBeNull();
+
+    now += 6_000;
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(getAssistantProposalUiState().proposal?.action).toBe("set-budget");
+  });
+
+  it("allows the same useful proposal again after the 30-second cooldown", async () => {
+    let now = Date.now();
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    await renderCoordinatorOnly();
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-element-id="assistant-dismiss"]')?.click());
+    now += 30_000;
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getAssistantProposalUiState().proposal?.action).toBe("narrow-choice");
+  });
+
   it.each([
     ["price", "Cena od"],
     ["brand", "Producent"],
