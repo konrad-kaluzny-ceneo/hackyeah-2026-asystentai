@@ -71,13 +71,6 @@ export function AssistantInline({
     };
   }, [catalog, state]);
 
-  const dismiss = () => {
-    setAssistantServerProposal(null);
-    setAssistantSearchRecoveryVisible(false);
-    setMuted(false);
-    setLocalProposal(null);
-  };
-
   if (muted || !proposal) return null;
 
   const recommendsFilters = proposal.action === "narrow-choice";
@@ -90,17 +83,7 @@ export function AssistantInline({
       className="assistant-proposal-enter relative mb-6 w-full overflow-hidden rounded-2xl border border-[#cfe0d5] bg-gradient-to-br from-[#f2f7f4] via-white to-[#edf5f0] p-5 shadow-[0_4px_20px_rgba(25,59,53,0.06)] sm:p-6"
       role="status"
     >
-      <button
-        type="button"
-        aria-label="Zamknij podpowiedź"
-        data-element-id="assistant-dismiss"
-        className="absolute right-3.5 top-3.5 rounded-full p-1.5 text-[#6c7d74] transition hover:bg-[#dfebe3] hover:text-[#193b35]"
-        onClick={dismiss}
-      >
-        <span aria-hidden="true" className="text-xl leading-none font-medium">×</span>
-      </button>
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5 pr-8 sm:pr-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
         <div className="relative shrink-0 flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-[#e3ece5] border border-[#d2dfd6] p-1.5 shadow-inner">
           <Image
             src="/illustrations/assistant-fox/fox-guiding.png"

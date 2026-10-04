@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
@@ -51,6 +52,8 @@ export function AssistantProposalCoordinator() {
     getAssistantProposalUiState,
     () => EMPTY_PROPOSAL_UI_STATE,
   );
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
   const [muted, setMuted] = useState(() => readAssistantMutedUntil() > Date.now());
   const mountedRef = useRef(false);
   const workerActiveRef = useRef(false);
@@ -66,6 +69,18 @@ export function AssistantProposalCoordinator() {
   useEffect(() => {
     requestAllowedRef.current = requestAllowed;
   }, [requestAllowed]);
+
+  useEffect(() => {
+    if (pathnameRef.current !== pathname) {
+      pathnameRef.current = pathname;
+      activeControllerRef.current?.abort();
+      clearAssistantProposalTriggers();
+      setAssistantServerProposal(null);
+      setAssistantSearchRecoveryVisible(false);
+      setAssistantRequestInFlight(false);
+      retryBlockedUntilRef.current = 0;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -128,6 +143,7 @@ export function AssistantProposalCoordinator() {
         nextTrigger = takeAssistantProposalTrigger();
       }
 
+      const requestPathname = pathnameRef.current;
       const controller = new AbortController();
       activeTriggerRef.current = trigger;
       activeControllerRef.current = controller;
@@ -141,14 +157,15 @@ export function AssistantProposalCoordinator() {
           body: JSON.stringify({ metaEvents: trigger.metaEvents }),
           signal: controller.signal,
         });
-        if (!response.ok || !mountedRef.current) return;
+        if (!response.ok || !mountedRef.current || requestPathname !== pathnameRef.current) return;
 
         const body: unknown = await response.json();
         const parsed = safeParseAssistantProposalResponse(body);
         if (
           !requestAllowedRef.current ||
           !parsed.success ||
-          parsed.data.status !== "show"
+          parsed.data.status !== "show" ||
+          requestPathname !== pathnameRef.current
         ) {
           return;
         }

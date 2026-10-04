@@ -6,12 +6,16 @@ const decisionEngineMock = vi.hoisted(() => ({
   current: null as AssistantProposal | null,
 }));
 
+const navigationMock = vi.hoisted(() => ({
+  pathname: "/katalog/lodowki",
+}));
+
 vi.mock("@/lib/decision-engine", () => ({
   DecisionEngine: vi.fn(() => decisionEngineMock.current),
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/katalog/lodowki",
+  usePathname: () => navigationMock.pathname,
   useRouter: () => ({ replace: vi.fn() }),
 }));
 
@@ -132,6 +136,7 @@ beforeEach(() => {
   resetFixtureSeed();
   window.sessionStorage.clear();
   decisionEngineMock.current = null;
+  navigationMock.pathname = "/katalog/lodowki";
   eventSequence = 0;
   container = document.createElement("div");
   document.body.append(container);
@@ -163,7 +168,8 @@ describe("assistant proposal coordinator and listing UI", () => {
     await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     await flushRequestTasks();
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-element-id="assistant-dismiss"]')?.click());
+    navigationMock.pathname = "/katalog/pralki";
+    await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     await flushRequestTasks();
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -182,7 +188,8 @@ describe("assistant proposal coordinator and listing UI", () => {
     await renderCoordinatorOnly();
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     await flushRequestTasks();
-    await act(async () => container.querySelector<HTMLButtonElement>('[data-element-id="assistant-dismiss"]')?.click());
+    navigationMock.pathname = "/katalog/pralki";
+    await renderCoordinatorOnly();
     now += 30_000;
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     await flushRequestTasks();
@@ -423,7 +430,7 @@ describe("assistant proposal coordinator and listing UI", () => {
     expect(container.querySelector('[data-ai-request-state="pending"]')).toBeNull();
   });
 
-  it("dismissal clears the shared proposal without blocking later requests", async () => {
+  it("navigation clears the shared proposal without blocking later requests", async () => {
     fetchMock
       .mockResolvedValueOnce(response(SHOW_PROPOSAL))
       .mockResolvedValueOnce(
@@ -439,10 +446,10 @@ describe("assistant proposal coordinator and listing UI", () => {
     await flushRequestTasks();
     await renderAssistant();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).not.toBeNull();
+    expect(container.querySelector('[data-element-id="assistant-dismiss"]')).toBeNull();
 
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-element-id="assistant-dismiss"]')?.click();
-    });
+    navigationMock.pathname = "/katalog/pralki";
+    await renderAssistant();
 
     expect(getAssistantProposalUiState().proposal).toBeNull();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();

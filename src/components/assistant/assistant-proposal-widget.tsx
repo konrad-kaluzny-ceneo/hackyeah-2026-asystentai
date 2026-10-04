@@ -165,12 +165,6 @@ export function AssistantProposalWidget() {
 
   if (muted || proposal === null) return null;
 
-  const dismiss = () => {
-    if (proposal) recordAssistantProposalShown(proposal);
-    setAssistantServerProposal(null);
-    setMuted(false);
-  };
-
   const executeAction = () => {
     if (proposal) recordAssistantProposalShown(proposal);
     setAssistantServerProposal(null);
@@ -186,17 +180,7 @@ export function AssistantProposalWidget() {
       role="status"
       aria-live="polite"
     >
-      <button
-        type="button"
-        aria-label="Zamknij podpowiedź"
-        data-element-id="assistant-dismiss"
-        className="absolute right-3.5 top-3.5 rounded-full p-1.5 text-[#6c7d74] transition hover:bg-[#dfebe3] hover:text-[#193b35]"
-        onClick={dismiss}
-      >
-        <span aria-hidden="true" className="text-xl leading-none font-medium">×</span>
-      </button>
-
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5 pr-8 sm:pr-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
         <div className="relative shrink-0 flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-[#e3ece5] border border-[#d2dfd6] p-1.5 shadow-inner">
           <Image
             src={`/illustrations/assistant-fox/${proposal.data.illustration ?? "fox-thinking"}.png`}
