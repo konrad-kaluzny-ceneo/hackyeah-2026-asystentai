@@ -8,7 +8,7 @@ import type { MetaEvent } from "@/behavior/types";
 
 const DEFAULT_TYPESAFE_API_URL = "https://api.typesafe.ai/v1/systemone";
 export const JEV_INTENT_MODEL = "jev-latest" as const;
-export const JEV_INTENT_EVENT_LIMIT = 10;
+export const JEV_INTENT_EVENT_LIMIT = 3;
 
 export type JevIntentRequest = Readonly<{
   model: typeof JEV_INTENT_MODEL;

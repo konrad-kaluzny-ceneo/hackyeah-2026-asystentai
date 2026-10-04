@@ -9,6 +9,7 @@ describe("JevAssistantOutputSchema", () => {
   it("validates correct Jev output format", () => {
     const raw = {
       situation: "DECISION_FATIGUE",
+      intent_probabilities: { DECISION_FATIGUE: 0.88, PRODUCT_HESITATION: 0.12 },
       primary_meta_event: "comparison_oscillation",
       signal_strength: 0.88,
       key_evidence: ["3 powroty do lodówki Samsung"],

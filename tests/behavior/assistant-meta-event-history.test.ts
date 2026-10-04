@@ -81,31 +81,27 @@ describe("assistant MetaEvent history", () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
-  it("queues one chronological snapshot at the first event and every later unique event", () => {
+  it("waits for five events and then queues each later unique event", () => {
     recordAssistantMetaEventBatch(
       Array.from({ length: 4 }, (_, index) =>
         event(`event-${String(index + 1).padStart(4, "0")}`, (index + 1) * 1_000),
       ),
     );
+    expect(takeAssistantProposalTrigger()).toBeNull();
+
+    recordAssistantMetaEventBatch([event("event-0005", 5_000)]);
     expect(takeAssistantProposalTrigger()).toEqual({
-      eventId: "event-0001",
-      metaEvents: [event("event-0001", 1_000)],
-    });
-    expect(takeAssistantProposalTrigger()).toEqual({
-      eventId: "event-0002",
-      metaEvents: Array.from({ length: 2 }, (_, index) =>
+      eventId: "event-0005",
+      metaEvents: Array.from({ length: 5 }, (_, index) =>
         event(`event-${String(index + 1).padStart(4, "0")}`, (index + 1) * 1_000),
       ),
     });
+    expect(takeAssistantProposalTrigger()).toBeNull();
+
+    recordAssistantMetaEventBatch([event("event-0006", 6_000)]);
     expect(takeAssistantProposalTrigger()).toEqual({
-      eventId: "event-0003",
-      metaEvents: Array.from({ length: 3 }, (_, index) =>
-        event(`event-${String(index + 1).padStart(4, "0")}`, (index + 1) * 1_000),
-      ),
-    });
-    expect(takeAssistantProposalTrigger()).toEqual({
-      eventId: "event-0004",
-      metaEvents: Array.from({ length: 4 }, (_, index) =>
+      eventId: "event-0006",
+      metaEvents: Array.from({ length: 6 }, (_, index) =>
         event(`event-${String(index + 1).padStart(4, "0")}`, (index + 1) * 1_000),
       ),
     });

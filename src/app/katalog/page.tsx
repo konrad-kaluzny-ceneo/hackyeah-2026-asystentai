@@ -13,7 +13,10 @@ export const metadata: Metadata = {
 };
 
 type CatalogPageProps = {
-  searchParams: Promise<{ q?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    sort?: string | string[];
+  }>;
 };
 
 export default async function CatalogPage({
@@ -35,7 +38,15 @@ export default async function CatalogPage({
   }
   if (unavailable) return <CatalogUnavailable />;
   if (query) {
-    return <CatalogListing category={null} products={products} initialQuery={query} />;
+    return (
+      <CatalogListing
+        key={`${params.q ?? ""}-${params.sort ?? ""}`}
+        category={null}
+        products={products}
+        initialQuery={query}
+        initialSort={parseSortParam(params.sort)}
+      />
+    );
   }
 
   return (
@@ -61,4 +72,9 @@ export default async function CatalogPage({
         </div>
       </main>
   );
+}
+
+function parseSortParam(value: string | string[] | undefined): "price_asc" | "price_desc" | null {
+  const sort = Array.isArray(value) ? value[0] : value;
+  return sort === "price_asc" || sort === "price_desc" ? sort : null;
 }

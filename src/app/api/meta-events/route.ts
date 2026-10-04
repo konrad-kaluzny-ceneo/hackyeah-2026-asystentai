@@ -6,8 +6,14 @@ import {
   DEFAULT_RATE_LIMIT,
   InMemoryRateLimiter,
 } from "@/server/meta-events/rate-limit";
-import { saveBatch } from "@/server/meta-events/service";
-import { inferAndSaveIntentSnapshot } from "@/server/intent-inference/trigger";
+import {
+  getRecentMetaEvents,
+  saveBatch,
+} from "@/server/meta-events/service";
+import {
+  inferAndSaveIntentSnapshot,
+  MIN_JEV_INTENT_EVENTS,
+} from "@/server/intent-inference/trigger";
 import {
   BATCH_LIMITS,
   BatchPayloadSchema,
@@ -152,7 +158,25 @@ export async function POST(request: NextRequest): Promise<Response> {
   );
   if (acceptedEvents.length > 0) {
     try {
-      await inferAndSaveIntentSnapshot(acceptedEvents, { db });
+      const sessionId = acceptedEvents[0]?.identity.sessionId;
+      if (sessionId === undefined) {
+        throw new Error("Accepted MetaEvents have no session ID");
+      }
+      const recentEvents = await getRecentMetaEvents(sessionId, {
+        db,
+        limit: MIN_JEV_INTENT_EVENTS,
+      });
+      if (recentEvents.length < MIN_JEV_INTENT_EVENTS) {
+        logLine({
+          level: "info",
+          action: "intent_inference_skipped",
+          sessionId,
+          eventCount: recentEvents.length,
+          minimumEventCount: MIN_JEV_INTENT_EVENTS,
+        });
+      } else {
+        await inferAndSaveIntentSnapshot(recentEvents, { db });
+      }
     } catch (error) {
       // Intent inference is best-effort; a JEV outage must not make a
       // successfully persisted MetaEvent batch retry.

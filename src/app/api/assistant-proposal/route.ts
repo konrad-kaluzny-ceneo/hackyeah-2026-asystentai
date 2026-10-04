@@ -60,6 +60,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     prompt,
     jevSignal,
     request.signal,
+    parsedRequest.data.metaEvents,
   );
   return NextResponse.json(proposal, { status: 200 });
 }

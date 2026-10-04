@@ -6,6 +6,7 @@ import * as intentInference from "@/server/intent-inference/trigger";
 
 vi.mock("@/server/intent-inference/trigger", () => ({
   inferAndSaveIntentSnapshot: vi.fn(),
+  MIN_JEV_INTENT_EVENTS: 3,
 }));
 
 import { makeMetaEvent, resetFixtureSeed } from "./fixtures";
@@ -30,13 +31,14 @@ describe("POST /api/meta-events", () => {
     vi.mocked(intentInference.inferAndSaveIntentSnapshot).mockReset();
   });
 
-  it("accepts a valid batch and persists it via saveBatch", async () => {
+  it("accepts a valid batch and skips intent inference before three events", async () => {
     const saveBatchSpy = vi
       .spyOn(service, "saveBatch")
       .mockResolvedValue({
         acceptedEventIds: ["evt-a-000001"],
         duplicateEventIds: [],
       });
+    vi.spyOn(service, "getRecentMetaEvents").mockResolvedValue([]);
     const response = await POST(
       makeRequest({
         schemaVersion: "1.0",
@@ -55,7 +57,34 @@ describe("POST /api/meta-events", () => {
     expect(json.acceptedEventIds).toEqual(["evt-a-000001"]);
     expect(json.rejected).toEqual([]);
     expect(saveBatchSpy).toHaveBeenCalledOnce();
-    expect(intentInference.inferAndSaveIntentSnapshot).toHaveBeenCalledOnce();
+    expect(intentInference.inferAndSaveIntentSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("runs intent inference on the three most recent persisted events", async () => {
+    const acceptedEvents = Array.from({ length: 3 }, (_, index) =>
+      makeMetaEvent("rage_click", { eventId: `evt-a-00000${index + 1}` }),
+    );
+    vi.spyOn(service, "saveBatch").mockResolvedValue({
+      acceptedEventIds: acceptedEvents.map((event) => event.eventId),
+      duplicateEventIds: [],
+    });
+    const recentEvents = [...acceptedEvents];
+    vi.spyOn(service, "getRecentMetaEvents").mockResolvedValue(recentEvents);
+
+    const response = await POST(
+      makeRequest({
+        schemaVersion: "1.0",
+        batchId: "batch-test-3",
+        sentAt: new Date(0).toISOString(),
+        events: acceptedEvents,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(intentInference.inferAndSaveIntentSnapshot).toHaveBeenCalledWith(
+      recentEvents,
+      expect.objectContaining({ db: expect.anything() }),
+    );
   });
 
   it("returns 200 with rejection entries when the payload fails validation (no client retry)", async () => {

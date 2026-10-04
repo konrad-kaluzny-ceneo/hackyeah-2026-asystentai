@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/emotions-timeline/route";
 import {
   chartX,
   chartY,
+  buildAreaPath,
+  EmotionTimelineChart,
   shortenComment,
 } from "@/behavior/ui/EmotionTimelineChart";
 import {
@@ -13,6 +17,114 @@ import {
   buildMockEmotionTimeline,
   buildStackedEmotionSeries,
 } from "@/behavior/ui/emotion-timeline";
+import { DebugOverlay } from "@/behavior/ui/DebugOverlay";
+import { resetDebugStateForTests, setDebugState } from "@/behavior/ui/debug-store";
+import { INTENT_DEFINITIONS, type IntentTimelineResponse } from "@/lib/intent-timeline";
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+  resetDebugStateForTests();
+});
+
+function intentTimeline(currentSecond = 1): IntentTimelineResponse {
+  return {
+    schemaVersion: "2.0", source: "jev", windowSeconds: 30,
+    currentSecond, windowStartSecond: 0, windowEndSecond: currentSecond,
+    generatedAt: new Date(currentSecond * 1000).toISOString(), annotations: [],
+    series: INTENT_DEFINITIONS.map((intent) => ({
+      ...intent,
+      points: Array.from({ length: currentSecond + 1 }, (_, second) => ({ second, value: second * 0.1 })),
+    })),
+  };
+}
+
+describe("compact debug chart", () => {
+  it("keeps rounded curves without padding data for animation", () => {
+    const short = buildAreaPath([{ second: 0, lower: 0, upper: 0.2 }, { second: 1, lower: 0, upper: 0.4 }], 0, 1);
+    const full = buildAreaPath(Array.from({ length: 31 }, (_, second) => ({ second, lower: 0.1, upper: 0.5 })), 0, 1);
+    expect(short).toContain("C");
+    expect(full).toContain("C");
+    expect(short.match(/C/g)).toHaveLength(2);
+    expect(full.match(/C/g)).toHaveLength(60);
+    expect(full).not.toContain("NaN");
+    expect(buildAreaPath([], 0, 1)).toBe("");
+  });
+
+  it("shows only meta-event names without session, page or event details", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(intentTimeline())));
+    setDebugState({
+      trackerEnabled: true, sessionId: "private-session-id", pageType: "product", pathname: "/private-path",
+      lastSentMetaEvents: [{
+        eventId: "test", name: "rage_click", batchId: "private-batch-id",
+        detectedAt: "2026-10-04T00:00:00.000Z", sentAt: "2026-10-04T00:00:01.000Z",
+        strength: 0.9, evidenceCount: 4,
+      }],
+    });
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(createElement(DebugOverlay)));
+      expect(container.querySelector('aside[aria-label="Behavior debug"]')?.className).toContain("max-h-[min(300px,100dvh)]");
+      expect(container.querySelector("li")?.textContent).toBe("rage_click");
+      expect(container.querySelector("li")?.getAttribute("title")).toBeNull();
+      for (const hidden of ["private-session-id", "private-path", "private-batch-id", "Session ID", "strength=", "evidence="]) {
+        expect(container.innerHTML).not.toContain(hidden);
+      }
+      expect(container.querySelector('svg[role="img"]')).not.toBeNull();
+      await act(async () => container.querySelector("button")?.click());
+      expect(container.querySelector("svg")).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("does not overlap polls and updates rounded paths immediately without animation", async () => {
+    vi.useFakeTimers();
+    let resolveFetch: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn().mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveFetch = resolve; }))
+      .mockResolvedValue(Response.json(intentTimeline(2)));
+    vi.stubGlobal("fetch", fetchMock);
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(createElement(EmotionTimelineChart)));
+      await act(async () => vi.advanceTimersByTime(3000));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await act(async () => resolveFetch?.(Response.json(intentTimeline())));
+      const previousPath = container.querySelector("path")?.getAttribute("d");
+      await act(async () => vi.advanceTimersByTime(1000));
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(container.querySelector("path")?.getAttribute("d")).not.toBe(previousPath);
+      expect(container.querySelector("path")?.getAttribute("d")).toContain("C");
+      expect(container.querySelectorAll("animate, animateTransform")).toHaveLength(0);
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("pauses requests while the tab is hidden and resumes when visible", async () => {
+    vi.useFakeTimers();
+    const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(intentTimeline()));
+    vi.stubGlobal("fetch", fetchMock);
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(createElement(EmotionTimelineChart)));
+      await act(async () => vi.advanceTimersByTime(3000));
+      expect(fetchMock).not.toHaveBeenCalled();
+      hidden.mockReturnValue(false);
+      await act(async () => vi.advanceTimersByTime(1000));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+});
 
 describe("GET /api/emotions-timeline", () => {
   it("returns 9 colored series with points only through the current second", async () => {

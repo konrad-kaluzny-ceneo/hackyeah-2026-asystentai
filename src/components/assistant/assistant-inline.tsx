@@ -1,27 +1,18 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import {
   CATALOG_SESSION_CHANGED,
-  muteAssistantFor,
   readAssistantMutedUntil,
   readCatalogEvents,
 } from "@/lib/assistant-events";
 import { DecisionEngine } from "@/lib/decision-engine";
 import {
-  getAssistantProposalUiState,
   setAssistantSearchRecoveryVisible,
   setAssistantServerProposal,
-  subscribeAssistantProposalUiState,
 } from "@/lib/assistant-proposal-state";
 import type { AssistantProposal, CatalogState, Category, Product } from "@/lib/catalog-types";
-
-const MUTE_DURATION_MS = 15 * 60 * 1000;
-const EMPTY_PROPOSAL_UI_STATE = {
-  proposal: null,
-  searchRecoveryVisible: false,
-} as const;
 
 type AssistantInlineProps = {
   state: CatalogState;
@@ -36,12 +27,7 @@ export function AssistantInline({
 }: AssistantInlineProps) {
   const [localProposal, setLocalProposal] = useState<AssistantProposal | null>(null);
   const [muted, setMuted] = useState(false);
-  const proposalUiState = useSyncExternalStore(
-    subscribeAssistantProposalUiState,
-    getAssistantProposalUiState,
-    () => EMPTY_PROPOSAL_UI_STATE,
-  );
-  const proposal = localProposal ?? proposalUiState.proposal;
+  const proposal = localProposal;
 
   useEffect(() => {
     let muteTimer: number | undefined;
@@ -85,10 +71,9 @@ export function AssistantInline({
   }, [catalog, state]);
 
   const dismiss = () => {
-    muteAssistantFor(MUTE_DURATION_MS);
     setAssistantServerProposal(null);
     setAssistantSearchRecoveryVisible(false);
-    setMuted(true);
+    setMuted(false);
     setLocalProposal(null);
   };
 
@@ -101,16 +86,12 @@ export function AssistantInline({
       aria-labelledby="assistant-proposal-title"
       data-element-id="assistant-proposal"
       data-assistant-popover={recommendsFilters ? "filters" : undefined}
-      className={
-        recommendsFilters
-          ? "fixed bottom-4 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-sky-200 bg-white p-5 pr-12 text-slate-900 shadow-2xl ring-1 ring-slate-900/5"
-          : "relative my-6 rounded-xl border border-sky-200 bg-sky-50 p-5 pr-12 text-slate-900 shadow-sm"
-      }
+      className="fixed top-40 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-sky-200 bg-white p-5 pr-12 text-slate-900 shadow-2xl ring-1 ring-slate-900/5 sm:top-32 lg:top-28"
       role="status"
     >
       <button
         type="button"
-        aria-label="Zamknij podpowiedź na 15 minut"
+        aria-label="Zamknij podpowiedź"
         data-element-id="assistant-dismiss"
         className="absolute right-3 top-3 rounded p-1 text-slate-500 hover:bg-sky-100 hover:text-slate-900"
         onClick={dismiss}

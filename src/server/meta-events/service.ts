@@ -1,5 +1,7 @@
-import { sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
+import type { MetaEvent } from "@/behavior/types";
+import { MetaEventSchema } from "@/behavior/meta-event-schema";
 import { getDb, type Database } from "@/lib/db/client";
 import { metaEvents, type NewMetaEventRow } from "@/lib/db/schema";
 import type { ValidatedBatchPayload, ValidatedMetaEvent } from "./validation";
@@ -7,6 +9,66 @@ import type { ValidatedBatchPayload, ValidatedMetaEvent } from "./validation";
 export interface SaveBatchResult {
   readonly acceptedEventIds: readonly string[];
   readonly duplicateEventIds: readonly string[];
+}
+
+export async function getRecentMetaEvents(
+  sessionId: string,
+  options: { db?: Database; limit?: number } = {},
+): Promise<readonly MetaEvent[]> {
+  const db = options.db ?? getDb();
+  const limit = Math.max(1, Math.floor(options.limit ?? 5));
+  const rows = await db
+    .select()
+    .from(metaEvents)
+    .where(eq(metaEvents.sessionId, sessionId))
+    .orderBy(desc(metaEvents.detectedAt), desc(metaEvents.id))
+    .limit(limit);
+
+  return rows.reverse().map((row) =>
+    MetaEventSchema.parse({
+      schemaVersion: row.schemaVersion,
+      eventId: row.eventId,
+      name: row.eventName,
+      detectedAt: row.detectedAt.toISOString(),
+      window: {
+        startedAt: row.windowStartedAt.toISOString(),
+        endedAt: row.windowEndedAt.toISOString(),
+        durationMs: row.windowDurationMs,
+      },
+      identity: {
+        sessionId: row.sessionId,
+        pageViewId: row.pageViewId,
+        journeyId: row.journeyId ?? undefined,
+      },
+      page: {
+        type: row.pageType,
+        previousPageType: row.previousPageType ?? undefined,
+        routeTemplate: row.routeTemplate ?? undefined,
+      },
+      subject:
+        row.subjectType === null
+          ? undefined
+          : {
+              type: row.subjectType,
+              id: row.subjectId ?? undefined,
+              categoryId: row.categoryId ?? undefined,
+              brandId: row.brandId ?? undefined,
+            },
+      ecommerce: row.ecommerceContext,
+      metrics: row.metrics,
+      quality: {
+        strength: row.strength,
+        evidenceCount: row.evidenceCount,
+        algorithmVersion: row.algorithmVersion,
+        partialData: row.partialData,
+      },
+      privacy: {
+        consentVersion: row.consentVersion ?? undefined,
+        containsFreeText: false,
+        rawDataUploaded: false,
+      },
+    }),
+  );
 }
 
 const MAX_METRICS_KEYS = 32;

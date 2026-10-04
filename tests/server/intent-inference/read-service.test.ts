@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { buildIntentTimeline } from "@/server/intent-inference/read-service";
+import { buildIntentTimeline, getLatestIntentSnapshot } from "@/server/intent-inference/read-service";
+import type { Database } from "@/lib/db/client";
+import { PgDialect } from "drizzle-orm/pg-core";
 import {
   buildStackedIntentSeries,
   emptyIntentProbabilities,
@@ -8,6 +10,26 @@ import {
 import type { IntentProbabilities } from "@/domain/shopping-intent";
 
 const NOW = Date.parse("2026-10-03T12:00:30.000Z");
+
+describe("getLatestIntentSnapshot", () => {
+  it.each([true, false])("reads one fresh snapshot for the specified session (present: %s)", async (present) => {
+    const snapshot = { computedAt: new Date(NOW), intents: { ...emptyIntentProbabilities(), researching: 0.7 } };
+    const query = {
+      select: vi.fn().mockReturnThis(), from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(), orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue(present ? [snapshot] : []),
+    };
+    expect(await getLatestIntentSnapshot("research-session", { db: query as unknown as Database, now: NOW }))
+      .toEqual(present ? snapshot : null);
+    expect(query.limit).toHaveBeenCalledWith(1);
+    const dialect = new PgDialect();
+    const filter = dialect.sqlToQuery(query.where.mock.calls[0][0]);
+    expect(filter.params).toEqual([
+      "research-session", new Date(NOW - 120_000).toISOString(), new Date(NOW).toISOString(),
+    ]);
+    expect(dialect.sqlToQuery(query.orderBy.mock.calls[0][0]).sql).toContain("desc");
+  });
+});
 
 function makeSnapshot(
   secondsAgo: number,

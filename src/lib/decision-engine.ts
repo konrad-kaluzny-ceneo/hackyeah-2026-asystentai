@@ -9,26 +9,8 @@ import type {
 
 const MAX_NORMALIZED_FILTER_DISTANCE = 0.5;
 
-function hasActiveFilters(filters: Record<string, string>): boolean {
-  return Object.values(filters).some((value) => value.trim().length > 0);
-}
-
 function latestTimestamp(events: CatalogEvent[]): string {
   return events.at(-1)?.timestamp ?? new Date(0).toISOString();
-}
-
-function emptyResultsProposal(events: CatalogEvent[], state: CatalogState): AssistantProposal {
-  const latestEvent = events.at(-1);
-  return {
-    id: `empty-results:${latestEvent?.id ?? `${state.categorySlug ?? "all"}:${state.query}`}`,
-    kind: "search_friction",
-    title: "Nie znaleźliśmy produktów",
-    message: "Wyczyść wyszukiwanie i filtry, aby zobaczyć cały katalog w tej kategorii.",
-    actionLabel: "Wyczyść wyszukiwanie i filtry",
-    action: "clear-search-and-filters",
-    data: { target: "catalog", filterKeys: [] },
-    createdAt: latestEvent?.timestamp ?? latestTimestamp(events),
-  };
 }
 
 function decisionFatigueProposal(
@@ -103,25 +85,12 @@ function areSimilarProducts(
   );
 }
 
-/**
- * Replaceable MVP rules: prioritize a recoverable empty result, then look for
- * three distinct, pairwise-similar product details before returning to the list.
- */
+/** Replaceable MVP rule: look for three distinct, pairwise-similar product details before returning to the list. */
 export function DecisionEngine(
   events: CatalogEvent[],
   catalogState: CatalogState,
   catalog: { categories: Category[]; products: Product[] },
 ): AssistantProposal | null {
-  const queryIsActive = catalogState.query.trim().length > 0;
-  const filtersAreActive = hasActiveFilters(catalogState.filters);
-
-  if (
-    catalogState.resultCount === 0 &&
-    (queryIsActive || filtersAreActive)
-  ) {
-    return emptyResultsProposal(events, catalogState);
-  }
-
   if (!catalogState.categorySlug) return null;
 
   const returnIndex = events.findLastIndex(

@@ -1,10 +1,24 @@
 import type { ImplementedSignalKind } from "@/domain/shopping-signal";
+import type { AssistantProposalIllustration } from "@/lib/assistant-proposal-api";
 
-export type AssistantAction = "narrow-choice" | "clear-search-and-filters";
+export type AssistantAction =
+  | "narrow-choice"
+  | "clear-search-and-filters"
+  | "go-to-product"
+  | "sort-by-price"
+  | "set-budget"
+  | "choose-brand"
+  | "browse-category"
+  | "explain-choice"
+  | "none";
 
 export type AssistantActionData = {
-  target: "filters" | "catalog";
+  target: "filters" | "catalog" | "product";
   filterKeys: string[];
+  productSlug?: string;
+  categorySlug?: string;
+  sort?: "price_asc" | "price_desc";
+  illustration?: AssistantProposalIllustration;
 };
 
 export type CategoryFilter = {

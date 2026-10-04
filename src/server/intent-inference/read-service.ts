@@ -1,4 +1,4 @@
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 
 import {
   INTENT_DEFINITIONS,
@@ -17,6 +17,25 @@ import {
   type IntentProbabilities,
   type ShoppingIntentKind,
 } from "@/domain/shopping-intent";
+
+export async function getLatestIntentSnapshot(
+  sessionId: string,
+  options: { db?: Database; now?: number } = {},
+): Promise<Pick<SessionIntentSnapshotRow, "computedAt" | "intents"> | null> {
+  const db = options.db ?? getDb();
+  const now = options.now ?? Date.now();
+  const snapshots = await db
+    .select({ computedAt: sessionIntentSnapshots.computedAt, intents: sessionIntentSnapshots.intents })
+    .from(sessionIntentSnapshots)
+    .where(and(
+      eq(sessionIntentSnapshots.sessionId, sessionId),
+      gte(sessionIntentSnapshots.computedAt, new Date(now - 120_000)),
+      lte(sessionIntentSnapshots.computedAt, new Date(now)),
+    ))
+    .orderBy(desc(sessionIntentSnapshots.computedAt))
+    .limit(1);
+  return snapshots[0] ?? null;
+}
 
 export async function getIntentTimeline(
   sessionId: string,

@@ -8,10 +8,16 @@ function output(
   confidence: number,
   hedgingRequired = false,
   messageDraft: string | null = "Zawęź wybór według ważnego parametru.",
+  actionType: string = "NARROW_BY_SPEC",
 ): JevAssistantOutput {
   return {
     situation,
+    intent_probabilities: {
+      DECISION_FATIGUE: confidence,
+      PRODUCT_HESITATION: 1 - confidence,
+    },
     proposal: {
+      action_type: actionType as JevAssistantOutput["proposal"]["action_type"],
       confidence,
       hedging_required: hedgingRequired,
       message_draft: messageDraft,
@@ -21,16 +27,37 @@ function output(
 
 describe("routeJevOutput", () => {
   it("uses a confident, unhedged fatigue draft as a shortcut", () => {
-    expect(routeJevOutput(output("DECISION_FATIGUE", 0.75))).toEqual({
+    expect(routeJevOutput(output("DECISION_FATIGUE", 0.9))).toEqual({
       decision: "shortcut",
       message: "Zawęź wybór według ważnego parametru.",
     });
   });
 
-  it("uses OpenAI when confidence is below the threshold", () => {
-    expect(routeJevOutput(output("DECISION_FATIGUE", 0.74))).toEqual({
-      decision: "needs_openai",
-    });
+  it("hides when non-calm intent probability does not clear the threshold", () => {
+    expect(
+      routeJevOutput({
+        ...output("DECISION_FATIGUE", 0.4),
+        intent_probabilities: {
+          SMOOTH_EXPLORATION: 0.6,
+          DECISION_FATIGUE: 0.2,
+          PRODUCT_HESITATION: 0.2,
+        },
+      }),
+    ).toEqual({ decision: "hide" });
+  });
+
+  it("uses OpenAI when the combined non-calm probability clears the threshold", () => {
+    expect(
+      routeJevOutput({
+        ...output("NO_PROGRESS_STALL", 0.2, true),
+        intent_probabilities: {
+          exploring: 0.05,
+          DECISION_FATIGUE: 0.35,
+          PRODUCT_HESITATION: 0.3,
+          NO_PROGRESS_STALL: 0.3,
+        },
+      }),
+    ).toEqual({ decision: "needs_openai" });
   });
 
   it("uses OpenAI for hedged, empty-draft, or non-fatigue output", () => {
@@ -42,6 +69,39 @@ describe("routeJevOutput", () => {
     ).toEqual({ decision: "needs_openai" });
     expect(routeJevOutput(output("PRODUCT_HESITATION", 0.95))).toEqual({
       decision: "needs_openai",
+    });
+  });
+
+  it("hides when Jev picks DO_NOTHING even with a strong intent", () => {
+    expect(
+      routeJevOutput(
+        output("SMOOTH_EXPLORATION", 0.9, false, null, "DO_NOTHING"),
+      ),
+    ).toEqual({ decision: "hide" });
+  });
+
+  it("keeps a strong non-smooth signal eligible when Jev picks DO_NOTHING", () => {
+    expect(
+      routeJevOutput(
+        output("DECISION_FATIGUE", 0.9, false, null, "DO_NOTHING"),
+      ),
+    ).toEqual({ decision: "needs_openai" });
+  });
+
+  it("shortcuts UI_FRICTION + RESET_FILTERS to the reset action", () => {
+    expect(
+      routeJevOutput(
+        output(
+          "UI_FRICTION",
+          0.9,
+          false,
+          "Wyczyść obecne filtry.",
+          "RESET_FILTERS",
+        ),
+      ),
+    ).toEqual({
+      decision: "shortcut",
+      message: "Wyczyść obecne filtry.",
     });
   });
 });

@@ -15,6 +15,12 @@ const ActionTypeSchema = z.enum([
   "NARROW_BY_SPEC",
   "COMPARE_MODELS",
   "RESET_FILTERS",
+  "GO_TO_PRODUCT",
+  "SORT_BY_PRICE",
+  "SET_BUDGET",
+  "CHOOSE_BRAND",
+  "BROWSE_CATEGORY",
+  "EXPLAIN_CHOICE",
   "DO_NOTHING",
 ]);
 
@@ -80,14 +86,26 @@ export async function requestJev(
           instructions:
             "Jaka pojedyncza reakcja asystenta najlepiej pasuje do tej sesji?",
           criteria: {
+            SET_BUDGET:
+              "Otwórz filtr ceny, aby użytkownik określił swój budżet przy skupieniu na cenie; nie wymaga danych kwotowych.",
+            CHOOSE_BRAND:
+              "Otwórz wybór producenta, gdy użytkownik poszukuje preferowanej marki; nie wymaga nazwy marki.",
+            BROWSE_CATEGORY:
+              "Wróć do listy modeli tej kategorii po utknięciu na karcie produktu lub potrzebie szerszego wyboru.",
             NARROW_BY_SPEC:
               "Zaproponuj zawężenie wyników według jednego ważnego parametru.",
             COMPARE_MODELS:
-              "Zaproponuj bezpośrednie porównanie oglądanych modeli.",
+              "Zaproponuj wyjaśnienie różnicy między porównywanymi modelami (brak widoku porównania).",
             RESET_FILTERS:
               "Zaproponuj usunięcie aktywnych filtrów, które blokują postęp.",
+            GO_TO_PRODUCT:
+              "Zaproponuj bezpośrednie przejście do karty produktu, przy powtarzanych odwiedzinach.",
+            SORT_BY_PRICE:
+              "Zaproponuj posortowanie listy po cenie przy skupieniu na budżecie.",
+            EXPLAIN_CHOICE:
+              "Pokaż tylko treść merytoryczną bez nawigacji, przy słabym sygnale.",
             DO_NOTHING:
-              "Nie pokazuj propozycji, ponieważ sesja nie wymaga pomocy.",
+              "Nie pokazuj propozycji wyłącznie przy spokojnym przeglądaniu bez oznak wahania, tarcia lub braku postępu. Jeśli występuje choć jeden taki sygnał, wybierz EXPLAIN_CHOICE albo najlepiej dopasowaną akcję zamiast DO_NOTHING.",
           },
         },
       },
@@ -107,19 +125,26 @@ export async function requestJev(
   const { situation, action_type: actionType } = parsedResponse.data.answers;
   const confidence = Math.min(situation.confidence, actionType.confidence);
   const canUseShortcut =
-    situation.choice === "DECISION_FATIGUE" &&
-    actionType.choice === "NARROW_BY_SPEC";
+    (situation.choice === "DECISION_FATIGUE" &&
+      actionType.choice === "NARROW_BY_SPEC") ||
+    (situation.choice === "UI_FRICTION" && actionType.choice === "RESET_FILTERS");
+
+  const shortcutMessage =
+    situation.choice === "DECISION_FATIGUE" && actionType.choice === "NARROW_BY_SPEC"
+      ? "Porównujesz kilka podobnych modeli. Zawęź wyniki według jednego ważnego parametru, żeby łatwiej wybrać."
+      : situation.choice === "UI_FRICTION" && actionType.choice === "RESET_FILTERS"
+        ? "Wyczyść obecne filtry, aby odblokować listę produktów."
+        : null;
 
   return {
     situation: situation.choice,
+    intent_probabilities: situation.probabilities,
     signal_strength: situation.confidence,
     proposal: {
       action_type: actionType.choice,
       confidence,
       hedging_required: confidence < 0.75,
-      message_draft: canUseShortcut
-        ? "Porównujesz kilka podobnych modeli. Zawęź wyniki według jednego ważnego parametru, żeby łatwiej wybrać."
-        : null,
+      message_draft: canUseShortcut ? shortcutMessage : null,
     },
   };
 }

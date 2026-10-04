@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Lisek wskazuje następny krok</title>
+  <desc id="desc">Uśmiechnięty lis wskazuje łapką dużą tablicę z trzema krokami i strzałką w prawo.</desc>
+  <ellipse cx="150" cy="202" rx="117" ry="10" fill="#e3eee7"/>
+  <g stroke="#49352e" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M85 181C40 208 17 173 31 143Q50 162 79 146Z" fill="#e97732"/>
+    <path d="M40 163Q25 158 31 143Q42 156 55 157L50 171Z" fill="#fff7eb" stroke="none"/>
+    <path d="M82 135Q67 161 70 193H151Q160 160 139 135Z" fill="#e97732"/>
+    <path d="M101 138Q80 161 100 190H132Q147 166 127 138Z" fill="#fff7eb" stroke="none"/>
+    <path d="M70 193H94M130 193H151" fill="none"/>
+    <path d="M62 81L55 25L97 52M135 52L166 25L165 83" fill="#ef843c"/>
+    <path d="M66 43L71 70L85 56M147 56L157 43L156 70" fill="#edb0a3" stroke="none"/>
+    <path d="M60 76Q76 49 112 52Q148 50 165 77L174 102Q153 137 114 146Q77 137 53 102Z" fill="#ef843c"/>
+    <path d="M55 101Q79 92 103 113L114 125L126 113Q152 91 171 102Q154 134 114 142Q77 132 55 101Z" fill="#fff7eb" stroke="none"/>
+    <ellipse cx="88" cy="88" rx="4" ry="6" fill="#49352e" stroke="none"/>
+    <ellipse cx="141" cy="88" rx="4" ry="6" fill="#49352e" stroke="none"/>
+    <path d="M106 111Q114 107 122 111L114 119Z" fill="#49352e"/>
+    <path d="M102 123Q114 136 127 123" fill="none" stroke-width="3"/>
+    <path d="M147 149Q161 141 181 120L192 112Q203 109 202 119L190 131Q171 160 151 165" fill="#ef843c"/>
+    <path d="M84 155Q70 169 88 177" fill="none"/>
+    <rect x="209" y="42" width="88" height="119" rx="8" fill="#fff" stroke="#487965"/>
+    <path d="M221 68L227 74L237 61M221 94L227 100L237 87M221 120L227 126L237 113" fill="none" stroke="#487965"/>
+    <path d="M248 68H282M248 94H282M248 120H271" fill="none" stroke="#a5c4b3"/>
+    <path d="M225 180H283M272 169L283 180L272 191" fill="none" stroke="#487965" stroke-width="6"/>
+  </g>
+</svg>

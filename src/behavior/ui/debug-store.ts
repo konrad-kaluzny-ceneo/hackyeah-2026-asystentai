@@ -28,6 +28,10 @@ export interface RawEventSummary {
   readonly pathname: string;
 }
 
+export interface AssistantProposalRequestSummary {
+  readonly requestedAt: string;
+}
+
 export interface DebugState {
   /** Whether the tracker is enabled (true when initBehaviorTracker returned non-null). */
   readonly trackerEnabled: boolean;
@@ -41,6 +45,8 @@ export interface DebugState {
   readonly lastSentMetaEvents: readonly SentMetaEventSummary[];
   /** Raw event summaries retained by the latest sessionStorage checkpoint. */
   readonly lastRawEvents: readonly RawEventSummary[];
+  /** Timestamps of assistant proposal requests made by the coordinator. */
+  readonly assistantProposalRequests: readonly AssistantProposalRequestSummary[];
   readonly sessionId: string | null;
   readonly pageViewId: string | null;
   readonly pageType: PageType;
@@ -48,6 +54,7 @@ export interface DebugState {
 }
 
 export const MAX_LAST_SENT_META_EVENTS = 100;
+export const MAX_ASSISTANT_PROPOSAL_REQUESTS = 100;
 
 const INITIAL_STATE: DebugState = {
   trackerEnabled: false,
@@ -56,6 +63,7 @@ const INITIAL_STATE: DebugState = {
   totalMetaSentThisSession: 0,
   lastSentMetaEvents: [],
   lastRawEvents: [],
+  assistantProposalRequests: [],
   sessionId: null,
   pageViewId: null,
   pageType: "unknown",
@@ -124,6 +132,19 @@ export function recordBatchSent(args: {
   notify();
 }
 
+export function recordAssistantProposalRequest(
+  requestedAt = new Date().toISOString(),
+): void {
+  state = {
+    ...state,
+    assistantProposalRequests: [
+      { requestedAt },
+      ...state.assistantProposalRequests,
+    ].slice(0, MAX_ASSISTANT_PROPOSAL_REQUESTS),
+  };
+  notify();
+}
+
 export function subscribeDebug(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
@@ -145,6 +166,7 @@ function shallowEqualDebugState(a: DebugState, b: DebugState): boolean {
     a.totalMetaSentThisSession === b.totalMetaSentThisSession &&
     a.lastSentMetaEvents === b.lastSentMetaEvents &&
     areRawEventSummariesEqual(a.lastRawEvents, b.lastRawEvents) &&
+    a.assistantProposalRequests === b.assistantProposalRequests &&
     a.sessionId === b.sessionId &&
     a.pageViewId === b.pageViewId &&
     a.pageType === b.pageType &&

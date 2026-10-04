@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { THRESHOLDS } from "@/behavior/config/thresholds";
 import { AssistantProposalCoordinator } from "@/components/assistant/assistant-proposal-coordinator";
+import { AssistantProposalWidget } from "@/components/assistant/assistant-proposal-widget";
 import {
   clearAssistantMetaEventHistory,
   recordAssistantMetaEventBatch,
@@ -97,6 +98,7 @@ export function BehaviorDebugShell() {
   return (
     <>
       <AssistantProposalCoordinator />
+      <AssistantProposalWidget />
       {process.env.NODE_ENV === "development" ? <DebugOverlay /> : null}
     </>
   );

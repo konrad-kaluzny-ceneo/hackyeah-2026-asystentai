@@ -10,6 +10,7 @@ import {
   takeAssistantProposalTrigger,
 } from "@/behavior/assistant-meta-event-history";
 import type { MetaEvent } from "@/behavior/types";
+import { recordAssistantProposalRequest } from "@/behavior/ui/debug-store";
 import { safeParseAssistantProposalResponse } from "@/lib/assistant-proposal-api";
 import type { AssistantProposal } from "@/lib/catalog-types";
 import {
@@ -18,15 +19,20 @@ import {
 } from "@/lib/assistant-events";
 import {
   getAssistantProposalUiState,
+  recordAssistantProposalShown,
+  setAssistantRequestInFlight,
   setAssistantSearchRecoveryVisible,
   setAssistantServerProposal,
+  shouldSuppressAssistantProposal,
   subscribeAssistantProposalUiState,
 } from "@/lib/assistant-proposal-state";
 
 const EMPTY_META_EVENT_HISTORY: readonly MetaEvent[] = [];
+const PROPOSAL_RETRY_COOLDOWN_MS = 5_000;
 const EMPTY_PROPOSAL_UI_STATE = {
   proposal: null,
   searchRecoveryVisible: false,
+  requestInFlight: false,
 } as const;
 
 /**
@@ -50,6 +56,7 @@ export function AssistantProposalCoordinator() {
   const workerActiveRef = useRef(false);
   const activeControllerRef = useRef<AbortController | null>(null);
   const activeTriggerRef = useRef<ReturnType<typeof takeAssistantProposalTrigger>>(null);
+  const retryBlockedUntilRef = useRef(0);
   const requestAllowedRef = useRef(false);
   const requestAllowed =
     !muted &&
@@ -84,6 +91,7 @@ export function AssistantProposalCoordinator() {
         requestAllowedRef.current = false;
         clearAssistantProposalTriggers();
         activeControllerRef.current?.abort();
+        setAssistantRequestInFlight(false);
         setAssistantServerProposal(null);
         setAssistantSearchRecoveryVisible(false);
         setMuted(true);
@@ -106,58 +114,73 @@ export function AssistantProposalCoordinator() {
     workerActiveRef.current = true;
 
     try {
-      while (mountedRef.current
-        // && requestAllowedRef.current
-      ) {
-        const trigger = takeAssistantProposalTrigger();
-        if (trigger === null) return;
+      if (!mountedRef.current || !requestAllowedRef.current) return;
+      if (Date.now() < retryBlockedUntilRef.current) {
+        clearAssistantProposalTriggers();
+        return;
+      }
 
-        const controller = new AbortController();
-        activeTriggerRef.current = trigger;
-        activeControllerRef.current = controller;
-        try {
-          const response = await fetch("/api/assistant-proposal", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ metaEvents: trigger.metaEvents }),
-            signal: controller.signal,
-          });
-          if (!response.ok || !mountedRef.current) continue;
+      let trigger = takeAssistantProposalTrigger();
+      if (trigger === null) return;
+      let nextTrigger = takeAssistantProposalTrigger();
+      while (nextTrigger !== null) {
+        trigger = nextTrigger;
+        nextTrigger = takeAssistantProposalTrigger();
+      }
 
-          const body: unknown = await response.json();
-          const parsed = safeParseAssistantProposalResponse(body);
-          if (
-            !requestAllowedRef.current ||
-            !parsed.success ||
-            parsed.data.status !== "show"
-          ) {
-            continue;
-          }
+      const controller = new AbortController();
+      activeTriggerRef.current = trigger;
+      activeControllerRef.current = controller;
+      setAssistantRequestInFlight(true);
+      let proposalAccepted = false;
+      try {
+        recordAssistantProposalRequest();
+        const response = await fetch("/api/assistant-proposal", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ metaEvents: trigger.metaEvents }),
+          signal: controller.signal,
+        });
+        if (!response.ok || !mountedRef.current) return;
 
-          requestAllowedRef.current = false;
-          clearAssistantProposalTriggers();
-          const proposal: AssistantProposal = {
-            id: `jev-proposal:${trigger.eventId}`,
-            kind: "jev_proposal",
-            title: parsed.data.title,
-            message: parsed.data.message,
-            actionLabel: "Przejdź do filtrów",
-            action: "narrow-choice",
-            data: { target: "filters", filterKeys: [] },
-            createdAt:
-              trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
-          };
-          setAssistantServerProposal({
-            ...proposal,
-          });
+        const body: unknown = await response.json();
+        const parsed = safeParseAssistantProposalResponse(body);
+        if (
+          !requestAllowedRef.current ||
+          !parsed.success ||
+          parsed.data.status !== "show"
+        ) {
           return;
-        } catch {
-          // Network failures and aborted requests leave the proposal hidden.
-        } finally {
-          if (activeControllerRef.current === controller) {
-            activeControllerRef.current = null;
-            activeTriggerRef.current = null;
-          }
+        }
+
+        const proposal: AssistantProposal = {
+          id: `jev-proposal:${trigger.eventId}`,
+          kind: "jev_proposal",
+          title: parsed.data.title,
+          message: parsed.data.message,
+          actionLabel: parsed.data.actionLabel,
+          action: parsed.data.action,
+          data: parsed.data.data,
+          createdAt:
+            trigger.metaEvents.at(-1)?.detectedAt ?? new Date().toISOString(),
+        };
+        if (shouldSuppressAssistantProposal(proposal)) return;
+        requestAllowedRef.current = false;
+        clearAssistantProposalTriggers();
+        recordAssistantProposalShown(proposal);
+        setAssistantServerProposal(proposal);
+        proposalAccepted = true;
+      } catch {
+        // Network failures and aborted requests leave the proposal hidden.
+      } finally {
+        if (mountedRef.current && !proposalAccepted) {
+          retryBlockedUntilRef.current = Date.now() + PROPOSAL_RETRY_COOLDOWN_MS;
+        }
+        setAssistantRequestInFlight(false);
+        if (mountedRef.current) clearAssistantProposalTriggers();
+        if (activeControllerRef.current === controller) {
+          activeControllerRef.current = null;
+          activeTriggerRef.current = null;
         }
       }
     } finally {
@@ -169,6 +192,7 @@ export function AssistantProposalCoordinator() {
     if (!requestAllowed) {
       clearAssistantProposalTriggers();
       activeControllerRef.current?.abort();
+      setAssistantRequestInFlight(false);
       return;
     }
 
