@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Lisek świętuje dobry wybór</title>
+  <desc id="desc">Uśmiechnięty lis unosi obie łapki w górę pod dużą złotą gwiazdką. Po bokach opada konfetti.</desc>
+  <ellipse cx="166" cy="202" rx="95" ry="10" fill="#e3eee7"/>
+  <g stroke="#49352e" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M191 184C245 206 271 169 251 136Q234 157 212 148Z" fill="#e97732"/>
+    <path d="M239 155Q259 154 251 136Q238 152 223 150L232 163Z" fill="#fff7eb" stroke="none"/>
+    <path d="M129 138Q112 166 119 196H198Q209 166 187 138Z" fill="#e97732"/>
+    <path d="M147 140Q127 164 144 192H175Q193 166 174 140Z" fill="#fff7eb" stroke="none"/>
+    <path d="M119 196H143M175 196H198" fill="none"/>
+    <path d="M128 151Q100 142 82 114L76 100Q70 88 80 80Q92 80 94 99Q107 119 139 130" fill="#ef843c"/>
+    <path d="M183 151Q213 142 231 113L237 99Q243 87 233 80Q221 80 219 99Q205 119 173 130" fill="#ef843c"/>
+    <path d="M108 87L99 35L143 60M178 60L216 35L211 87" fill="#ef843c"/>
+    <path d="M111 52L116 77L131 64M192 64L206 52L202 77" fill="#edb0a3" stroke="none"/>
+    <path d="M107 82Q121 57 158 60Q196 58 211 83L221 108Q201 141 160 151Q120 142 99 108Z" fill="#ef843c"/>
+    <path d="M101 108Q124 96 148 119L160 130L172 119Q197 97 218 108Q198 139 160 147Q121 137 101 108Z" fill="#fff7eb" stroke="none"/>
+    <path d="M125 99Q133 87 142 99M177 99Q186 87 194 99" fill="none"/>
+    <path d="M152 117Q160 113 168 117L160 125Z" fill="#49352e"/>
+    <path d="M147 132Q160 147 174 132Z" fill="#c35e55" stroke-width="2"/>
+    <path d="M160 7L167 23L185 25L171 37L175 54L160 45L145 54L149 37L135 25L153 23Z" fill="#f4c34c" stroke="#b88b27" stroke-width="3"/>
+    <path d="M52 47L60 55M264 47L256 55M49 142L57 146M275 125L269 135" fill="none" stroke="#487965" stroke-width="6"/>
+    <path d="M68 29L70 38M247 23L244 33M44 90L52 80" fill="none" stroke="#e5ac36" stroke-width="5"/>
+  </g>
+  <circle cx="49" cy="113" r="4" fill="#e5ac36"/>
+  <circle cx="278" cy="80" r="4" fill="#487965"/>
+</svg>

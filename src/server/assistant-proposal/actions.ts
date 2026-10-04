@@ -47,6 +47,27 @@ export type AssistantSkillDefinition = {
 };
 
 export const ASSISTANT_SKILLS = {
+  SET_BUDGET: {
+    action: "set-budget",
+    label: "Ustaw budżet",
+    requiredPayload: [],
+    description:
+      "Otwórz filtr ceny w kategorii, aby kupujący sam określił budżet. Przy zainteresowaniu ceną; działa także z karty produktu. Nie wymaga payloadu.",
+  },
+  CHOOSE_BRAND: {
+    action: "choose-brand",
+    label: "Wybierz producenta",
+    requiredPayload: [],
+    description:
+      "Otwórz wybór producenta w kategorii, gdy użytkownik szuka preferowanej marki. Działa także z karty produktu; nie wybieraj marki za użytkownika. Nie wymaga payloadu.",
+  },
+  BROWSE_CATEGORY: {
+    action: "browse-category",
+    label: "Zobacz kategorię",
+    requiredPayload: [],
+    description:
+      "Przejdź do pełnej listy modeli w kategorii po utknięciu na produkcie lub przy potrzebie szerszego wyboru. Nie wymaga payloadu.",
+  },
   NARROW_BY_SPEC: {
     action: "narrow-choice",
     label: "Przejdź do filtrów",
@@ -128,6 +149,18 @@ export async function mapJevActionToProposalAction(
   if (categorySlug) data.categorySlug = categorySlug;
 
   switch (skill.action) {
+    case "set-budget":
+    case "choose-brand": {
+      if (!categorySlug) return null;
+      data.target = "filters";
+      data.filterKeys = [skill.action === "set-budget" ? "price" : "brand"];
+      break;
+    }
+    case "browse-category": {
+      if (!categorySlug) return null;
+      data.target = "catalog";
+      break;
+    }
     case "narrow-choice": {
       data.target = "filters";
       const requestedKeys = payload.filterKeys ?? [];

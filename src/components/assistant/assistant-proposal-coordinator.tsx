@@ -28,6 +28,7 @@ import {
 } from "@/lib/assistant-proposal-state";
 
 const EMPTY_META_EVENT_HISTORY: readonly MetaEvent[] = [];
+const PROPOSAL_RETRY_COOLDOWN_MS = 5_000;
 const EMPTY_PROPOSAL_UI_STATE = {
   proposal: null,
   searchRecoveryVisible: false,
@@ -55,6 +56,7 @@ export function AssistantProposalCoordinator() {
   const workerActiveRef = useRef(false);
   const activeControllerRef = useRef<AbortController | null>(null);
   const activeTriggerRef = useRef<ReturnType<typeof takeAssistantProposalTrigger>>(null);
+  const retryBlockedUntilRef = useRef(0);
   const requestAllowedRef = useRef(false);
   const requestAllowed =
     !muted &&
@@ -113,6 +115,10 @@ export function AssistantProposalCoordinator() {
 
     try {
       if (!mountedRef.current || !requestAllowedRef.current) return;
+      if (Date.now() < retryBlockedUntilRef.current) {
+        clearAssistantProposalTriggers();
+        return;
+      }
 
       let trigger = takeAssistantProposalTrigger();
       if (trigger === null) return;
@@ -126,6 +132,7 @@ export function AssistantProposalCoordinator() {
       activeTriggerRef.current = trigger;
       activeControllerRef.current = controller;
       setAssistantRequestInFlight(true);
+      let proposalAccepted = false;
       try {
         recordAssistantProposalRequest();
         const response = await fetch("/api/assistant-proposal", {
@@ -162,9 +169,13 @@ export function AssistantProposalCoordinator() {
         if (shouldSuppressAssistantProposal(proposal)) return;
         recordAssistantProposalShown(proposal);
         setAssistantServerProposal(proposal);
+        proposalAccepted = true;
       } catch {
         // Network failures and aborted requests leave the proposal hidden.
       } finally {
+        if (mountedRef.current && !proposalAccepted) {
+          retryBlockedUntilRef.current = Date.now() + PROPOSAL_RETRY_COOLDOWN_MS;
+        }
         setAssistantRequestInFlight(false);
         if (mountedRef.current) clearAssistantProposalTriggers();
         if (activeControllerRef.current === controller) {

@@ -59,6 +59,59 @@ describe("POST /api/assistant-proposal", () => {
     resetFixtureSeed();
   });
 
+  it.each([
+    ["SET_BUDGET", "set-budget", "product", ["price"]],
+    ["SET_BUDGET", "set-budget", "catalog", ["price"]],
+    ["CHOOSE_BRAND", "choose-brand", "product", ["brand"]],
+    ["CHOOSE_BRAND", "choose-brand", "catalog", ["brand"]],
+    ["BROWSE_CATEGORY", "browse-category", "product", []],
+    ["BROWSE_CATEGORY", "browse-category", "catalog", []],
+  ] as const)("maps %s from a %s action on %s", async (actionType, action, pageType, filterKeys) => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(0.9, { actionType }));
+    vi.spyOn(openaiClient, "requestStrongerReply").mockResolvedValue({
+      title: "Następny krok",
+      message: "Wybierz najważniejsze kryterium.",
+      action,
+      actionLabel: "Przejdź",
+      data: {
+        target: "catalog",
+        filterKeys: [],
+        productSlug: null,
+        categorySlug: null,
+        sort: null,
+        illustration: "fox-guiding",
+      },
+    });
+
+    const event = {
+      ...validEvent,
+      page: { ...validEvent.page, type: pageType },
+      subject: pageType === "product"
+        ? { type: "product", id: "product-test", categoryId: "lodowki" }
+        : validEvent.subject,
+    };
+    const response = await POST(makeRequest({ metaEvents: [event] }));
+    const json = await response.json();
+    expect(response.status).toBe(200);
+    expect(json.status).toBe("show");
+    expect(json.action).toBe(action);
+    expect(json.data).toEqual({
+      target: action === "browse-category" ? "catalog" : "filters",
+      filterKeys,
+      categorySlug: "lodowki",
+      illustration: "fox-guiding",
+    });
+    expect(parseAssistantProposalResponse(json)).toEqual(json);
+  });
+
+  it("does not offer a category filter without a validated category", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(jevOutput(0.9, { actionType: "SET_BUDGET" }));
+    const openaiSpy = vi.spyOn(openaiClient, "requestStrongerReply");
+    const response = await POST(makeRequest({ metaEvents: [{ ...validEvent, subject: null }] }));
+    expect(await response.json()).toEqual({ status: "hide" });
+    expect(openaiSpy).not.toHaveBeenCalled();
+  });
+
   it("uses Jev's confident fatigue draft as a shortcut", async () => {
     const jevSpy = vi
       .spyOn(jevClient, "requestJev")
@@ -82,6 +135,7 @@ describe("POST /api/assistant-proposal", () => {
         target: "filters",
         filterKeys: ["capacityLiters"],
         categorySlug: "lodowki",
+        illustration: "fox-guiding",
       },
     });
     expect(parseAssistantProposalResponse(json)).toEqual(json);
@@ -114,6 +168,7 @@ describe("POST /api/assistant-proposal", () => {
           productSlug: null,
           categorySlug: null,
           sort: null,
+          illustration: "fox-celebrating",
         },
       });
 
@@ -133,11 +188,50 @@ describe("POST /api/assistant-proposal", () => {
         target: "filters",
         filterKeys: ["capacityLiters"],
         categorySlug: "lodowki",
+        illustration: "fox-celebrating",
       },
     });
     expect(parseAssistantProposalResponse(json)).toEqual(json);
     expect(openaiSpy).toHaveBeenCalledWith(
       expect.objectContaining({ situation: "DECISION_FATIGUE" }),
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("recovers a strong non-smooth DO_NOTHING result as an explanation", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(
+      jevOutput(0.9, {
+        actionType: "DO_NOTHING",
+        messageDraft: null,
+      }),
+    );
+    const openaiSpy = vi
+      .spyOn(openaiClient, "requestStrongerReply")
+      .mockResolvedValue({
+        title: "Ważny parametr wyboru",
+        message: "Skup się na jednym parametrze, który jest dla Ciebie najważniejszy.",
+        action: "explain-choice",
+        actionLabel: "Pokaż wskazówkę",
+        data: {
+          target: "catalog",
+          filterKeys: [],
+          productSlug: null,
+          categorySlug: null,
+          sort: null,
+          illustration: "fox-thinking",
+        },
+      });
+
+    const response = await POST(makeRequest(validRequestBody));
+    const json = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(json.status).toBe("show");
+    expect(json.action).toBe("explain-choice");
+    expect(openaiSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        proposal: expect.objectContaining({ action_type: "EXPLAIN_CHOICE" }),
+      }),
       expect.any(AbortSignal),
     );
   });
@@ -178,6 +272,7 @@ describe("POST /api/assistant-proposal", () => {
         productSlug: null,
         categorySlug: null,
         sort: null,
+        illustration: null,
       },
     });
     expect((await firstRequest).status).toBe(200);
@@ -197,7 +292,7 @@ describe("POST /api/assistant-proposal", () => {
     expect(jevSpy).toHaveBeenCalledTimes(2);
   });
 
-  it("returns hide when OpenAI fails", async () => {
+  it("returns a useful fallback when OpenAI fails", async () => {
     vi.spyOn(jevClient, "requestJev").mockResolvedValue(
       jevOutput(0.7, { hedgingRequired: true }),
     );
@@ -207,7 +302,57 @@ describe("POST /api/assistant-proposal", () => {
 
     const response = await POST(makeRequest(validRequestBody));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: "hide" });
+    expect(await response.json()).toEqual({
+      status: "show",
+      title: "Mam dla Ciebie podpowiedź",
+      message:
+        "Warto zawęzić wyniki według jednego ważnego parametru, żeby łatwiej wybrać.",
+      action: "narrow-choice",
+      actionLabel: "Przejdź do filtrów",
+      data: {
+        target: "filters",
+        filterKeys: ["capacityLiters"],
+        categorySlug: "lodowki",
+        illustration: "fox-guiding",
+      },
+    });
+  });
+
+  it("returns a fallback instead of throwing when OpenAI aborts", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(
+      jevOutput(0.7, { hedgingRequired: true }),
+    );
+    vi.spyOn(openaiClient, "requestStrongerReply").mockRejectedValue(
+      new Error("Request was aborted."),
+    );
+
+    const response = await POST(makeRequest(validRequestBody));
+    expect(response.status).toBe(200);
+    expect((await response.json()).status).toBe("show");
+  });
+
+  it("uses the mapped action when OpenAI returns none", async () => {
+    vi.spyOn(jevClient, "requestJev").mockResolvedValue(
+      jevOutput(0.7, { hedgingRequired: true }),
+    );
+    vi.spyOn(openaiClient, "requestStrongerReply").mockResolvedValue({
+      title: "Nie pokazuj",
+      message: "Brak komunikatu.",
+      action: "none",
+      actionLabel: "Brak",
+      data: {
+        target: "catalog",
+        filterKeys: [],
+        productSlug: null,
+        categorySlug: null,
+        sort: null,
+        illustration: "fox-thinking",
+      },
+    });
+
+    const response = await POST(makeRequest(validRequestBody));
+    expect(response.status).toBe(200);
+    expect((await response.json()).action).toBe("narrow-choice");
   });
 
   it("rethrows provider errors in development", async () => {

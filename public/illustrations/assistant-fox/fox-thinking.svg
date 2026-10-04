@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Lisek zastanawia się nad wyborem</title>
+  <desc id="desc">Lis z dużymi uszami i białym pyskiem trzyma łapkę pod brodą. Nad nim jest dymek ze znakiem zapytania.</desc>
+  <ellipse cx="148" cy="202" rx="99" ry="10" fill="#e3eee7"/>
+  <g stroke="#49352e" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M166 187C221 199 253 167 236 131C222 148 203 143 181 149Z" fill="#e97732"/>
+    <path d="M224 153Q242 147 236 131Q221 151 204 148Q216 159 224 153Z" fill="#fff7eb" stroke="none"/>
+    <path d="M89 139Q77 169 84 196H167Q177 161 153 139Z" fill="#e97732"/>
+    <path d="M108 142Q88 165 107 191H143Q159 166 140 142Z" fill="#fff7eb" stroke="none"/>
+    <path d="M85 196H108M144 196H167" fill="none"/>
+    <path d="M72 85L64 25L107 53M145 53L174 25L175 86" fill="#ef843c"/>
+    <path d="M76 45L81 73L96 57M157 57L165 45L165 72" fill="#edb0a3" stroke="none"/>
+    <path d="M70 78Q83 50 122 53Q163 51 177 79L185 104Q166 141 125 150Q83 141 62 104Z" fill="#ef843c"/>
+    <path d="M64 102Q88 91 115 115L125 127L139 115Q162 94 182 103Q163 138 125 146Q86 138 64 102Z" fill="#fff7eb" stroke="none"/>
+    <path d="M89 89Q97 84 106 89M143 89Q151 84 159 89" fill="none"/>
+    <path d="M117 112Q125 108 133 112L125 120Z" fill="#49352e"/>
+    <path d="M125 121V128Q134 133 140 127" fill="none" stroke-width="3"/>
+    <path d="M152 169Q163 157 148 144L136 135Q125 130 123 140Q122 147 135 153L140 166" fill="#ef843c"/>
+    <path d="M91 159Q76 170 95 181" fill="none"/>
+    <path d="M208 31Q224 18 245 22Q274 22 279 46Q287 75 253 83L233 82L215 96L217 77Q197 59 208 31Z" fill="#fff" stroke="#487965" stroke-width="3"/>
+    <path d="M232 42Q232 31 245 32Q260 34 254 45L245 53V58" fill="none" stroke="#487965" stroke-width="6"/>
+  </g>
+  <circle cx="245" cy="68" r="3.5" fill="#487965"/>
+</svg>

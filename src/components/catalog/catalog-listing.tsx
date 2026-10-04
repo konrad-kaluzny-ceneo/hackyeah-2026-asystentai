@@ -59,6 +59,20 @@ export default function CatalogListing({
     });
   }, [clearSearchAndFilters]);
 
+  useEffect(() => {
+    const focusRequestedFilter = () => {
+      const target = document.getElementById(window.location.hash.slice(1));
+      if (!target || !target.id.startsWith("filter-")) return;
+      const filterKey = target.id.slice("filter-".length);
+      setHighlightedFilters([filterKey]);
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.querySelector<HTMLElement>("input, select")?.focus({ preventScroll: true });
+    };
+    focusRequestedFilter();
+    window.addEventListener("hashchange", focusRequestedFilter);
+    return () => window.removeEventListener("hashchange", focusRequestedFilter);
+  }, []);
+
   if (initialQuery !== previousInitialQuery) {
     setPreviousInitialQuery(initialQuery);
     setQuery(initialQuery);
@@ -172,7 +186,7 @@ export default function CatalogListing({
             <h2 className="font-semibold">Filtry</h2>
             {visibleProducts.length > 0 && <button data-element-id="filter-clear" type="button" onClick={clearSearchAndFilters} className="text-xs font-semibold text-[#56725e] hover:underline">Wyczyść</button>}
           </div>
-          <div className="mt-5 border-t border-[#edf0ed] pt-4" data-highlighted={highlightedFilters.includes("price") || undefined}>
+          <div id="filter-price" className="mt-5 scroll-mt-24 border-t border-[#edf0ed] pt-4" data-highlighted={highlightedFilters.includes("price") || undefined}>
             <p className={`mb-3 text-sm font-semibold ${highlightedFilters.includes("price") ? "text-sky-700" : ""}`}>Cena</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-[11px] text-[#87938b]">Od
@@ -183,7 +197,7 @@ export default function CatalogListing({
               </label>
             </div>
           </div>
-          <div className="mt-5 border-t border-[#edf0ed] pt-4" data-highlighted={highlightedFilters.includes("brand") || undefined}>
+          <div id="filter-brand" className="mt-5 scroll-mt-24 border-t border-[#edf0ed] pt-4" data-highlighted={highlightedFilters.includes("brand") || undefined}>
             <label className={`block text-sm font-semibold ${highlightedFilters.includes("brand") ? "text-sky-700" : ""}`} htmlFor="brand-filter">Producent</label>
             <select data-element-id="filter-brand" data-filter-id="brand" id="brand-filter" value={filters.brand ?? ""} onChange={(event) => updateFilter("brand", event.target.value)} className="mt-3 w-full rounded-lg border border-[#dfe6e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#72917b]">
               <option value="">Wszyscy producenci</option>
@@ -191,7 +205,7 @@ export default function CatalogListing({
             </select>
           </div>
           {category?.specFilters.map((spec) => (
-            <div key={spec.key} className={`mt-5 border-t border-[#edf0ed] pt-4 ${highlightedFilters.includes(spec.key) ? "rounded-xl ring-2 ring-sky-200" : ""}`}>
+            <div id={`filter-${spec.key}`} key={spec.key} className={`mt-5 scroll-mt-24 border-t border-[#edf0ed] pt-4 ${highlightedFilters.includes(spec.key) ? "rounded-xl ring-2 ring-sky-200" : ""}`}>
               <p className={`mb-3 text-sm font-semibold ${highlightedFilters.includes(spec.key) ? "text-sky-700" : ""}`}>{spec.label}</p>
               {spec.kind === "select" ? (
                 <select data-element-id={`filter-${spec.key}`} data-filter-id={spec.key} aria-label={spec.label} value={filters[spec.key] ?? ""} onChange={(event) => updateFilter(spec.key, event.target.value)} className="w-full rounded-lg border border-[#dfe6e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#72917b]">

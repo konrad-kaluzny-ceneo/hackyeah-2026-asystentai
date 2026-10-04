@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -28,6 +29,12 @@ function catalogHref(proposal: AssistantProposal): string {
     : "/katalog";
 }
 
+const illustrationAlt: Record<string, string> = {
+  "fox-thinking": "Lisek myśli nad najlepszym wyborem",
+  "fox-guiding": "Lisek wskazuje następny krok",
+  "fox-celebrating": "Lisek cieszy się z dobrego wyboru",
+};
+
 function ProposalAction({
   proposal,
   onActionExecuted,
@@ -35,6 +42,26 @@ function ProposalAction({
   proposal: AssistantProposal;
   onActionExecuted: () => void;
 }) {
+  if (
+    proposal.action === "set-budget" ||
+    proposal.action === "choose-brand" ||
+    proposal.action === "browse-category"
+  ) {
+    const anchor = proposal.action === "set-budget"
+      ? "#filter-price"
+      : proposal.action === "choose-brand" ? "#filter-brand" : "";
+    return (
+      <a
+        href={`${catalogHref(proposal)}${anchor}`}
+        data-element-id="assistant-action"
+        onClick={onActionExecuted}
+        className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
+      >
+        {proposal.actionLabel}
+      </a>
+    );
+  }
+
   if (proposal.action === "clear-search-and-filters") {
     return (
       <Link
@@ -77,7 +104,7 @@ function ProposalAction({
   if (proposal.action === "narrow-choice") {
     return (
       <a
-        href={`${catalogHref(proposal)}#filters`}
+        href={`${catalogHref(proposal)}#${proposal.data.filterKeys[0] ? `filter-${proposal.data.filterKeys[0]}` : "filters"}`}
         data-element-id="assistant-action"
         onClick={() => {
           onActionExecuted();
@@ -131,7 +158,7 @@ export function AssistantProposalWidget() {
     };
   }, []);
 
-  if (muted || (!proposalUiState.requestInFlight && proposal === null)) return null;
+  if (muted || proposal === null) return null;
 
   const dismiss = () => {
     if (proposal) recordAssistantProposalShown(proposal);
@@ -149,8 +176,8 @@ export function AssistantProposalWidget() {
       aria-labelledby="assistant-proposal-title"
       data-element-id="assistant-proposal"
       data-assistant-popover="filters"
-      data-ai-request-state={proposalUiState.requestInFlight ? "pending" : "complete"}
-      className="fixed top-40 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-sky-200 bg-white p-5 pr-12 text-slate-900 shadow-2xl ring-1 ring-slate-900/5 sm:top-32 lg:top-28"
+      data-ai-request-state="complete"
+      className="assistant-proposal-enter fixed top-40 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-sky-200 bg-white p-5 pr-12 text-slate-900 shadow-2xl ring-1 ring-slate-900/5 sm:top-32 lg:top-28"
       role="status"
       aria-live="polite"
     >
@@ -163,31 +190,25 @@ export function AssistantProposalWidget() {
       >
         <span aria-hidden="true">×</span>
       </button>
-      {proposalUiState.requestInFlight ? (
-        <>
-          <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-800">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" aria-hidden="true" />
-            OpenAI
-          </p>
-          <h2 id="assistant-proposal-title" className="text-base font-semibold">
-            Trwa generowanie odpowiedzi
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-slate-700">
-            Wysyłanie requestu do OpenAI…
-          </p>
-        </>
-      ) : proposal !== null ? (
-        <>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-sky-800">
-            Odpowiedź AI
-          </p>
-          <h2 id="assistant-proposal-title" className="text-base font-semibold">
-            {proposal.title}
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
-          <ProposalAction proposal={proposal} onActionExecuted={executeAction} />
-        </>
-      ) : null}
+      <div className="mb-4 flex justify-center">
+        <Image
+          src={`/illustrations/assistant-fox/${proposal.data.illustration ?? "fox-thinking"}.png`}
+          alt={illustrationAlt[proposal.data.illustration ?? "fox-thinking"]}
+          width={320}
+          height={220}
+          sizes="208px"
+          className="h-auto w-52 max-w-full"
+          priority
+        />
+      </div>
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-sky-800">
+        Odpowiedź AI
+      </p>
+      <h2 id="assistant-proposal-title" className="text-base font-semibold">
+        {proposal.title}
+      </h2>
+      <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
+      <ProposalAction proposal={proposal} onActionExecuted={executeAction} />
     </aside>
   );
 }

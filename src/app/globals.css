@@ -23,6 +23,27 @@ body {
 
 * { box-sizing: border-box; }
 
+@keyframes assistant-proposal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-0.75rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.assistant-proposal-enter {
+  animation: assistant-proposal-enter 220ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-proposal-enter {
+    animation: none;
+  }
+}
+
 ::selection { background: #dbe9df; color: var(--foreground); }
 
 button, input, select { font: inherit; }

@@ -3,33 +3,19 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const decisionEngineMock = vi.hoisted(() => ({
-  current: null as null | {
-    id: string;
-    kind: "decision_fatigue" | "search_friction" | "jev_proposal";
-    title: string;
-    message: string;
-    actionLabel: string;
-    action:
-      | "narrow-choice"
-      | "clear-search-and-filters"
-      | "go-to-product"
-      | "sort-by-price"
-      | "explain-choice"
-      | "none";
-    data: {
-      target: "filters" | "catalog" | "product";
-      filterKeys: string[];
-      productSlug?: string;
-      sort?: "price_asc" | "price_desc";
-    };
-    createdAt: string;
-  },
+  current: null as AssistantProposal | null,
 }));
 
 vi.mock("@/lib/decision-engine", () => ({
   DecisionEngine: vi.fn(() => decisionEngineMock.current),
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/katalog/lodowki",
+  useRouter: () => ({ replace: vi.fn() }),
+}));
+
+import CatalogListing from "@/components/catalog/catalog-listing";
 import { AssistantInline } from "@/components/assistant/assistant-inline";
 import { AssistantProposalCoordinator } from "@/components/assistant/assistant-proposal-coordinator";
 import { AssistantProposalWidget } from "@/components/assistant/assistant-proposal-widget";
@@ -164,7 +150,41 @@ afterEach(async () => {
 });
 
 describe("assistant proposal coordinator and listing UI", () => {
-  it("shows a visible OpenAI request state until the response arrives", async () => {
+  it.each([
+    ["price", "Cena od"],
+    ["brand", "Producent"],
+    ["capacityLiters", "Pojemność od"],
+  ])("focuses and highlights the %s filter after cross-page navigation", async (filterKey, label) => {
+    const originalScroll = HTMLElement.prototype.scrollIntoView;
+    const scroll = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scroll;
+    window.history.replaceState(null, "", `/katalog/lodowki#filter-${filterKey}`);
+    try {
+      await act(async () => root.render(<CatalogListing
+        category={{
+          id: "lodowki", slug: "lodowki", name: "Lodówki", description: "", imageUrl: "",
+          specFilters: [{ key: "capacityLiters", label: "Pojemność", kind: "range", min: 100, max: 500 }],
+        }}
+        products={[]}
+      />));
+      expect(document.activeElement?.getAttribute("data-filter-id")).toBe(filterKey);
+      const focusedControl = document.activeElement as HTMLInputElement | HTMLSelectElement | null;
+      expect(focusedControl?.getAttribute("aria-label") ?? focusedControl?.labels?.[0]?.textContent).toContain(label);
+      expect(scroll).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+      const filter = container.querySelector(`#filter-${filterKey}`);
+      expect(filter?.textContent).toBeTruthy();
+
+      window.history.replaceState(null, "", "/katalog/lodowki#filter-brand");
+      await act(async () => window.dispatchEvent(new Event("hashchange")));
+      expect(document.activeElement?.getAttribute("data-filter-id")).toBe("brand");
+      expect(container.querySelector('#filter-brand')?.getAttribute("data-highlighted")).toBe("true");
+    } finally {
+      HTMLElement.prototype.scrollIntoView = originalScroll;
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("keeps the proposal hidden until the response arrives", async () => {
     let resolveResponse: ((value: Response) => void) | undefined;
     fetchMock.mockImplementation(
       () =>
@@ -177,18 +197,40 @@ describe("assistant proposal coordinator and listing UI", () => {
     await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
     await flushRequestTasks();
 
-    expect(
-      container.querySelector('[data-ai-request-state="pending"]'),
-    ).not.toBeNull();
-    expect(container.textContent).toContain("Wysyłanie requestu do OpenAI");
+    expect(container.querySelector('[data-ai-request-state="pending"]')).toBeNull();
+    expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
 
     await act(async () => resolveResponse?.(response(SHOW_PROPOSAL)));
     await flushRequestTasks();
 
     expect(
-      container.querySelector('[data-ai-request-state="pending"]'),
-    ).toBeNull();
+      container.querySelector('[data-ai-request-state="complete"]'),
+    ).not.toBeNull();
     expect(container.textContent).toContain(SHOW_PROPOSAL.message);
+  });
+
+  it("renders the fox illustration selected by the server", async () => {
+    fetchMock.mockResolvedValue(
+      response({
+        ...SHOW_PROPOSAL,
+        data: {
+          ...SHOW_PROPOSAL.data,
+          illustration: "fox-celebrating",
+        },
+      }),
+    );
+
+    await renderCoordinatorOnly();
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+
+    const illustration = container.querySelector<HTMLImageElement>(
+      '[data-element-id="assistant-proposal"] img',
+    );
+    expect(illustration?.src).toContain(
+      "fox-celebrating.png",
+    );
+    expect(illustration?.alt).toBe("Lisek cieszy się z dobrego wyboru");
   });
 
   it("waits for five events and can complete classification off the listing page", async () => {
@@ -231,6 +273,36 @@ describe("assistant proposal coordinator and listing UI", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
+  });
+
+  it.each([
+    ["set-budget", "Ustaw budżet", "/katalog/lodowki#filter-price"],
+    ["choose-brand", "Wybierz producenta", "/katalog/lodowki#filter-brand"],
+    ["browse-category", "Zobacz kategorię", "/katalog/lodowki"],
+    ["narrow-choice", "Przejdź do filtrów", "/katalog/lodowki#filter-capacityLiters"],
+  ])("navigates %s from the root widget and closes the notification", async (action, label, href) => {
+    fetchMock.mockResolvedValue(response({
+      ...SHOW_PROPOSAL,
+      action,
+      actionLabel: label,
+      data: {
+        target: action === "browse-category" ? "catalog" : "filters",
+        filterKeys: action === "narrow-choice" ? ["capacityLiters"] : [],
+        categorySlug: "lodowki",
+      },
+    }));
+    await renderCoordinatorOnly();
+    await recordEvents(MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL);
+    await flushRequestTasks();
+
+    const link = container.querySelector<HTMLAnchorElement>('[data-element-id="assistant-action"]');
+    expect(link?.getAttribute("href")).toBe(href);
+    expect(link?.textContent).toBe(label);
+    expect(container.querySelectorAll('[data-element-id="assistant-action"]')).toHaveLength(1);
+
+    link?.addEventListener("click", (event) => event.preventDefault());
+    await act(async () => link?.click());
+    expect(getAssistantProposalUiState().proposal).toBeNull();
   });
 
   it("does not show a predefined proposal for an empty search", async () => {
@@ -283,7 +355,7 @@ describe("assistant proposal coordinator and listing UI", () => {
     expect(container.querySelector('[data-element-id="assistant-proposal"]')).toBeNull();
   });
 
-  it("coalesces an event burst into one request and keeps the popup pending", async () => {
+  it("coalesces an event burst into one request without showing loading", async () => {
     let resolveResponse: ((value: Response) => void) | undefined;
     fetchMock.mockImplementation(
       () =>
@@ -296,13 +368,13 @@ describe("assistant proposal coordinator and listing UI", () => {
     await flushRequestTasks();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-ai-request-state="pending"]')).not.toBeNull();
+    expect(container.querySelector('[data-ai-request-state="pending"]')).toBeNull();
 
     await recordEvents(2);
     await flushRequestTasks();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-ai-request-state="pending"]')).not.toBeNull();
+    expect(container.querySelector('[data-ai-request-state="pending"]')).toBeNull();
 
     await act(async () => resolveResponse?.(response({ status: "hide" })));
     await flushRequestTasks();

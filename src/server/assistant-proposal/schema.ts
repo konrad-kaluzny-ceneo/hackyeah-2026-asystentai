@@ -6,6 +6,9 @@ export const JEV_ACTION_TYPES = [
   "RESET_FILTERS",
   "GO_TO_PRODUCT",
   "SORT_BY_PRICE",
+  "SET_BUDGET",
+  "CHOOSE_BRAND",
+  "BROWSE_CATEGORY",
   "EXPLAIN_CHOICE",
   "DO_NOTHING",
 ] as const;

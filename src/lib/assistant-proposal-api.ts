@@ -12,6 +12,9 @@ export const ASSISTANT_PROPOSAL_ACTIONS = [
   "clear-search-and-filters",
   "go-to-product",
   "sort-by-price",
+  "set-budget",
+  "choose-brand",
+  "browse-category",
   "explain-choice",
   "none",
 ] as const;
@@ -19,6 +22,13 @@ export type AssistantProposalAction =
   (typeof ASSISTANT_PROPOSAL_ACTIONS)[number];
 
 export const ASSISTANT_PROPOSAL_SORTS = ["price_asc", "price_desc"] as const;
+export const ASSISTANT_PROPOSAL_ILLUSTRATIONS = [
+  "fox-thinking",
+  "fox-guiding",
+  "fox-celebrating",
+] as const;
+export type AssistantProposalIllustration =
+  (typeof ASSISTANT_PROPOSAL_ILLUSTRATIONS)[number];
 
 // ============================================================================
 // Response Contract (context/changes/assistant-proposal-box/interface.md)
@@ -31,6 +41,7 @@ export const AssistantProposalActionDataSchema = z
     productSlug: z.string().min(1).optional(),
     categorySlug: z.string().min(1).optional(),
     sort: z.enum(ASSISTANT_PROPOSAL_SORTS).optional(),
+    illustration: z.enum(ASSISTANT_PROPOSAL_ILLUSTRATIONS).optional(),
   })
   .strict();
 

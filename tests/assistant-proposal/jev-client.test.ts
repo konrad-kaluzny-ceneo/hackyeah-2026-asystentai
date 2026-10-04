@@ -17,6 +17,26 @@ afterEach(() => {
 });
 
 describe("requestJev", () => {
+  it.each(["SET_BUDGET", "CHOOSE_BRAND", "BROWSE_CATEGORY"])("accepts and advertises %s", async (actionType) => {
+    process.env.TYPESAFE_API_KEY = "test-key";
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({
+      answers: {
+        situation: {
+          type: "choice", choice: "PRODUCT_HESITATION", confidence: 0.9,
+          probabilities: { PRODUCT_HESITATION: 0.9 },
+        },
+        action_type: {
+          type: "choice", choice: actionType, confidence: 0.9,
+          probabilities: { [actionType]: 0.9 },
+        },
+      },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await requestJev("Stan sesji")).toMatchObject({ proposal: { action_type: actionType } });
+    const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(requestBody.questions.action_type.criteria[actionType]).toBeTruthy();
+  });
+
   it("calls the System One API and adapts choice answers", async () => {
     process.env.TYPESAFE_API_KEY = "test-key";
     const fetchMock = vi.fn().mockResolvedValue(

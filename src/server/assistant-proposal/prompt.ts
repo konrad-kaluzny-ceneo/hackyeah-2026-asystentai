@@ -92,7 +92,7 @@ Zwróć wyłącznie JSON w tym kształcie:
 {
   "situation": "DECISION_FATIGUE" | "PRODUCT_HESITATION" | "NO_PROGRESS_STALL" | "UI_FRICTION" | "SMOOTH_EXPLORATION",
   "proposal": {
-    "action_type": "NARROW_BY_SPEC" | "COMPARE_MODELS" | "RESET_FILTERS" | "GO_TO_PRODUCT" | "SORT_BY_PRICE" | "EXPLAIN_CHOICE" | "DO_NOTHING",
+    "action_type": ${Object.keys(ASSISTANT_SKILLS).map((name) => JSON.stringify(name)).join(" | ")},
     "confidence": 0.0,
     "hedging_required": false,
     "message_draft": "krótka propozycja po polsku albo null",

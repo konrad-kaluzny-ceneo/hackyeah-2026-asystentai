@@ -17,6 +17,9 @@ const ActionTypeSchema = z.enum([
   "RESET_FILTERS",
   "GO_TO_PRODUCT",
   "SORT_BY_PRICE",
+  "SET_BUDGET",
+  "CHOOSE_BRAND",
+  "BROWSE_CATEGORY",
   "EXPLAIN_CHOICE",
   "DO_NOTHING",
 ]);
@@ -83,6 +86,12 @@ export async function requestJev(
           instructions:
             "Jaka pojedyncza reakcja asystenta najlepiej pasuje do tej sesji?",
           criteria: {
+            SET_BUDGET:
+              "Otwórz filtr ceny, aby użytkownik określił swój budżet przy skupieniu na cenie; nie wymaga danych kwotowych.",
+            CHOOSE_BRAND:
+              "Otwórz wybór producenta, gdy użytkownik poszukuje preferowanej marki; nie wymaga nazwy marki.",
+            BROWSE_CATEGORY:
+              "Wróć do listy modeli tej kategorii po utknięciu na karcie produktu lub potrzebie szerszego wyboru.",
             NARROW_BY_SPEC:
               "Zaproponuj zawężenie wyników według jednego ważnego parametru.",
             COMPARE_MODELS:
@@ -96,7 +105,7 @@ export async function requestJev(
             EXPLAIN_CHOICE:
               "Pokaż tylko treść merytoryczną bez nawigacji, przy słabym sygnale.",
             DO_NOTHING:
-              "Nie pokazuj propozycji, ponieważ sesja nie wymaga pomocy.",
+              "Nie pokazuj propozycji wyłącznie przy spokojnym przeglądaniu bez oznak wahania, tarcia lub braku postępu. Jeśli występuje choć jeden taki sygnał, wybierz EXPLAIN_CHOICE albo najlepiej dopasowaną akcję zamiast DO_NOTHING.",
           },
         },
       },

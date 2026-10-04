@@ -72,6 +72,14 @@ describe("routeJevOutput", () => {
     ).toEqual({ decision: "hide" });
   });
 
+  it("keeps a strong non-smooth signal eligible when Jev picks DO_NOTHING", () => {
+    expect(
+      routeJevOutput(
+        output("DECISION_FATIGUE", 0.9, false, null, "DO_NOTHING"),
+      ),
+    ).toEqual({ decision: "needs_openai" });
+  });
+
   it("shortcuts UI_FRICTION + RESET_FILTERS to the reset action", () => {
     expect(
       routeJevOutput(

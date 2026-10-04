@@ -9,6 +9,17 @@ import { makeMetaEvent, resetFixtureSeed } from "../behavior/fixtures";
 
 describe("assistant-proposal-api contract", () => {
   describe("AssistantProposalResponseSchema", () => {
+    it.each(["set-budget", "choose-brand", "browse-category"])("accepts the %s action", (action) => {
+      expect(safeParseAssistantProposalResponse({
+        status: "show",
+        title: "Następny krok",
+        message: "Wybierz najważniejsze kryterium.",
+        action,
+        actionLabel: "Przejdź",
+        data: { target: "catalog", filterKeys: [], categorySlug: "lodowki" },
+      }).success).toBe(true);
+    });
+
     it("accepts a valid 'show' response with action payload", () => {
       const payload = {
         status: "show",

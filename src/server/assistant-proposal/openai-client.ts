@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import {
   ASSISTANT_PROPOSAL_ACTIONS,
+  ASSISTANT_PROPOSAL_ILLUSTRATIONS,
   ASSISTANT_PROPOSAL_SORTS,
   MAX_ASSISTANT_PROPOSAL_ACTION_LABEL_LENGTH,
   MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH,
@@ -30,6 +31,7 @@ const StrongerReplySchema = z.object({
       productSlug: z.string().min(1).nullable(),
       categorySlug: z.string().min(1).nullable(),
       sort: z.enum(ASSISTANT_PROPOSAL_SORTS).nullable(),
+      illustration: z.enum(ASSISTANT_PROPOSAL_ILLUSTRATIONS).nullable(),
     })
     .strict(),
 }).strict();
@@ -62,16 +64,25 @@ export async function requestStrongerReply(
 Wybierz DOKŁADNIE JEDNĄ akcję z przekazanego przez Jev wyboru (proposal.action_type). Nie zmieniaj jej na inną.
 
 Dostępne wartości action i wymagania:
+- set-budget: przejście do filtra ceny w kategorii, także ze strony produktu; data.target="filters", data.filterKeys=["price"]. Nie zgaduj budżetu.
+- choose-brand: przejście do wyboru producenta w kategorii, także ze strony produktu; data.target="filters", data.filterKeys=["brand"]. Nie wybieraj marki za użytkownika.
+- browse-category: przejście do pełnej listy modeli w kategorii; data.target="catalog".
 - narrow-choice: przycisk prowadzi do filtrów; data.target="filters", data.filterKeys z action_payload.
 - clear-search-and-filters: przycisk czyści wyszukiwanie i filtry; data.target="catalog".
 - go-to-product: Link do /produkt/<productSlug>; data.target="product", data.productSlug z action_payload.
 - sort-by-price: sortowanie listy; data.target="catalog", data.sort z action_payload.
 - explain-choice: tylko treść, bez nawigacji; data.target="catalog".
-- none: nie pokazuj przycisku; data.target="catalog".
+- none: nie pokazuj przycisku; data.target="catalog". Wybierz tę opcję wyłącznie wtedy, gdy propozycja byłaby naprawdę nieprzydatna; przy poprawnym sygnale preferuj explain-choice z krótką poradą.
 
 W data.categorySlug wpisz kategorię z kontekstu zdarzeń, jeśli jest znana. Jeśli nie jest potrzebna, zwróć null. Pola productSlug, categorySlug i sort muszą być obecne; użyj null, gdy nie dotyczą wybranej akcji.
 
-Zwróć naturalny tytuł (max ${MAX_ASSISTANT_PROPOSAL_TITLE_LENGTH} znaków), jedno zdanie wiadomości (max ${MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH} znaków) oraz krótką etykietę przycisku (max ${MAX_ASSISTANT_PROPOSAL_ACTION_LABEL_LENGTH} znaków). Nie wymyślaj faktów spoza wyniku Jev.
+Wybierz dokładnie jedną ilustrację dla komunikatu:
+- fox-thinking: lisek myśli i pomaga uporządkować wątpliwości; pasuje do niezdecydowania, porównywania lub wyjaśnienia wyboru.
+- fox-guiding: lisek wskazuje kartę i prowadzi do następnego kroku; pasuje do filtrów, sortowania i przejścia do produktu.
+- fox-celebrating: lisek cieszy się z postępu; pasuje do odblokowania użytkownika, dobrego dopasowania lub konkretnej rekomendacji.
+Zwróć identyfikator w data.illustration, nigdy ścieżkę pliku ani URL. Jeśli akcja nie ma wartości, nie twórz propozycji.
+
+Zwróć naturalny tytuł (max ${MAX_ASSISTANT_PROPOSAL_TITLE_LENGTH} znaków), jedno zdanie wiadomości (max ${MAX_ASSISTANT_PROPOSAL_MESSAGE_LENGTH} znaków) oraz krótką etykietę przycisku (max ${MAX_ASSISTANT_PROPOSAL_ACTION_LABEL_LENGTH} znaków). Nie wymyślaj faktów spoza wyniku Jev. Jeśli Jev wskazał użyteczną akcję, nie zwracaj none tylko dlatego, że sygnał jest nieidealny.
 Zwróć wyłącznie obiekt JSON z polami title, message, action, actionLabel, data.`,
       input: JSON.stringify(jevOutput),
       text: {

@@ -14,7 +14,11 @@ export function routeJevOutput(output: JevAssistantOutput): RouteDecision {
     (probability) => probability > INTENT_TRIGGER_THRESHOLD,
   );
 
-  if (!hasStrongIntent || output.proposal.action_type === "DO_NOTHING") {
+  if (
+    !hasStrongIntent ||
+    (output.proposal.action_type === "DO_NOTHING" &&
+      output.situation === "SMOOTH_EXPLORATION")
+  ) {
     return { decision: "hide" };
   }
 
