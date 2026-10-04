@@ -93,7 +93,7 @@ describe("buildDecisionShortlist", () => {
     ];
 
     expect(buildSessionSummary(events, category)).toBe(
-      "Przejrzałeś już 2 pralki w ciągu 14 minut.",
+      "Przejrzałeś już **2 pralki** w ciągu **14 minut**.",
     );
   });
 });

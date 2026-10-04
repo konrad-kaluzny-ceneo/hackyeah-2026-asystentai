@@ -79,9 +79,9 @@ export function buildSessionSummary(
   const minutes = sessionMinutes(events, category.slug);
   const devices = `${viewed.length} ${category.name.toLocaleLowerCase("pl-PL")}`;
   if (minutes === null) {
-    return `Przejrzałeś już ${devices} w tej kategorii.`;
+    return `Przejrzałeś już **${devices}** w tej kategorii.`;
   }
-  return `Przejrzałeś już ${devices} w ciągu ${minutes} minut.`;
+  return `Przejrzałeś już **${devices}** w ciągu **${minutes} minut**.`;
 }
 
 function pickDistinguishingSpec(

@@ -332,7 +332,7 @@ export function ProductCard({
   return (
     <Link href={`/produkt/${product.slug}`} data-element-id="product-card" data-subject-product-id={product.id} data-subject-category-id={product.categoryId} data-subject-brand-id={product.brandId} className={`group relative flex h-full flex-col rounded-2xl border border-[#e3e9e4] bg-white p-3 transition hover:-translate-y-0.5 hover:border-[#c7d6ca] hover:shadow-[0_12px_30px_rgba(29,53,37,.08)] ${compareHighlight ? "assistant-compare-highlight" : ""}`}>
       {compareRank !== undefined && (
-        <span className="absolute z-10 -left-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-[#193b35] text-xs font-bold text-white shadow-md">
+        <span className="absolute z-10 -left-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-[var(--assistant-violet)] text-xs font-bold text-white shadow-md">
           {compareRank}
         </span>
       )}
