@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f6f4;
-  --foreground: #14211e;
-  --muted: #61706b;
-  --border: #dfe5e1;
-  --accent: #bd542e;
+  --background: #faf8fd;
+  --foreground: #181126;
+  --muted: #6b617a;
+  --border: #e9e3f0;
+  --accent: #7c3aed;
 }
 
 @theme inline {
@@ -44,6 +44,6 @@ body {
   }
 }
 
-::selection { background: #dbe9df; color: var(--foreground); }
+::selection { background: #ebdcfc; color: var(--foreground); }
 
 button, input, select { font: inherit; }

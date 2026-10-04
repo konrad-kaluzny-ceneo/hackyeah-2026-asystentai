@@ -30,21 +30,21 @@ export default function SiteHeader({ categories }: { categories: Category[] }) {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#e2e7e3] bg-white/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-x-9 gap-y-3 px-5 py-4 lg:px-10">
-        <Link href="/" className="flex shrink-0 items-center gap-2 text-[21px] font-extrabold tracking-[-0.06em] text-[#193b35]">
-          dobre<span className="text-[#bd542e]">.</span>agd
-          <span className="hidden rounded-full bg-[#f0f3ef] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#758079] sm:inline-flex">dom i kuchnia</span>
+    <header className="sticky top-0 z-40 border-b border-purple-100/80 bg-white/90 backdrop-blur-md shadow-[0_1px_8px_rgba(124,58,237,0.03)] transition-all">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center gap-x-9 gap-y-3 px-5 py-3.5 lg:px-10">
+        <Link href="/" className="flex shrink-0 items-center gap-2 text-[21px] font-extrabold tracking-[-0.06em] text-[#240e4a] group">
+          dobre<span className="text-[#7c3aed] transition-transform duration-300 group-hover:scale-125 inline-block">.</span>agd
+          <span className="hidden rounded-full border border-purple-200/60 bg-purple-50/80 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-purple-700 sm:inline-flex">dom i kuchnia</span>
         </Link>
 
         <form onSubmit={search} role="search" className="order-3 flex w-full flex-1 sm:order-none sm:min-w-[240px]">
           <label className="sr-only" htmlFor="site-search">Szukaj produktów</label>
-          <div className="flex w-full items-center gap-3 rounded-xl border border-[#dce3de] bg-[#f7f9f7] px-4 transition focus-within:border-[#52776c] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#193b35]/10">
-            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0 text-[#6c7c75]" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.8" cy="10.8" r="6.3" /><path d="m16 16 4.1 4.1" /></svg>
-            <input id="site-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Czego szukasz? Np. lodówka do małej kuchni" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#193b35] outline-none placeholder:text-[#8a9690]" />
-            <button type="submit" className="hidden rounded-lg bg-[#193b35] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#28554c] sm:block">Szukaj</button>
+          <div className="flex w-full items-center gap-3 rounded-xl border border-purple-100 bg-purple-50/40 px-4 transition focus-within:border-purple-400 focus-within:bg-white focus-within:ring-3 focus-within:ring-purple-500/15">
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0 text-purple-400" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.8" cy="10.8" r="6.3" /><path d="m16 16 4.1 4.1" /></svg>
+            <input id="site-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Czego szukasz? Np. lodówka do małej kuchni" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-[#181126] outline-none placeholder:text-purple-400/80" />
+            <button type="submit" className="hidden rounded-lg bg-gradient-to-r from-purple-700 to-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:from-purple-800 hover:to-purple-700 active:scale-[0.98] sm:block">Szukaj</button>
           </div>
-          <button type="submit" aria-label="Szukaj" className="ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#193b35] text-white sm:hidden">
+          <button type="submit" aria-label="Szukaj" className="ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-700 text-white shadow-xs hover:bg-purple-800 active:scale-[0.98] sm:hidden">
             <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="10.8" cy="10.8" r="6.3" /><path d="m16 16 4.1 4.1" /></svg>
           </button>
         </form>
@@ -53,16 +53,16 @@ export default function SiteHeader({ categories }: { categories: Category[] }) {
           <BehaviorAnalyticsToggle />
         </div>
 
-        <Link href="/katalog" className="hidden shrink-0 items-center gap-2 text-sm font-semibold text-[#42524b] transition hover:text-[#193b35] md:flex">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f0f3ef] text-[#47665c]" aria-hidden="true">⌕</span>
+        <Link href="/katalog" className="hidden shrink-0 items-center gap-2 text-sm font-semibold text-purple-950/80 transition hover:text-purple-700 md:flex">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100/70 text-purple-700" aria-hidden="true">⌕</span>
           Wszystkie kategorie
         </Link>
       </div>
-      <nav aria-label="Kategorie produktów" className="border-t border-[#f0f2f0]">
-        <div className="mx-auto flex w-full max-w-[1440px] items-center gap-7 overflow-x-auto px-5 py-2.5 text-[13px] font-medium text-[#65716b] lg:px-10">
-          <span className="hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.13em] text-[#98a19c] sm:inline">Popularne</span>
+      <nav aria-label="Kategorie produktów" className="border-t border-purple-50 bg-white/60">
+        <div className="mx-auto flex w-full max-w-[1440px] items-center gap-7 overflow-x-auto px-5 py-2.5 text-[13px] font-medium text-[#6b617a] lg:px-10">
+          <span className="hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-purple-400 sm:inline">Popularne</span>
           {categories.map((category) => (
-            <Link key={category.slug} href={`/katalog/${category.slug}`} className={`shrink-0 transition hover:text-[#193b35] ${categorySlug === category.slug ? "font-semibold text-[#193b35]" : ""}`}>
+            <Link key={category.slug} href={`/katalog/${category.slug}`} className={`shrink-0 transition hover:text-purple-700 ${categorySlug === category.slug ? "font-semibold text-purple-700 relative after:absolute after:-bottom-[11px] after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-purple-600" : ""}`}>
               {category.name}
             </Link>
           ))}

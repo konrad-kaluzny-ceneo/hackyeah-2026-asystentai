@@ -43,7 +43,7 @@ export default async function CategoryPage({ params, searchParams }: CategoryPag
 
   return (
     <main
-      className="flex-1 bg-[#f7f8f6]"
+      className="flex-1 bg-[#faf8fd]"
     >
       <CatalogListing
         key={`${queryParams.q ?? ""}-${queryParams.sort ?? ""}`}

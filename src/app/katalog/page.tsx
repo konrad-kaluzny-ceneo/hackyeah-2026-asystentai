@@ -53,21 +53,21 @@ export default async function CatalogPage({
   return (
       <main data-catalog-context="" data-route-template="/katalog" className="mx-auto w-full max-w-7xl flex-1 px-5 pb-16 pt-10 sm:px-8">
         <div className="mb-9 max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-[.16em] text-[#718779]">Wybierz dział</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-[-.035em] sm:text-4xl">Katalog sprzętu AGD</h1>
-          <p className="mt-3 text-sm leading-6 text-[#718078]">Przejdź do wybranej kategorii, aby zobaczyć modele i zawęzić wyniki według parametrów.</p>
+          <p className="text-xs font-bold uppercase tracking-[.16em] text-purple-700">Wybierz dział</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-[-.035em] text-[#181126] sm:text-4xl">Katalog sprzętu AGD</h1>
+          <p className="mt-3 text-sm leading-6 text-[#6b617a]">Przejdź do wybranej kategorii, aby zobaczyć modele i zawęzić wyniki według parametrów.</p>
         </div>
         <AssistantProposalWidget />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((category, index) => (
-            <Link key={category.id} href={`/katalog/${category.slug}`} className="group relative min-h-72 overflow-hidden rounded-3xl bg-[#e3ebe4]">
-              <Image src={category.imageUrl} alt="" fill sizes="(max-width: 640px) 95vw, (max-width: 1024px) 45vw, 380px" className="max-h-full max-w-full object-contain transition duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#10271c]/75 via-[#10271c]/10 to-transparent" />
+            <Link key={category.id} href={`/katalog/${category.slug}`} className="group relative min-h-72 overflow-hidden rounded-3xl border border-purple-100/80 bg-gradient-to-br from-purple-100/60 via-purple-50/50 to-violet-100/40 shadow-xs transition-all duration-500 hover:-translate-y-1 hover:border-purple-200 hover:shadow-xl">
+              <Image src={category.imageUrl} alt="" fill sizes="(max-width: 640px) 95vw, (max-width: 1024px) 45vw, 380px" className="max-h-full max-w-full object-contain transition duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-purple-950/85 via-purple-950/25 to-transparent" />
               <div className="absolute inset-x-6 bottom-6 text-white">
-                <p className="text-xs font-semibold uppercase tracking-[.15em] text-white/70">Kategoria 0{index + 1}</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">{category.name}</h2>
-                <p className="mt-1 max-w-sm text-sm leading-5 text-white/80">{category.description}</p>
-                <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold">Przeglądaj <span aria-hidden="true" className="transition group-hover:translate-x-1">→</span></span>
+                <p className="text-xs font-semibold uppercase tracking-[.15em] text-purple-200/90">Kategoria 0{index + 1}</p>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight">{category.name}</h2>
+                <p className="mt-1 max-w-sm text-sm leading-5 text-white/85">{category.description}</p>
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-white/95 transition group-hover:text-purple-200">Przeglądaj <span aria-hidden="true" className="transition group-hover:translate-x-1">→</span></span>
               </div>
             </Link>
           ))}

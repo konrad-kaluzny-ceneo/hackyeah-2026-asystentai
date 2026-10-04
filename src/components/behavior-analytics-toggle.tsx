@@ -50,10 +50,10 @@ export function BehaviorAnalyticsToggle() {
         overlayOpen ? "Ukryj panel analityki zachowania" : "Pokaż panel analityki zachowania"
       }
       title={overlayOpen ? "Ukryj analitykę" : "Analityka zachowania (demo)"}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#193b35] ${
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600 ${
         overlayOpen
-          ? "border-[#193b35] bg-[#193b35] text-white shadow-sm"
-          : "border-[#dce3de] bg-[#f7f9f7] text-[#47665c] hover:border-[#52776c] hover:bg-white hover:text-[#193b35]"
+          ? "border-purple-600 bg-purple-700 text-white shadow-sm"
+          : "border-purple-200 bg-purple-50/50 text-purple-700 hover:border-purple-300 hover:bg-white hover:text-purple-900"
       }`}
     >
       <AnalyticsIcon className="h-5 w-5" />
