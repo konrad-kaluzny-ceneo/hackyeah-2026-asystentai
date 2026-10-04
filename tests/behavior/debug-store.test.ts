@@ -13,6 +13,9 @@ import {
 
 import { makeIdGenerator, makeMetaEvent, resetFixtureSeed } from "./fixtures";
 
+const defaultOverlayOpen =
+  process.env.NEXT_PUBLIC_BEHAVIOR_TRACKING === "true";
+
 describe("debug-store", () => {
   beforeEach(() => {
     resetFixtureSeed();
@@ -22,17 +25,17 @@ describe("debug-store", () => {
   it("starts in a clean state (tracker disabled)", () => {
     const s = getDebugState();
     expect(s.trackerEnabled).toBe(false);
-    expect(s.overlayOpen).toBe(false);
+    expect(s.overlayOpen).toBe(defaultOverlayOpen);
     expect(s.totalMetaSentThisSession).toBe(0);
     expect(s.lastSentMetaEvents).toEqual([]);
   });
 
   it("toggles the demo overlay flag", () => {
-    expect(getDebugState().overlayOpen).toBe(false);
+    expect(getDebugState().overlayOpen).toBe(defaultOverlayOpen);
     toggleBehaviorDebugOverlay();
-    expect(getDebugState().overlayOpen).toBe(true);
+    expect(getDebugState().overlayOpen).toBe(!defaultOverlayOpen);
     toggleBehaviorDebugOverlay();
-    expect(getDebugState().overlayOpen).toBe(false);
+    expect(getDebugState().overlayOpen).toBe(defaultOverlayOpen);
     setBehaviorDebugOverlayOpen(true);
     expect(getDebugState().overlayOpen).toBe(true);
   });

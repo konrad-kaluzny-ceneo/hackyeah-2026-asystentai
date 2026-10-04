@@ -57,9 +57,11 @@ export interface DebugState {
 
 export const MAX_LAST_SENT_META_EVENTS = 100;
 export const MAX_ASSISTANT_PROPOSAL_REQUESTS = 100;
+const DEFAULT_OVERLAY_OPEN =
+  process.env.NEXT_PUBLIC_BEHAVIOR_TRACKING === "true";
 
 const INITIAL_STATE: DebugState = {
-  overlayOpen: false,
+  overlayOpen: DEFAULT_OVERLAY_OPEN,
   trackerEnabled: false,
   rawEventsInSessionStorage: 0,
   unsentMetaEvents: 0,
