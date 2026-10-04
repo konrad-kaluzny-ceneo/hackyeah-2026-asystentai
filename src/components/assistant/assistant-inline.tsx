@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import {
@@ -13,6 +14,7 @@ import {
   setAssistantServerProposal,
 } from "@/lib/assistant-proposal-state";
 import type { AssistantProposal, CatalogState, Category, Product } from "@/lib/catalog-types";
+import { ui } from "@/lib/ui/theme";
 
 type AssistantInlineProps = {
   state: CatalogState;
@@ -86,43 +88,69 @@ export function AssistantInline({
       aria-labelledby="assistant-proposal-title"
       data-element-id="assistant-proposal"
       data-assistant-popover={recommendsFilters ? "filters" : undefined}
-      className="fixed top-40 right-4 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-sky-200 bg-white p-5 pr-12 text-slate-900 shadow-2xl ring-1 ring-slate-900/5 sm:top-32 lg:top-28"
+      className="assistant-proposal-enter assistant-panel relative mb-6 w-full overflow-hidden rounded-2xl border p-5 sm:p-6"
       role="status"
     >
       <button
         type="button"
         aria-label="Zamknij podpowiedź"
         data-element-id="assistant-dismiss"
-        className="absolute right-3 top-3 rounded p-1 text-slate-500 hover:bg-sky-100 hover:text-slate-900"
+        className={`absolute right-3.5 top-3.5 ${ui.dismissButton}`}
         onClick={dismiss}
       >
-        <span aria-hidden="true">×</span>
+        <span aria-hidden="true" className="text-xl leading-none font-medium">×</span>
       </button>
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-sky-800">
-        Podpowiedź asystenta
-      </p>
-      <h2 id="assistant-proposal-title" className="text-base font-semibold">
-        {proposal.title}
-      </h2>
-      <p className="mt-1 text-sm leading-6 text-slate-700">{proposal.message}</p>
-      {proposal.action === "clear-search-and-filters" ? (
-        <button
-          type="button"
-          onClick={onClearSearchAndFilters}
-          data-element-id="assistant-action"
-          className="mt-3 inline-flex rounded-lg bg-sky-800 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-900"
-        >
-          {proposal.actionLabel}
-        </button>
-      ) : (
-        <a
-          href="#filters"
-          data-element-id="assistant-action"
-          className="mt-3 inline-flex rounded-lg border border-sky-800 px-4 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-100"
-        >
-          {proposal.actionLabel}
-        </a>
-      )}
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5 pr-8 sm:pr-10">
+        <div className="relative shrink-0 flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border border-border bg-catalog-chip p-1.5">
+          <Image
+            src="/illustrations/assistant-fox/fox-guiding.png"
+            alt="Lisek wskazuje następny krok"
+            width={80}
+            height={80}
+            sizes="80px"
+            className="h-full w-full object-contain"
+            priority
+          />
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-assistant opacity-50" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-assistant ring-2 ring-white" />
+          </span>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="mb-1 flex items-center gap-2">
+            <span className={ui.labelAssistant}>Podpowiedź asystenta</span>
+          </div>
+          <h2 id="assistant-proposal-title" className="text-base sm:text-lg font-bold tracking-tight text-catalog-primary">
+            {proposal.title}
+          </h2>
+          <p className="mt-1 text-xs sm:text-sm leading-relaxed text-muted">
+            {proposal.message}
+          </p>
+        </div>
+
+        <div className="shrink-0 sm:self-center">
+          {proposal.action === "clear-search-and-filters" ? (
+            <button
+              type="button"
+              onClick={onClearSearchAndFilters}
+              data-element-id="assistant-action"
+              className={ui.btnCatalogPrimary}
+            >
+              {proposal.actionLabel}
+            </button>
+          ) : (
+            <a
+              href="#filters"
+              data-element-id="assistant-action"
+              className={ui.btnCatalogOutline}
+            >
+              {proposal.actionLabel}
+            </a>
+          )}
+        </div>
+      </div>
     </aside>
   );
 }

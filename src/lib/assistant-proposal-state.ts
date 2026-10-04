@@ -12,7 +12,9 @@ type Listener = () => void;
 export type AssistantCatalogAction =
   | { type: "clear-search-and-filters" }
   | { type: "highlight-filters"; filterKeys: string[] }
-  | { type: "sort-by-price"; sort: "price_asc" | "price_desc" };
+  | { type: "sort-by-price"; sort: "price_asc" | "price_desc" }
+  | { type: "focus-products"; productSlugs: string[] }
+  | { type: "clear-focus-products" };
 
 export const ASSISTANT_CATALOG_ACTION_EVENT = "assistant-catalog-action";
 

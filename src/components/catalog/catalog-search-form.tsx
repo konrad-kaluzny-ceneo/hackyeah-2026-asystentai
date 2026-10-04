@@ -31,11 +31,11 @@ export function CatalogSearchForm({
       className={className}
     >
       <label className="flex min-w-0 flex-1 items-center gap-3 px-3">
-        <span aria-hidden="true" className="text-xl text-[#789080]">⌕</span>
+        <span aria-hidden="true" className="text-xl text-catalog-focus">⌕</span>
         <span className="sr-only">Czego szukasz?</span>
-        <input name="q" className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-[#9aa69e]" placeholder={placeholder} />
+        <input name="q" className="w-full bg-transparent py-2 text-sm outline-none placeholder:text-placeholder" placeholder={placeholder} />
       </label>
-      <button className="rounded-xl bg-[#243f31] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#345743]" type="submit">
+      <button className="rounded-xl bg-catalog-primary px-5 py-3 text-sm font-semibold text-white transition hover:bg-catalog-primary-hover" type="submit">
         {buttonLabel}
       </button>
     </form>
