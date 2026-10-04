@@ -35,6 +35,8 @@ export default function CatalogListing({
   const [page, setPage] = useState(1);
   const [sortOrder, setSortOrder] = useState<"price_asc" | "price_desc" | null>(initialSort);
   const [highlightedFilters, setHighlightedFilters] = useState<string[]>([]);
+  const [focusedProductSlugs, setFocusedProductSlugs] = useState<string[] | null>(null);
+  const [compareHighlight, setCompareHighlight] = useState(false);
   const categorySlug = category?.slug ?? null;
   const clearSearchAndFilters = useCallback(() => {
     setQuery("");
@@ -56,6 +58,15 @@ export default function CatalogListing({
           `[data-filter-id="${action.filterKeys[0] ?? ""}"]`,
         );
         target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      if (action.type === "focus-products") {
+        setFocusedProductSlugs(action.productSlugs);
+        setCompareHighlight(true);
+        setPage(1);
+      }
+      if (action.type === "clear-focus-products") {
+        setFocusedProductSlugs(null);
+        setCompareHighlight(false);
       }
     });
   }, [clearSearchAndFilters]);
@@ -112,9 +123,27 @@ export default function CatalogListing({
     );
   }, [visibleProducts, sortOrder]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PAGE_SIZE));
+  const listingProductsForAssistant = useMemo(() => {
+    if (focusedProductSlugs === null) return sortedProducts;
+    const order = new Map(
+      focusedProductSlugs.map((slug, index) => [slug, index]),
+    );
+    return sortedProducts
+      .filter((product) => order.has(product.slug))
+      .sort(
+        (a, b) => (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0),
+      );
+  }, [focusedProductSlugs, sortedProducts]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(listingProductsForAssistant.length / PAGE_SIZE),
+  );
   const safePage = Math.min(page, totalPages);
-  const pageProducts = sortedProducts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageProducts = listingProductsForAssistant.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
   const state: CatalogState = { categorySlug, query, filters, resultCount: visibleProducts.length, page: safePage };
   const brands = [...new Set(products.map((product) => product.brand))].sort((a, b) => a.localeCompare(b, "pl-PL"));
   const activeFilters: ActiveFilter[] = [];
@@ -246,7 +275,11 @@ export default function CatalogListing({
             </div>
           </div>
 
-          <AssistantProposalWidget />
+          <AssistantProposalWidget
+            variant="decision"
+            listingProducts={visibleProducts}
+            category={category}
+          />
           <AssistantInline
             state={state}
             catalog={{ categories: category ? [category] : [], products }}
@@ -255,7 +288,14 @@ export default function CatalogListing({
 
           {visibleProducts.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {pageProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+              {pageProducts.map((product, index) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  compareRank={compareHighlight ? index + 1 : undefined}
+                  compareHighlight={compareHighlight}
+                />
+              ))}
             </div>
           ) : (
             <div className="rounded-2xl border border-dashed border-[#cdd9d0] bg-white px-6 py-14 text-center">
@@ -280,9 +320,22 @@ export default function CatalogListing({
   );
 }
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  compareRank,
+  compareHighlight = false,
+}: {
+  product: Product;
+  compareRank?: number;
+  compareHighlight?: boolean;
+}) {
   return (
-    <Link href={`/produkt/${product.slug}`} data-element-id="product-card" data-subject-product-id={product.id} data-subject-category-id={product.categoryId} data-subject-brand-id={product.brandId} className="group flex h-full flex-col rounded-2xl border border-[#e3e9e4] bg-white p-3 transition hover:-translate-y-0.5 hover:border-[#c7d6ca] hover:shadow-[0_12px_30px_rgba(29,53,37,.08)]">
+    <Link href={`/produkt/${product.slug}`} data-element-id="product-card" data-subject-product-id={product.id} data-subject-category-id={product.categoryId} data-subject-brand-id={product.brandId} className={`group relative flex h-full flex-col rounded-2xl border border-[#e3e9e4] bg-white p-3 transition hover:-translate-y-0.5 hover:border-[#c7d6ca] hover:shadow-[0_12px_30px_rgba(29,53,37,.08)] ${compareHighlight ? "assistant-compare-highlight" : ""}`}>
+      {compareRank !== undefined && (
+        <span className="absolute z-10 -left-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-[#193b35] text-xs font-bold text-white shadow-md">
+          {compareRank}
+        </span>
+      )}
       <div className="relative aspect-[1.2/1] overflow-hidden rounded-xl bg-[#f3f6f3]">
         <Image src={product.imageUrl} alt={product.name} fill sizes="(max-width: 640px) 90vw, (max-width: 1280px) 44vw, 300px" className="max-h-full max-w-full object-contain transition duration-500" />
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#65756b]">{product.brand}</span>

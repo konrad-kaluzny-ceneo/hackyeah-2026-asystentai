@@ -38,8 +38,89 @@ body {
   animation: assistant-proposal-enter 220ms ease-out both;
 }
 
+@keyframes assistant-proposal-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    max-height: 120rem;
+    transform: translateY(0);
+  }
+}
+
+.assistant-proposal-expand {
+  animation: assistant-proposal-expand 450ms ease-out both;
+}
+
+@keyframes assistant-proposal-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.assistant-proposal-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(227 236 229 / 0.6) 0%,
+    rgb(255 255 255 / 0.9) 50%,
+    rgb(227 236 229 / 0.6) 100%
+  );
+  background-size: 200% 100%;
+  animation: assistant-proposal-shimmer 1.4s ease-in-out infinite;
+}
+
+.assistant-proposal-stagger > * {
+  animation: assistant-proposal-enter 320ms ease-out both;
+}
+
+.assistant-proposal-stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.assistant-proposal-stagger > *:nth-child(2) {
+  animation-delay: 70ms;
+}
+.assistant-proposal-stagger > *:nth-child(3) {
+  animation-delay: 140ms;
+}
+.assistant-proposal-stagger > *:nth-child(4) {
+  animation-delay: 210ms;
+}
+.assistant-proposal-stagger > *:nth-child(5) {
+  animation-delay: 280ms;
+}
+.assistant-proposal-stagger > *:nth-child(6) {
+  animation-delay: 350ms;
+}
+
+@keyframes assistant-compare-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(25 59 53 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgb(25 59 53 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(25 59 53 / 0);
+  }
+}
+
+.assistant-compare-highlight {
+  animation: assistant-compare-ring 900ms ease-out 1;
+  border-color: #193b35;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .assistant-proposal-enter {
+  .assistant-proposal-enter,
+  .assistant-proposal-expand,
+  .assistant-proposal-stagger > *,
+  .assistant-proposal-shimmer,
+  .assistant-compare-highlight {
     animation: none;
   }
 }

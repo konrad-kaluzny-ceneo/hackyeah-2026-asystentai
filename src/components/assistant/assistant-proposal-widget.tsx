@@ -2,12 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
+import { AssistantDecisionCard } from "@/components/assistant/assistant-decision-card";
 import {
   CATALOG_SESSION_CHANGED,
   readAssistantMutedUntil,
+  readCatalogEvents,
 } from "@/lib/assistant-events";
+import { buildDecisionShortlist } from "@/lib/assistant-decision-shortlist";
 import {
   dispatchAssistantCatalogAction,
   getAssistantProposalUiState,
@@ -15,13 +18,19 @@ import {
   setAssistantServerProposal,
   subscribeAssistantProposalUiState,
 } from "@/lib/assistant-proposal-state";
-import type { AssistantProposal } from "@/lib/catalog-types";
+import type { AssistantProposal, Category, Product } from "@/lib/catalog-types";
 
 const EMPTY_PROPOSAL_UI_STATE = {
   proposal: null,
   searchRecoveryVisible: false,
   requestInFlight: false,
 } as const;
+
+type AssistantProposalWidgetProps = {
+  variant?: "banner" | "decision";
+  listingProducts?: readonly Product[];
+  category?: Category | null;
+};
 
 function catalogHref(proposal: AssistantProposal): string {
   return proposal.data.categorySlug
@@ -132,47 +141,14 @@ function ProposalAction({
   return null;
 }
 
-export function AssistantProposalWidget() {
-  const proposalUiState = useSyncExternalStore(
-    subscribeAssistantProposalUiState,
-    getAssistantProposalUiState,
-    () => EMPTY_PROPOSAL_UI_STATE,
-  );
-  const [muted, setMuted] = useState(() => readAssistantMutedUntil() > Date.now());
-  const proposal =
-    !muted && proposalUiState.proposal?.kind === "jev_proposal"
-      ? proposalUiState.proposal
-      : null;
-
-  useEffect(() => {
-    let muteTimer: number | undefined;
-    const refreshMute = () => {
-      if (muteTimer !== undefined) window.clearTimeout(muteTimer);
-      const mutedUntil = readAssistantMutedUntil();
-      setMuted(mutedUntil > Date.now());
-      if (mutedUntil > Date.now()) {
-        muteTimer = window.setTimeout(refreshMute, mutedUntil - Date.now());
-      }
-    };
-
-    refreshMute();
-    window.addEventListener(CATALOG_SESSION_CHANGED, refreshMute);
-    return () => {
-      window.removeEventListener(CATALOG_SESSION_CHANGED, refreshMute);
-      if (muteTimer !== undefined) window.clearTimeout(muteTimer);
-    };
-  }, []);
-
-  if (muted || proposal === null) return null;
-
+function AssistantProposalBanner({ proposal }: { proposal: AssistantProposal }) {
   const dismiss = () => {
-    if (proposal) recordAssistantProposalShown(proposal);
+    recordAssistantProposalShown(proposal);
     setAssistantServerProposal(null);
-    setMuted(false);
   };
 
   const executeAction = () => {
-    if (proposal) recordAssistantProposalShown(proposal);
+    recordAssistantProposalShown(proposal);
     setAssistantServerProposal(null);
   };
 
@@ -233,4 +209,95 @@ export function AssistantProposalWidget() {
       </div>
     </aside>
   );
+}
+
+export function AssistantProposalWidget({
+  variant = "banner",
+  listingProducts = [],
+  category = null,
+}: AssistantProposalWidgetProps) {
+  const proposalUiState = useSyncExternalStore(
+    subscribeAssistantProposalUiState,
+    getAssistantProposalUiState,
+    () => EMPTY_PROPOSAL_UI_STATE,
+  );
+  const [muted, setMuted] = useState(() => readAssistantMutedUntil() > Date.now());
+  const [sessionRevision, setSessionRevision] = useState(0);
+  const proposal =
+    !muted && proposalUiState.proposal?.kind === "jev_proposal"
+      ? proposalUiState.proposal
+      : null;
+
+  useEffect(() => {
+    let muteTimer: number | undefined;
+    const refreshMute = () => {
+      if (muteTimer !== undefined) window.clearTimeout(muteTimer);
+      const mutedUntil = readAssistantMutedUntil();
+      setMuted(mutedUntil > Date.now());
+      if (mutedUntil > Date.now()) {
+        muteTimer = window.setTimeout(refreshMute, mutedUntil - Date.now());
+      }
+    };
+
+    refreshMute();
+    const onSessionChange = () => {
+      refreshMute();
+      setSessionRevision((value) => value + 1);
+    };
+    window.addEventListener(CATALOG_SESSION_CHANGED, onSessionChange);
+    return () => {
+      window.removeEventListener(CATALOG_SESSION_CHANGED, onSessionChange);
+      if (muteTimer !== undefined) window.clearTimeout(muteTimer);
+    };
+  }, []);
+
+  const shortlist = useMemo(() => {
+    void sessionRevision;
+    return buildDecisionShortlist({
+      products: listingProducts,
+      events: readCatalogEvents(),
+      category,
+      categorySlug: category?.slug ?? null,
+    });
+  }, [category, listingProducts, sessionRevision]);
+
+  if (muted) return null;
+
+  if (variant === "decision") {
+    if (proposalUiState.searchRecoveryVisible) return null;
+    const loading =
+      proposalUiState.requestInFlight &&
+      proposal === null &&
+      listingProducts.length > 0;
+    if (!proposal && !loading) return null;
+    if (proposal && !shortlist && !loading) {
+      return proposal ? <AssistantProposalBanner proposal={proposal} /> : null;
+    }
+
+    const dismiss = () => {
+      if (proposal) recordAssistantProposalShown(proposal);
+      dispatchAssistantCatalogAction({ type: "clear-focus-products" });
+      setAssistantServerProposal(null);
+    };
+
+    return (
+      <AssistantDecisionCard
+        proposal={proposal}
+        shortlist={shortlist}
+        loading={loading}
+        onDismiss={dismiss}
+        onCompare={(productSlugs) => {
+          if (proposal) recordAssistantProposalShown(proposal);
+          dispatchAssistantCatalogAction({ type: "focus-products", productSlugs });
+        }}
+        onSeeMore={() => {
+          dispatchAssistantCatalogAction({ type: "clear-focus-products" });
+          setAssistantServerProposal(null);
+        }}
+      />
+    );
+  }
+
+  if (proposal === null) return null;
+  return <AssistantProposalBanner proposal={proposal} />;
 }
