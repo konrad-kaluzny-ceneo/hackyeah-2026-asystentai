@@ -19,6 +19,7 @@ import {
   subscribeAssistantProposalUiState,
 } from "@/lib/assistant-proposal-state";
 import type { AssistantProposal, Category, Product } from "@/lib/catalog-types";
+import { ui } from "@/lib/ui/theme";
 
 const EMPTY_PROPOSAL_UI_STATE = {
   proposal: null,
@@ -51,10 +52,8 @@ function ProposalAction({
   proposal: AssistantProposal;
   onActionExecuted: () => void;
 }) {
-  const baseButtonClass =
-    "inline-flex items-center justify-center rounded-xl bg-[var(--catalog-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--catalog-primary-hover)] active:scale-[0.98]";
-  const outlineButtonClass =
-    "inline-flex items-center justify-center rounded-xl border border-[var(--catalog-primary)] bg-white px-4 py-2 text-sm font-semibold text-[var(--catalog-primary)] hover:bg-[var(--catalog-chip-surface)] transition active:scale-[0.98]";
+  const baseButtonClass = ui.btnCatalogPrimary;
+  const outlineButtonClass = ui.btnCatalogOutline;
 
   if (
     proposal.action === "set-budget" ||
@@ -158,7 +157,7 @@ function AssistantProposalBanner({ proposal }: { proposal: AssistantProposal }) 
       data-element-id="assistant-proposal"
       data-assistant-popover="filters"
       data-ai-request-state="complete"
-      className="assistant-proposal-enter assistant-violet-surface relative mb-6 w-full overflow-hidden rounded-2xl border p-5 sm:p-6"
+      className="assistant-proposal-enter assistant-panel relative mb-6 w-full overflow-hidden rounded-2xl border p-5 sm:p-6"
       role="status"
       aria-live="polite"
     >
@@ -166,14 +165,14 @@ function AssistantProposalBanner({ proposal }: { proposal: AssistantProposal }) 
         type="button"
         aria-label="Zamknij podpowiedź"
         data-element-id="assistant-dismiss"
-        className="absolute right-3.5 top-3.5 rounded-full p-1.5 text-[#7c6b9e] transition hover:bg-[#ede9fe] hover:text-[var(--assistant-violet-hover)]"
+        className="absolute right-3.5 top-3.5 rounded-full p-1.5 text-subtle transition hover:bg-catalog-chip hover:text-catalog-primary"
         onClick={dismiss}
       >
         <span aria-hidden="true" className="text-xl leading-none font-medium">×</span>
       </button>
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5 pr-8 sm:pr-10">
-        <div className="relative shrink-0 flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border border-[var(--assistant-violet-border)] bg-[var(--assistant-violet-muted)] p-1.5 shadow-inner">
+        <div className="relative shrink-0 flex items-center justify-center h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border border-border bg-catalog-chip p-1.5">
           <Image
             src={`/illustrations/assistant-fox/${proposal.data.illustration ?? "fox-thinking"}.png`}
             alt={illustrationAlt[proposal.data.illustration ?? "fox-thinking"]}
@@ -184,21 +183,21 @@ function AssistantProposalBanner({ proposal }: { proposal: AssistantProposal }) 
             priority
           />
           <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--assistant-violet)] opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--assistant-violet)] ring-2 ring-white" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-assistant opacity-50" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-assistant ring-2 ring-white" />
           </span>
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="mb-1 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--assistant-violet-chip)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--assistant-violet-hover)]">
-              Asystent zakupowy AI · Beta
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-assistant-chip px-2.5 py-0.5 text-[11px] font-semibold text-assistant-hover">
+              Asystent AI · Beta
             </span>
           </div>
-          <h2 id="assistant-proposal-title" className="text-base sm:text-lg font-bold tracking-tight text-[#193b35]">
+          <h2 id="assistant-proposal-title" className="text-base sm:text-lg font-bold tracking-tight text-catalog-primary">
             {proposal.title}
           </h2>
-          <p className="mt-1 text-xs sm:text-sm leading-relaxed text-[#56685e]">
+          <p className="mt-1 text-xs sm:text-sm leading-relaxed text-muted">
             {proposal.message}
           </p>
         </div>
