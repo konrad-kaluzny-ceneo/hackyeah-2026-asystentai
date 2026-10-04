@@ -3,7 +3,7 @@ project: "Asystent AI — intencje na bieżąco"
 version: 1
 status: draft
 created: 2026-10-03
-updated: 2026-10-03
+updated: 2026-10-04
 prd_version: 1
 main_goal: speed
 top_blocker: time
@@ -35,10 +35,10 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | S-01 | signal-strength-engine | … system klasyfikuje rodzaj intencji zakupowej z faktów katalogu | F-02 | FR-001, FR-002 | done |
 | S-02 | decision-fatigue-box | … dostać jedną propozycję przy decision fatigue | S-01 | US-01, FR-007, FR-008, FR-009 | done |
 | S-03 | empty-search-recovery | … dostać jedną propozycję recovery przy zerowych wynikach | S-01 | US-02, FR-005, FR-007 | done |
-| S-04 | jev-session-proposal | … (serwer) dostać JSON z Jev/OpenAI i akcją dla decision fatigue | — | US-03, FR-010 | ready |
-| S-05 | assistant-proposal-box | … (UI) zobaczyć jeden box po klasyfikacji ograniczonej historii MetaEvents | S-04 | US-01, FR-007, FR-010 | ready |
+| S-04 | jev-session-proposal | … (serwer) dostać jedną propozycję albo `hide` z Jev/OpenAI | — | US-03, FR-010 | done |
+| S-05 | assistant-proposal-box | … (UI) zobaczyć jeden box po pięciu unikalnych MetaEventach | S-04 | US-01, FR-007, FR-010 | done |
 | S-06 | behavior-meta-events | … system zapisywał sześć dodatkowych meta eventów zainteresowania i dynamiki przeglądania | S-01 | FR-011 | done |
-| S-07 | behavior-meta-events-2 | … system zapisywał zainteresowanie ceną, pętlę uściślania wyszukiwania i odrzucenie propozycji asystenta | S-06 | FR-012 | active |
+| S-07 | behavior-meta-events-2 | … system zapisywał uwagę na cenie i opisie, pętlę wyszukiwania i odrzucenie propozycji | S-06 | FR-012 | done |
 | S-08 | intent-timeline | … zespół oglądał realne prawdopodobieństwa 8 intencji JEV per sesja w debug overlay | S-04 | FR-013 | done |
 
 ## Streams
@@ -48,7 +48,7 @@ Asystent na stronie katalogu AGD wykrywa decision fatigue i tarcie wyszukiwania,
 | A | Sygnały → inferencja | `F-01` → `F-02` → `S-01` | Wspólna baza pod oba scenariusze użytkownika. |
 | B | Decision fatigue | `S-02` | Gwiazda przewodnia; dołącza do Stream A po `S-01`. |
 | C | Tarcie wyszukiwania | `S-03` | Równoległy z Stream B po `S-01`; ten sam box UX. |
-| D | Treść propozycji | `S-04` → `S-05` | S-04: route + Jev/OpenAI i minimalna decyzja action/data. S-05: box i ograniczona historia MetaEvents (Michał). |
+| D | Treść propozycji | `S-04` → `S-05` | Oba slice’e są na `main`: route Jev/OpenAI oraz box po pięciu unikalnych MetaEventach. |
 
 ## Baseline
 
@@ -68,12 +68,12 @@ Foundations below assume these are present and do NOT re-scaffold them.
 Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shopping domain.
 
 - Client pipeline `src/behavior/`: collector → buffer → analyzer → detectors → dispatcher. Raw events stay in the browser.
-- Active detectors: `rage_click`, `dead_click_cluster`, `rapid_filter_churn`, `no_progress_window`, `product_revisit`, `comparison_oscillation`.
+- Active detectors: the six above, plus S-06 (`sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`) and S-07 (`price_focus`, `description_focus`, `search_refinement_loop`, `assistant_proposal_dismissed`). Registry: `src/behavior/detectors/index.ts`.
 - S-05 may pass a bounded snapshot of successfully dispatched MetaEvents into the proposal flow. Catalog facts remain `CatalogEvent` records in sessionStorage and are not sent to Jev.
 
 ### DDD correction
 
-`src/behavior` is an observation context, not the shopping-signal domain. `DecisionEngine` still classifies `CatalogEvent`, but does not gate S-05 requests. S-05 sends a separate bounded MetaEvent summary to Jev after the first successfully sent event; the same accepted batch can trigger the separate intent-timeline lane. See `context/foundation/domain.md`.
+`src/behavior` is an observation context, not the shopping-signal domain. `DecisionEngine` still classifies `CatalogEvent`, but does not gate S-05 requests. S-05 queues a bounded MetaEvent summary after five unique successfully sent events (latest 10). The same accepted batch can trigger the separate intent-timeline lane. See `context/foundation/domain.md`.
 
 - `MetaEvent.quality.strength` is detector confidence. The decision engine does not use it.
 - `comparison_oscillation` and `product_revisit` are not `decision_fatigue`.
@@ -164,7 +164,7 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 
 ### S-04: Odpowiedź z Jev albo z mocniejszego modelu (serwer)
 
-- **Outcome:** `POST /api/assistant-proposal` przyjmuje 1–10 MetaEvents (body do 64 KiB) i zwraca `show` albo `hide`. Jev dostaje bezpieczne podsumowanie bez raw eventów, identyfikatorów sesji/eventu ani ścieżek; pewny, niehedgowany fatigue może użyć skrótu Jev, a pozostałe poprawne wyniki przechodzą do OpenAI. Odpowiedź `show` zawiera wyłącznie akcję i dane.
+- **Outcome:** `POST /api/assistant-proposal` przyjmuje 1–10 MetaEvents (body do 64 KiB) i zwraca `show` albo `hide`. Jev dostaje zminimalizowany prompt. Propozycja przechodzi dalej, gdy suma intencji innych niż spokojne przeglądanie przekracza 0.9. Pewny, niehedgowany `DECISION_FATIGUE` z zawężeniem oraz `UI_FRICTION` z resetem filtrów mogą użyć draftu Jev; pozostałe poprawne wyniki układa OpenAI. Błąd OpenAI dostaje lokalny tekst zapasowy. `show` niesie tytuł, treść, akcję i dane. Gdy w sesji dominuje `researching`, serwer może najpierw pokazać stałą podpowiedź o lodówkach, pralkach albo zmywarkach.
 - **Change ID:** jev-session-proposal
 - **PRD refs:** US-03, FR-010
 - **Prerequisites:** —
@@ -172,13 +172,12 @@ Not closed as F-02 or S-01. Do not rebuild it, and do not treat it as the shoppi
 - **Blockers:** —
 - **Acceptance:**
   - Wyjście Jev jest sprawdzone schematem, zanim powstanie odpowiedź HTTP.
-  - Pewny, niehedgowany `DECISION_FATIGUE` może użyć skrótu Jev; pozostałe poprawne wyjścia są rozstrzygane przez OpenAI.
-  - Błędy modeli i timeouty zwracają bezpieczne `hide`; OpenAI ma osobny timeout i wyłączone retry.
-  - Rate limit Jev; błędy → `hide`.
-- **Unknowns:**
-  - Adres HTTP Typesafe — Owner: team. Block: implementacja klienta Jev.
+  - Skrót Jev: niehedgowany `DECISION_FATIGUE` + `NARROW_BY_SPEC` albo `UI_FRICTION` + `RESET_FILTERS`, z niepustym draftem, przy sumie intencji innych niż spokojne przeglądanie powyżej 0.9.
+  - Błąd i timeout Jev oraz rate limit zwracają `hide`. Błąd OpenAI zwraca lokalny `show`.
+  - Rate limit: 30/min/IP i 10/min/proces. Timeout Jev: 3 s.
+- **Unknowns:** —
 - **Risk:** Niewłaściwy wybór akcji może skierować użytkownika do niewłaściwej części UI; akcja jest ograniczona do enuma, a klucze filtrów są sanityzowane.
-- **Status:** ready
+- **Status:** done
 
 Source / Lineage:
 
@@ -187,7 +186,7 @@ Source / Lineage:
 
 ### S-05: Box propozycji na listingu (UI)
 
-- **Outcome:** po pierwszym unikalnym MetaEvent z poprawnie wysłanego batcha, a potem po każdym nowym evencie do pokazania propozycji, UI wysyła ograniczony snapshot do S-04 i może pokazać jeden box z lokalnym copy oraz akcją/data wybraną przez serwer. Błędy i brak propozycji ukrywają box. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
+- **Outcome:** po pięciu unikalnych MetaEventach z poprawnie wysłanych batchy, a potem po każdym nowym evencie, UI wysyła okno ostatnich 10 zdarzeń do S-04 i może pokazać jeden box. Treść i akcja pochodzą z odpowiedzi serwera. Błąd sieci i `hide` zostawiają box ukryty. Pusty wynik nadal lokalnie ze S-03. Wyciszenie 15 min bez zmian. Bez loadera.
 - **Change ID:** assistant-proposal-box
 - **PRD refs:** US-01, FR-007, FR-010
 - **Prerequisites:** S-04 (route zgodny z `interface.md`)
@@ -195,12 +194,11 @@ Source / Lineage:
 - **Blockers:** —
 - **Acceptance:**
   - Sukcesy `/api/meta-events` zasilają ograniczoną historię 10 MetaEvents; request assistant nie dostaje `CatalogState`, `CatalogEvent[]` ani raw events.
-  - Pierwszy unikalny MetaEvent → kolejka requestów po każdym nowym evencie; `search_friction` lokalnie i priorytetowo; requesty serializowane, abortowane lub wznawiane po odmontowaniu.
-  - Jev dostaje minimalne podsumowanie MetaEvents; pewny shortcut Jev ukrywa propozycję, a pozostałe poprawne wyniki rozstrzyga OpenAI; copy nie jest generowane przez model.
-  - Manual: trzy produkty + powrót; pusty wynik; zamknięcie boxa.
+  - Kolejka startuje od piątego unikalnego eventu; `search_friction` zostaje lokalne; requesty są serializowane, a przerwany request wraca do kolejki po odmontowaniu.
+  - Widoczna propozycja albo wyciszenie zatrzymuje kolejne wywołania.
 - **Unknowns:** —
 - **Risk:** Wyścig odpowiedzi bez `requestId` pokaże starą treść.
-- **Status:** ready
+- **Status:** done
 
 Source / Lineage:
 
@@ -245,21 +243,20 @@ Source / Lineage:
 
 ### S-07: Meta eventy ceny, wyszukiwania i odrzucenia propozycji
 
-- **Outcome:** system zapisuje trzy kolejne meta eventy: `price_focus` (uwaga na cenie), `search_refinement_loop` (wielokrotne uściślanie wyszukiwania) i `assistant_proposal_dismissed` (jawne odrzucenie propozycji asystenta).
+- **Outcome:** system zapisuje cztery meta eventy: `price_focus`, `description_focus`, `search_refinement_loop` i `assistant_proposal_dismissed`. `description_focus` doszedł w tym samym kontrakcie co pozostałe trzy.
 - **Change ID:** behavior-meta-events-2
 - **PRD refs:** FR-012
 - **Prerequisites:** S-06
 - **Parallel with:** S-04
 - **Blockers:** —
 - **Acceptance:**
-  - Box ceny na stronie produktu ma `data-element-id="product-price"`.
+  - Box ceny ma `data-element-id="product-price"`, opis ma `product-description`.
   - Box asystenta i jego kontrolki mają stabilne `data-element-id`.
   - Submit wyszukiwarki emituje raw `search_submitted` bez treści frazy.
-  - Trzy detektory zarejestrowane z progami, allowlistą i testami; dokument kontraktu opisuje je.
-- **Unknowns:**
-  - Progi dwell dla `price_focus` na stronie produktu — kalibracja. Block: no.
+  - Cztery detektory są zarejestrowane z progami, allowlistą i testami; dokument kontraktu je opisuje.
+- **Unknowns:** —
 - **Risk:** Asystent może być rzadko pokazywany na demo, więc `assistant_proposal_dismissed` będzie rzadki. Akceptowalne — to czysty feedback negatywny.
-- **Status:** active
+- **Status:** done
 
 Source / Lineage:
 
@@ -276,16 +273,16 @@ Source / Lineage:
 | S-01 | signal-strength-engine | Classify shopping signal strength | no | Done dla dwóch rodzajów; trzy nazwane bez klasyfikacji |
 | S-02 | decision-fatigue-box | One assistant proposal on decision fatigue | no | Done |
 | S-03 | empty-search-recovery | Filter recovery on empty search | no | Done |
-| S-04 | jev-session-proposal | POST /api/assistant-proposal (Jev/OpenAI action decision) | yes | Lane: Edyta. Kontrakt: `assistant-proposal-box/interface.md`. |
-| S-05 | assistant-proposal-box | Wire listing box to MetaEvents-only Jev proposal flow | yes | Lane: Michał. Po kontrakcie S-04. Plan w `context/changes/assistant-proposal-box/`. |
+| S-04 | jev-session-proposal | POST /api/assistant-proposal (Jev/OpenAI action decision) | no | Done na `main`. Kontrakt: `assistant-proposal-box/interface.md`. |
+| S-05 | assistant-proposal-box | Wire listing box to MetaEvents-only Jev proposal flow | no | Done na `main`. Próg: 5 unikalnych MetaEventów. |
 | S-06 | behavior-meta-events | Six new behavior meta events (interest + dynamics) | no | Done (`7d9e7bc`) |
-| S-07 | behavior-meta-events-2 | Price focus, search refinement loop, proposal dismissed | yes | Tagi na cenie/boxie asystenta + raw search_submitted |
+| S-07 | behavior-meta-events-2 | Price focus, description focus, search refinement loop, proposal dismissed | no | Done na `main` |
 
 ## Open Roadmap Questions
 
 1. **Mock katalog vs integracja Ceneo na demo** — Owner: team. Block: roadmap-wide (nie blokuje F-01).
 2. **Sygnały przerwania przeglądania (B-017)** — Owner: user. Block: no.
-3. **Pipeline inferencji (model Jev) — hosting i klucze** — Owner: team. Zamknięte 2026-10-03: hosting i klucze są w lokalnym środowisku. Dalsza praca to S-04.
+3. **Pipeline inferencji (model Jev) — hosting i klucze** — Owner: team. Zamknięte 2026-10-03: hosting i klucze są w lokalnym środowisku. Route propozycji jest na `main` (S-04).
 
 ## Parked
 
@@ -300,3 +297,6 @@ Source / Lineage:
 - **S-01** `signal-strength-engine` (2026-10-03) — `DecisionEngine` zwraca `decision_fatigue` albo `search_friction`. Bez `brand`, `uncertainty`, `weak_budget` i bez liczbowej mocy sygnału.
 - **S-02** `decision-fatigue-box` (2026-10-03) — jedna podpowiedź przy trzech podobnych produktach i powrocie na listę. Zamknięcie wycisza na 15 minut.
 - **S-03** `empty-search-recovery` (2026-10-03) — jedna podpowiedź przy zerowych wynikach, z wyczyszczeniem searcha i filtrów. Pusty wynik wygrywa z decision fatigue.
+- **S-04** `jev-session-proposal` (na `main` 2026-10-04) — `POST /api/assistant-proposal`: walidacja 1–10 MetaEvents, Jev, skrót albo OpenAI, lokalny fallback przy błędzie OpenAI. Kod: `src/server/assistant-proposal/`, testy w `tests/assistant-proposal/`.
+- **S-05** `assistant-proposal-box` (na `main` 2026-10-04) — coordinator woła route od piątego unikalnego MetaEventu, trzyma okno 10 i pokazuje jeden box. Kod: `src/components/assistant/assistant-proposal-coordinator.tsx`, `src/behavior/assistant-meta-event-history.ts`.
+- **S-07** `behavior-meta-events-2` (na `main` 2026-10-04) — `price_focus`, `description_focus`, `search_refinement_loop`, `assistant_proposal_dismissed`, z tagami DOM i testami.

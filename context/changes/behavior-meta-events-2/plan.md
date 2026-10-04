@@ -20,6 +20,8 @@ System zapisuje trzy dodatkowe sygnaly: `price_focus`, `search_refinement_loop` 
 - Ręcznie: filtry, search, dismiss boxa, dwell na cenie → meta eventy w overlay i POST.
 
 ## Progress
+
+> Stan na `main` (2026-10-04): cztery detektory, w tym `description_focus`, są zarejestrowane i pokryte testami. Otwarty zostaje ręczny przebieg w przeglądarce (2.4).
 - [x] 1.1 Instrumentacja UI + raw search_submitted
 - [x] 2.1 Detektory 3 meta eventow
 - [x] 2.2 Testy i dokumentacja

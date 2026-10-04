@@ -1,5 +1,7 @@
 # Assistant Proposal from Aggregated MetaEvents — Implementation Plan
 
+> Historyczny plan. Slice jest na `main`. Próg requestu to 5 unikalnych MetaEventów. Aktualny kontrakt: [`interface.md`](interface.md).
+
 ## Overview
 
 Connect the existing behavior MetaEvent pipeline to the assistant proposal flow. The client keeps a bounded window of successfully dispatched MetaEvents and queues a request after the first unique event, then after each new event while no proposal is visible. The server asks Jev to classify the event summary, then uses a confident Jev text shortcut or asks OpenAI for `{ title, message }`. Failures produce no box; the filter action remains local to the UI.
@@ -257,6 +259,8 @@ The request contract changes from `{ state, events: CatalogEvent[] }` to `{ meta
 - Current shared API module: `src/lib/assistant-proposal-api.ts`
 
 ## Progress
+
+> Stan na `main` (2026-10-04): fazy 1–3 są w kodzie. Próg requestu to 5 unikalnych MetaEventów, nie pierwszy. Otwarty zostaje tylko ręczny przebieg w przeglądarce (3.4).
 
 > Convention: `- [ ]` pending, `- [x]` done. Append `— <commit sha>` when a step lands.
 

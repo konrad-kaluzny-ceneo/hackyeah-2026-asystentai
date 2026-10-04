@@ -45,6 +45,7 @@ Not on the roadmap yet: `dodaj do roadmapy i utwórz slice: <what the user can d
 - `src/app/layout.tsx` — Polish document language and the shared header.
 - `src/app/behavior-debug-shell.tsx` — mounts the tracker, the persistent assistant-proposal coordinator, and the dev-only debug overlay.
 - `src/app/api/meta-events/route.ts` — POST endpoint for client behavior meta events.
+- `src/app/api/assistant-proposal/route.ts` — POST endpoint that classifies up to 10 MetaEvents through Jev and OpenAI.
 - `src/behavior/` — client-side observation pipeline (collector → buffer → analyzer → detectors → dispatcher). Raw events never leave the browser. Detector confidence is not shopping-signal strength. S-05 may pass a bounded MetaEvent snapshot to the proposal route; it must not use raw events or `debug-store`.
 - `src/components/assistant/assistant-proposal-coordinator.tsx` — root-mounted client request lifecycle; calls the proposal route at the MetaEvent threshold, including while the listing box is unmounted.
 - `src/behavior/ui/` — dev-only debug overlay (`DebugOverlay` + in-memory `debug-store`). Never sends anything anywhere.
@@ -68,7 +69,7 @@ Verify with `npm test` and `npm run typecheck`. Open the browser only when that 
 ## Behavior-tracking rules
 
 - Raw events stay in the browser (memory + sessionStorage). Only meta events are POSTed to `/api/meta-events`.
-- The S-05 assistant request may contain only up to 10 validated MetaEvents from successfully sent batches. Do not send raw events, catalog state/events, or debug-store data to Jev.
+- The S-05 assistant request starts after 5 unique MetaEvents from successfully sent batches and may contain only the latest 10. Do not send raw events, catalog state/events, or debug-store data to Jev.
 - `add_to_cart`, `compare_added`, `compare_removed`, `favorite_added` exist in the TypeScript contract for future reuse, but the demo collector never emits them (PRD Non-Goals; `@context/foundation/prd.md`).
 - Feature flag: `NEXT_PUBLIC_BEHAVIOR_TRACKING=true` enables the tracker client-side. Anything else disables it.
 - Detectors, page-type rules, thresholds and the detector dedupe/cooldown live under `src/behavior/`. See `docs/adding-detector.md` and `docs/adding-page-type.md` before extending.

@@ -1,6 +1,6 @@
 # Kontrakt: propozycja asystenta z MetaEvents
 
-Wspólna umowa dla serverowego przepływu Jev/OpenAI i boxa S-05. UI wysyła snapshot od pierwszego unikalnego MetaEventu z poprawnie wysłanego batcha, a potem po każdym nowym evencie, dopóki propozycja nie zostanie pokazana albo asystent nie zostanie wyciszony. Serwer przekazuje Jev bezpieczne podsumowanie zagregowanych MetaEvents. Pewny, niehedgowany wynik `DECISION_FATIGUE` z niepustym draftem może zwrócić tekst Jev bez drugiego wywołania modelu; pozostałe poprawne wyniki przechodzą do OpenAI, które zwraca wyłącznie `title` i `message`.
+Wspólna umowa dla serverowego przepływu Jev/OpenAI i boxa S-05. Stan na `main` (2026-10-04). UI kolejkuje snapshot od piątego unikalnego MetaEventu z poprawnie wysłanego batcha, a potem po każdym nowym evencie, dopóki propozycja nie zostanie pokazana albo asystent nie zostanie wyciszony. Serwer przekazuje Jev zminimalizowany prompt. Propozycja idzie dalej, gdy suma intencji innych niż spokojne przeglądanie przekracza 0.9. Pewny, niehedgowany `DECISION_FATIGUE` z `NARROW_BY_SPEC` albo `UI_FRICTION` z `RESET_FILTERS` może użyć draftu Jev; pozostałe poprawne wyniki układa OpenAI. Odpowiedź `show` niesie tytuł, treść, akcję i dane.
 
 **Kontrakty w kodzie:** `src/lib/assistant-proposal-api.ts` zawiera request/response UI; `src/behavior/meta-event-schema.ts` jest współdzielonym, ścisłym schematem MetaEvent. `/api/meta-events` zachowuje dotychczasowy format batcha.
 
@@ -12,7 +12,7 @@ Wspólna umowa dla serverowego przepływu Jev/OpenAI i boxa S-05. UI wysyła sna
 | `src/lib/assistant-proposal-api.ts` | S-04 / S-05 | Wspólny request MetaEvents-only oraz parser odpowiedzi |
 | `src/app/api/assistant-proposal/route.ts` | S-04 | Walidacja, limity, Jev i kompozycja odpowiedzi |
 | `src/server/assistant-proposal/*` | S-04 | Klient Jev/OpenAI i prompt z minimalnym podsumowaniem |
-| `src/components/assistant/assistant-proposal-coordinator.tsx` | S-05 | Root coordinator: próg 1 MetaEvent, kolejkowanie requestów, mute gate i abort/requeue |
+| `src/components/assistant/assistant-proposal-coordinator.tsx` | S-05 | Root coordinator: próg 5 unikalnych MetaEventów, kolejkowanie requestów, mute gate i abort/requeue |
 | `src/lib/assistant-proposal-state.ts` | S-05 | Wspólny stan jednej propozycji serwerowej i widocznego local recovery |
 | `src/components/assistant/assistant-inline.tsx` | S-05 | Render propozycji, lokalne empty-search recovery i mute boxa |
 | `src/behavior/assistant-meta-event-history.ts` | S-05 | Ostatnie 10 MetaEvents z poprawnie wysłanych batchy |
@@ -74,12 +74,12 @@ Root coordinator obsługuje próg i kolejkę także podczas nawigacji poza listi
 
 ## Request gate i zachowanie serwera
 
-- S-05 woła route od pierwszego unikalnego eventu z poprawnie wysłanego batcha, a następnie dla każdego nowego eventu, dopóki nie ma widocznej propozycji; `search_friction` pozostaje lokalne.
-- Jev jest wywoływany dopiero po walidacji requestu.
-- Skrót Jev wymaga `DECISION_FATIGUE`, `proposal.confidence >= 0.75`, `hedging_required === false` i niepustego `message_draft`; zwraca `show` z tytułem ustalonym przez aplikację i draftem Jev jako wiadomością.
-- Pozostałe poprawne wyniki Jev przechodzą do OpenAI. OpenAI dostaje wyłącznie zwalidowany wynik Jev i zwraca krótki `title` oraz `message`.
-- Nieprawidłowe body, błąd walidacji Jev, timeout, rate limit albo błąd OpenAI skutkują `{ status: "hide" }`.
-- Akcja serwerowej propozycji (`narrow-choice`) i etykieta linku są ustalane lokalnie przez UI; model nie wybiera akcji, filtrów ani payloadu.
+- S-05 woła route od piątego unikalnego eventu z poprawnie wysłanego batcha (`MIN_ASSISTANT_META_EVENTS_FOR_PROPOSAL`), a następnie dla każdego nowego eventu, dopóki nie ma widocznej propozycji; `search_friction` pozostaje lokalne.
+- Jev jest wywoływany dopiero po walidacji requestu. Wcześniej, gdy ostatni snapshot intencji ma `researching` ≥ 0.5 i wyżej niż pozostałe intencje, a zdarzenia dotyczą lodówek, pralek albo zmywarek, serwer może zwrócić stałą podpowiedź bez wołania Jev.
+- Dalej idzie wynik, którego suma prawdopodobieństw intencji innych niż `exploring` i `SMOOTH_EXPLORATION` przekracza 0.9. Poniżej progu oraz przy `DO_NOTHING` + `SMOOTH_EXPLORATION` odpowiedź to `hide`.
+- Skrót Jev: niehedgowany `DECISION_FATIGUE` + `NARROW_BY_SPEC` albo `UI_FRICTION` + `RESET_FILTERS`, z niepustym `message_draft`. Tytuł skrótu ustala aplikacja (`Pomóc zawęzić wybór?`), wiadomość bierze draft Jev.
+- Pozostałe poprawne wyniki przechodzą do OpenAI. Akcję mapuje `mapJevActionToProposalAction` z `action_type` Jev; model nie wymyśla akcji spoza rejestru skilli.
+- Nieprawidłowe body, błąd walidacji Jev, timeout Jev i rate limit zwracają `{ status: "hide" }`. Błąd OpenAI albo równoległe wywołanie OpenAI zwraca lokalny `show` z tekstem zapasowym dla tej samej akcji.
 
 ## Response (HTTP 200)
 
@@ -89,9 +89,21 @@ type AssistantProposalResponse =
       status: "show";
       title: string;
       message: string;
+      action: AssistantProposalAction;
+      actionLabel: string;
+      data: {
+        target: "filters" | "catalog" | "product";
+        filterKeys: string[];
+        productSlug?: string;
+        categorySlug?: string;
+        sort?: "price_asc" | "price_desc";
+        illustration?: "fox-thinking" | "fox-guiding" | "fox-celebrating";
+      };
     }
   | { status: "hide" };
 ```
+
+Źródło typu: `AssistantProposalResponseSchema` w `src/lib/assistant-proposal-api.ts`.
 
 ### Przykład `show`
 
@@ -99,19 +111,14 @@ type AssistantProposalResponse =
 {
   "status": "show",
   "title": "Pomóc zawęzić wybór?",
-  "message": "Wskaż parametr, który jest dla Ciebie najważniejszy."
-}
-```
-
-### Przykład `show` (OpenAI)
-
-OpenAI zwraca wyłącznie tekst propozycji:
-
-```json
-{
-  "status": "show",
-  "title": "Zawęźmy wybór",
-  "message": "Wybierz jeden parametr, aby łatwiej porównać dostępne modele."
+  "message": "Wskaż parametr, który jest dla Ciebie najważniejszy.",
+  "action": "narrow-choice",
+  "actionLabel": "Przejdź do filtrów",
+  "data": {
+    "target": "filters",
+    "filterKeys": ["capacityLiters"],
+    "illustration": "fox-guiding"
+  }
 }
 ```
 
@@ -125,10 +132,10 @@ OpenAI zwraca wyłącznie tekst propozycji:
 
 Reguły:
 
-- `status: "hide"` — brak boxa dla tego wywołania (nieprawidłowe body, błąd/timeout Jev, rate limit lub błąd OpenAI).
-- Skrót Jev i odpowiedź OpenAI mają ten sam kształt `show`: `title` + `message`.
-- Akcja `narrow-choice` i etykieta „Przejdź do filtrów” są ustawiane przez aplikację, nie przez model.
-- Wywołanie OpenAI ma osobny timeout 5 s; SDK nie ponawia requestu automatycznie.
+- `status: "hide"` — brak boxa dla tego wywołania (nieprawidłowe body, błąd/timeout Jev, rate limit, słaba suma intencji albo spokojne `DO_NOTHING`).
+- Skrót Jev, OpenAI i lokalny fallback mają ten sam kształt `show`: tytuł, treść, akcja, etykieta i dane.
+- Akcja pochodzi z mapowania `action_type` Jev na rejestr skilli w `src/server/assistant-proposal/actions.ts`.
+- Wywołanie OpenAI ma osobny timeout 5 s; SDK nie ponawia requestu automatycznie. Błąd OpenAI nie ukrywa boxa: wraca lokalny tekst dla już wybranej akcji.
 
 ## Semantyka `hide` vs pusty wynik
 

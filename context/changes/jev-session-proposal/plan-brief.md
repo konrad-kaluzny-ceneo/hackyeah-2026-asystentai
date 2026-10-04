@@ -1,5 +1,7 @@
 # Odpowiedź z Jev i OpenAI — Plan Brief
 
+> Historyczny brief. Slice jest na `main`. Aktualny kontrakt: `context/changes/assistant-proposal-box/interface.md`.
+
 > Full plan: `context/changes/jev-session-proposal/plan.md`  
 > Kontrakt dla UI: `context/changes/assistant-proposal-box/interface.md`
 

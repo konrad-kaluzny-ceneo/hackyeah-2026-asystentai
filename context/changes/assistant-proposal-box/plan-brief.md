@@ -1,5 +1,7 @@
 # Assistant Proposal from Aggregated MetaEvents — Plan Brief
 
+> Historyczny brief. Slice jest na `main`. Próg requestu to 5 unikalnych MetaEventów. Aktualny kontrakt: `context/changes/assistant-proposal-box/interface.md`.
+
 > Full plan: `context/changes/assistant-proposal-box/plan.md`
 > API contract to revise during implementation: `context/changes/assistant-proposal-box/interface.md`
 

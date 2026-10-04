@@ -3,7 +3,7 @@ project: "Asystent AI — intencje na bieżąco"
 version: 1
 status: draft
 created: 2026-10-03
-updated: 2026-10-03
+updated: 2026-10-04
 product_type: web-app
 target_scale:
   users: medium
@@ -103,9 +103,9 @@ Value: przy popularnym i pewnym przypadku wystarcza Jev, a mocniejszy model ukł
 
 - FR-009: Asystent respektuje: jedna propozycja na raz, priorytet koszyka nad inspiracją, wyciszenie po zamknięciu, brak powtórek pytań, korekta założeń, honest uncertainty przy słabym sygnale. Priority: must-have
 
-- FR-010: Dla demo serwer może przygotować jedną propozycję na podstawie bezpiecznego podsumowania MetaEvents przez Jev i OpenAI; pewny, niehedgowany wynik `DECISION_FATIGUE` kończy się `hide`, a pozostałe poprawne wyniki rozstrzyga OpenAI. Odpowiedź API zawiera wyłącznie akcję i jej dane, a copy pozostaje po stronie UI. Priority: must-have
+- FR-010: `POST /api/assistant-proposal` przyjmuje 1–10 MetaEvents i zwraca jedną propozycję albo `hide`. UI woła route po pięciu unikalnych, poprawnie wysłanych zdarzeniach. Jev dostaje zminimalizowany prompt. Dalej idzie wynik, którego suma intencji innych niż spokojne przeglądanie przekracza 0.9. Pewny, niehedgowany `DECISION_FATIGUE` z zawężeniem oraz `UI_FRICTION` z resetem filtrów mogą użyć draftu Jev; pozostałe poprawne wyniki układa OpenAI. Błąd OpenAI dostaje lokalny tekst zapasowy. Odpowiedź `show` zawiera tytuł, treść, akcję i dane akcji. Gdy w sesji dominuje `researching` (co najmniej 0.5 i wyżej niż pozostałe intencje), serwer może najpierw pokazać stałą podpowiedź o lodówkach, pralkach albo zmywarkach. Priority: must-have
 - FR-011: System obserwacji zapisuje meta eventy opisujące zainteresowanie produktami i kategoriami oraz dynamikę przeglądania: `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`. Meta eventy opisują wzorzec zachowania, nie emocje ani intencje. Priority: should-have
-- FR-012: System obserwacji zapisuje meta eventy o sygnałach bliskich decyzji i feedbacku do asystenta: `price_focus`, `search_refinement_loop`, `assistant_proposal_dismissed`. Priority: could-have
+- FR-012: System obserwacji zapisuje meta eventy o sygnałach bliskich decyzji i feedbacku do asystenta: `price_focus`, `description_focus`, `search_refinement_loop`, `assistant_proposal_dismissed`. Priority: could-have
 - FR-013: System zapisuje prawdopodobieństwa intencji zakupowych określone przez Jev per anonimowa sesja z timestampem: `exploring`, `researching`, `comparing`, `deciding`, `ready_to_buy`, `price_sensitive`, `overloaded`, `hesitant`. Timeline zwraca wartości `0..1` i wypełnia brakujące sekundy ostatnim znanym stanem. Priority: should-have
 
 ## Non-Functional Requirements

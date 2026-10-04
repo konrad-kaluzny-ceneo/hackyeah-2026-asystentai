@@ -1,6 +1,6 @@
 ---
 project: "Asystent AI — intencje na bieżąco"
-updated: 2026-10-03
+updated: 2026-10-04
 ---
 
 # Domena: intencja zakupowa
@@ -11,11 +11,11 @@ Dwa konteksty. Nie mieszać ich nazw.
 
 Kod: `src/behavior/`, `src/server/meta-events/`, tabela `meta_events`.
 
-To wzorce UI: `rage_click`, `dead_click_cluster`, `rapid_filter_churn`, `no_progress_window`, `product_revisit`, `comparison_oscillation`.
+To wzorce UI. Pełna lista nazw jest w `META_EVENT_NAMES` (`src/behavior/types.ts`): obok wczesnych detektorów tarcia są też `sustained_product_interest`, `category_interest`, `filter_engagement`, `hesitation_dwell`, `rapid_scroll_burst`, `navigation_loop`, `price_focus`, `description_focus`, `search_refinement_loop` i `assistant_proposal_dismissed`.
 
 `MetaEvent.quality.strength` to pewność heurystyki detektora (0–1). To nie jest moc sygnału zakupowego z FR-002.
 
-Te zdarzenia nie są typami intencji zakupowej: `comparison_oscillation` i `product_revisit` same w sobie nie oznaczają decision fatigue. S-05 przekazuje Jev wyłącznie ograniczone podsumowanie zwalidowanych MetaEvents po pierwszym zdarzeniu; serwer klasyfikuje sytuację i stosuje próg confidence. Zaakceptowany batch uruchamia też intent JEV, którego osiem probabilistyk trafia do snapshotu timeline. Lokalny `DecisionEngine` nadal klasyfikuje `CatalogEvent`, ale jego fatigue nie steruje requestem do S-04.
+Te zdarzenia nie są typami intencji zakupowej: `comparison_oscillation` i `product_revisit` same w sobie nie oznaczają decision fatigue. S-05 kolejkuje request po pięciu unikalnych MetaEventach z poprawnie wysłanego batcha i wysyła okno ostatnich 10. Serwer pokazuje propozycję, gdy suma intencji innych niż spokojne przeglądanie przekracza 0.9. Zaakceptowany batch uruchamia też intent JEV, którego osiem probabilistyk trafia do snapshotu timeline. Lokalny `DecisionEngine` nadal klasyfikuje `CatalogEvent`, ale jego fatigue nie steruje requestem do S-04.
 
 ## Intencja zakupowa
 

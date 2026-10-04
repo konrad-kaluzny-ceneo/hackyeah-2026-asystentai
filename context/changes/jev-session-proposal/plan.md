@@ -1,5 +1,7 @@
 # Odpowiedź z Jev i OpenAI — Implementation Plan
 
+> Historyczny plan. Slice jest na `main`. Aktualny kontrakt: [`interface.md`](../assistant-proposal-box/interface.md). Bramka to suma intencji innych niż spokojne przeglądanie powyżej 0.9, a błąd OpenAI zwraca lokalny `show`.
+
 ## Overview
 
 Serwer przyjmuje ograniczone MetaEvents, buduje z nich minimalne podsumowanie i prosi Jev (Typesafe) o klasyfikację. Pewny, niehedgowany wynik `DECISION_FATIGUE` z niepustym draftem może zwrócić skrót Jev; pozostałe poprawne wyniki przechodzą do OpenAI, które zwraca `{ title, message }`. Akcja przejścia do filtrów pozostaje lokalna w UI. Błędy modeli, limity i timeouty skutkują `{ status: "hide" }`. **S-05** podłącza box do tego kontraktu.
@@ -191,6 +193,8 @@ Request używa `{ metaEvents }`; UI wywołuje route wyłącznie dla fatigue. Ga�
 - Rate limit: `src/server/meta-events/rate-limit.ts`
 
 ## Progress
+
+> Stan na `main` (2026-10-04): route, klienci Jev/OpenAI i testy są w repo. Otwarte punkty poniżej pochodzą ze starszego planu (próg confidence 0.75, błąd OpenAI → `hide`). W kodzie bramką jest suma intencji innych niż spokojne przeglądanie powyżej 0.9, a błąd OpenAI zwraca lokalny `show`. Aktualny kontrakt: `context/changes/assistant-proposal-box/interface.md`.
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands.
 
