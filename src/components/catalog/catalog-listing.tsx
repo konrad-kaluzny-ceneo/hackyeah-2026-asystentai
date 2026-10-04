@@ -330,7 +330,7 @@ export function ProductCard({
   compareHighlight?: boolean;
 }) {
   return (
-    <Link href={`/produkt/${product.slug}`} data-element-id="product-card" data-subject-product-id={product.id} data-subject-category-id={product.categoryId} data-subject-brand-id={product.brandId} className={`group relative flex h-full flex-col rounded-2xl border border-border bg-white p-3 transition hover:-translate-y-0.5 hover:border-catalog-focus hover:shadow-[0_12px_30px_rgba(29,53,37,.08)] ${compareHighlight ? "assistant-compare-highlight" : ""}`}>
+    <Link href={`/produkt/${product.slug}`} data-element-id="product-card" data-subject-product-id={product.id} data-subject-category-id={product.categoryId} data-subject-brand-id={product.brandId} className={`group relative flex h-full flex-col rounded-2xl border border-border bg-white p-3 transition hover:-translate-y-0.5 hover:border-catalog-focus hover:shadow-card-hover ${compareHighlight ? "assistant-compare-highlight" : ""}`}>
       {compareRank !== undefined && (
         <span className="absolute z-10 -left-1 -top-1 grid h-7 w-7 place-items-center rounded-full bg-assistant text-xs font-bold text-white shadow-md">
           {compareRank}

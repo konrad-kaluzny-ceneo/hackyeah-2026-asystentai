@@ -40,7 +40,7 @@ export function DebugOverlay() {
         className="flex h-9 shrink-0 w-full items-center justify-between gap-3 px-4 text-left font-semibold dark:hover:bg-zinc-800 hover:bg-zinc-50"
         aria-expanded={!collapsed}
       >
-        <span className="flex items-center gap-2"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Behavior debug</span>
+        <span className="flex items-center gap-2"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-catalog-focus" />Behavior debug</span>
         <span className="flex items-center gap-3">
           <span className="text-[10px] font-normal text-zinc-500">{state.lastRawEvents.length} raw · {state.lastSentMetaEvents.length} meta</span>
           <span aria-hidden>{collapsed ? "▸" : "▾"}</span>

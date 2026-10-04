@@ -39,7 +39,7 @@ export default async function Home() {
           <p className="mt-6 max-w-xl text-base leading-7 text-muted sm:text-lg">
             Odkryj lodówki, pralki i zmywarki. Przejrzyste parametry pomogą Ci szybko znaleźć model do Twojego domu.
           </p>
-          <CatalogSearchForm className="mt-8 flex max-w-xl gap-2 rounded-2xl border border-border-strong bg-white p-2 shadow-[0_12px_35px_rgba(30,54,38,.08)]" placeholder="Np. cicha pralka do małej łazienki" />
+          <CatalogSearchForm className="mt-8 flex max-w-xl gap-2 rounded-2xl border border-border-strong bg-white p-2 shadow-soft" placeholder="Np. cicha pralka do małej łazienki" />
           <p className="mt-3 text-xs text-subtle">Katalog demonstracyjny · marki i produkty mają charakter przykładowy</p>
         </div>
 

@@ -1,37 +1,37 @@
 @import "tailwindcss";
 
 /*
- * Paleta sklepu — jedna tonacja: ciepła szarość + szałwia + stonowany fiolet (AI).
+ * Paleta sklepu — jedna tonacja: lawenda + głęboki fiolet (katalog i asystent).
  * Szybka zmiana wyglądu: edytuj wartości poniżej.
  */
 :root {
-  --background: #f5f6f4;
-  --foreground: #14211e;
+  --background: #f4f2f8;
+  --foreground: #1a1524;
   --surface: #ffffff;
-  --surface-muted: #f7f8f6;
-  --surface-subtle: #f3f6f3;
-  --border: #e3e9e4;
-  --border-strong: #dfe6e0;
-  --border-divider: #e4e9e5;
+  --surface-muted: #f7f5fb;
+  --surface-subtle: #f3f0f9;
+  --border: #e6e1ef;
+  --border-strong: #ddd6eb;
+  --border-divider: #ebe6f2;
 
-  --text-heading: #24352b;
-  --text-body: #27382e;
-  --text-muted: #718078;
-  --text-subtle: #87938b;
-  --text-faint: #98a39b;
-  --text-label: #819087;
-  --text-nav: #65716b;
-  --text-placeholder: #a0aaa3;
-  --text-icon: #6c7c75;
+  --text-heading: #2a2238;
+  --text-body: #2e263c;
+  --text-muted: #726983;
+  --text-subtle: #8a8399;
+  --text-faint: #9c96a8;
+  --text-label: #7d7590;
+  --text-nav: #655d78;
+  --text-placeholder: #a39dad;
+  --text-icon: #6e6582;
 
-  --catalog-primary: #243f31;
-  --catalog-primary-hover: #345743;
-  --catalog-link: #42634f;
-  --catalog-chip: #edf3ee;
-  --catalog-chip-text: #56725e;
-  --catalog-success: #276e43;
-  --catalog-success-soft: rgb(39 110 67 / 0.15);
-  --catalog-focus: #72917b;
+  --catalog-primary: #4c3d72;
+  --catalog-primary-hover: #5e4d88;
+  --catalog-link: #6b5a94;
+  --catalog-chip: #efeaf8;
+  --catalog-chip-text: #5c5080;
+  --catalog-success: #6b5a94;
+  --catalog-success-soft: rgb(107 90 148 / 0.18);
+  --catalog-focus: #9d8fc4;
 
   --price: #bd542e;
   --brand-dot: #bd542e;
@@ -42,26 +42,26 @@
   --assistant-border: #e6e1ef;
   --assistant-chip: #efeaf8;
 
-  --tip-surface: #eef4ef;
-  --tip-border: #dce7de;
-  --tip-label: #56725e;
-  --tip-text: #66776b;
+  --tip-surface: #f0ebf8;
+  --tip-border: #e0d8ef;
+  --tip-label: #5c5080;
+  --tip-text: #726983;
 
-  --banner-demo-bg: #2f3d36;
-  --header-search-bg: #f7f8f6;
-  --hero-panel-outer: #e7eee7;
-  --hero-panel-inner: #dde8df;
-  --category-tile: #e3ebe4;
-  --overlay-dark: #10271c;
-  --spec-divider: #e8ece9;
-  --nav-divider: #f0f2f0;
-  --filter-divider: #edf0ed;
-  --badge-muted-bg: #f0f3ef;
-  --badge-muted-text: #758079;
+  --banner-demo-bg: #3d3552;
+  --header-search-bg: #f7f5fb;
+  --hero-panel-outer: #ebe5f5;
+  --hero-panel-inner: #e0d9f0;
+  --category-tile: #e8e2f2;
+  --overlay-dark: #1a1228;
+  --spec-divider: #ebe6f2;
+  --nav-divider: #f0edf5;
+  --filter-divider: #ede9f4;
+  --badge-muted-bg: #f0edf5;
+  --badge-muted-text: #7a728c;
 
-  --shadow-soft: 0 4px 20px rgb(36 63 49 / 0.06);
-  --shadow-card-hover: 0 12px 30px rgb(29 53 37 / 0.08);
-  --selection-bg: #dbe9df;
+  --shadow-soft: 0 4px 20px rgb(76 61 114 / 0.08);
+  --shadow-card-hover: 0 12px 30px rgb(58 45 90 / 0.1);
+  --selection-bg: #e4daf5;
 }
 
 @theme inline {
@@ -104,7 +104,6 @@
   --color-tip-border: var(--tip-border);
   --color-tip-label: var(--tip-label);
   --color-tip-text: var(--tip-text);
-  --color-tip-border: var(--tip-border);
   --color-banner-demo: var(--banner-demo-bg);
   --color-header-search: var(--header-search-bg);
   --color-hero-outer: var(--hero-panel-outer);
@@ -179,9 +178,9 @@ body {
   background-color: var(--surface-subtle);
   background-image: linear-gradient(
     90deg,
-    rgb(243 246 243 / 0.5) 0%,
+    rgb(243 240 249 / 0.5) 0%,
     rgb(255 255 255 / 1) 50%,
-    rgb(243 246 243 / 0.5) 100%
+    rgb(243 240 249 / 0.5) 100%
   );
   background-size: 200% 100%;
   animation: assistant-proposal-shimmer 1.4s ease-in-out infinite;
