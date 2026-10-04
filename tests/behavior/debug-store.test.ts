@@ -5,8 +5,10 @@ import {
   MAX_LAST_SENT_META_EVENTS,
   recordBatchSent,
   resetDebugStateForTests,
+  setBehaviorDebugOverlayOpen,
   setDebugState,
   subscribeDebug,
+  toggleBehaviorDebugOverlay,
 } from "@/behavior/ui/debug-store";
 
 import { makeIdGenerator, makeMetaEvent, resetFixtureSeed } from "./fixtures";
@@ -20,8 +22,19 @@ describe("debug-store", () => {
   it("starts in a clean state (tracker disabled)", () => {
     const s = getDebugState();
     expect(s.trackerEnabled).toBe(false);
+    expect(s.overlayOpen).toBe(false);
     expect(s.totalMetaSentThisSession).toBe(0);
     expect(s.lastSentMetaEvents).toEqual([]);
+  });
+
+  it("toggles the demo overlay flag", () => {
+    expect(getDebugState().overlayOpen).toBe(false);
+    toggleBehaviorDebugOverlay();
+    expect(getDebugState().overlayOpen).toBe(true);
+    toggleBehaviorDebugOverlay();
+    expect(getDebugState().overlayOpen).toBe(false);
+    setBehaviorDebugOverlayOpen(true);
+    expect(getDebugState().overlayOpen).toBe(true);
   });
 
   it("setDebugState merges and notifies subscribers", () => {
