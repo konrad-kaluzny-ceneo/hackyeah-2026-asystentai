@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 
 import { THRESHOLDS } from "@/behavior/config/thresholds";
@@ -21,8 +21,10 @@ import {
 import type { RawEvent } from "@/behavior/types";
 import { DebugOverlay } from "@/behavior/ui/DebugOverlay";
 import {
+  getDebugState,
   recordBatchSent,
   setDebugState,
+  subscribeDebug,
   type DebugState,
   type RawEventSummary,
 } from "@/behavior/ui/debug-store";
@@ -32,13 +34,21 @@ const SESSION_ID_STORAGE_KEY = "behavior.sessionId.v1";
 
 /**
  * Top-level shell mounted in the root layout. Owns the behavior tracker
- * lifecycle AND feeds telemetry into the dev-only debug overlay.
+ * lifecycle AND feeds telemetry into the demo debug overlay.
  *
  * Subsumes the previous <BehaviorTracker /> component.
  */
+const OVERLAY_SERVER_SNAPSHOT = getDebugState();
+
 export function BehaviorDebugShell() {
   const trackerRef = useRef<BehaviorTracker | null>(null);
   const pathname = usePathname();
+  const { trackerEnabled, overlayOpen } = useSyncExternalStore(
+    subscribeDebug,
+    getDebugState,
+    () => OVERLAY_SERVER_SNAPSHOT,
+  );
+  const showDebugOverlay = trackerEnabled && overlayOpen;
 
   useEffect(() => {
     clearAssistantMetaEventHistory();
@@ -99,7 +109,7 @@ export function BehaviorDebugShell() {
     <>
       <AssistantProposalCoordinator />
       <AssistantProposalWidget />
-      {process.env.NODE_ENV === "development" ? <DebugOverlay /> : null}
+      {showDebugOverlay ? <DebugOverlay /> : null}
     </>
   );
 }

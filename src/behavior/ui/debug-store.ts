@@ -33,6 +33,8 @@ export interface AssistantProposalRequestSummary {
 }
 
 export interface DebugState {
+  /** Whether the hackathon demo overlay is open (header toggle). */
+  readonly overlayOpen: boolean;
   /** Whether the tracker is enabled (true when initBehaviorTracker returned non-null). */
   readonly trackerEnabled: boolean;
   /** Approximation: number of events in the latest sessionStorage checkpoint. */
@@ -57,6 +59,7 @@ export const MAX_LAST_SENT_META_EVENTS = 100;
 export const MAX_ASSISTANT_PROPOSAL_REQUESTS = 100;
 
 const INITIAL_STATE: DebugState = {
+  overlayOpen: false,
   trackerEnabled: false,
   rawEventsInSessionStorage: 0,
   unsentMetaEvents: 0,
@@ -152,6 +155,14 @@ export function subscribeDebug(listener: () => void): () => void {
   };
 }
 
+export function setBehaviorDebugOverlayOpen(open: boolean): void {
+  setDebugState({ overlayOpen: open });
+}
+
+export function toggleBehaviorDebugOverlay(): void {
+  setDebugState({ overlayOpen: !state.overlayOpen });
+}
+
 /** Test hook: resets the store to the initial state. */
 export function resetDebugStateForTests(): void {
   state = INITIAL_STATE;
@@ -160,6 +171,7 @@ export function resetDebugStateForTests(): void {
 
 function shallowEqualDebugState(a: DebugState, b: DebugState): boolean {
   return (
+    a.overlayOpen === b.overlayOpen &&
     a.trackerEnabled === b.trackerEnabled &&
     a.rawEventsInSessionStorage === b.rawEventsInSessionStorage &&
     a.unsentMetaEvents === b.unsentMetaEvents &&

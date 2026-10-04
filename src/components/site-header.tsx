@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
+import { BehaviorAnalyticsToggle } from "@/components/behavior-analytics-toggle";
 import { trackCatalogEvent } from "@/lib/assistant-events";
 import { CLEAR_GLOBAL_SEARCH_EVENT } from "@/lib/catalog-ui-events";
 import type { Category } from "@/lib/catalog-types";
@@ -48,7 +49,11 @@ export default function SiteHeader({ categories }: { categories: Category[] }) {
           </button>
         </form>
 
-        <Link href="/katalog" className="ml-auto hidden shrink-0 items-center gap-2 text-sm font-semibold text-[#42524b] transition hover:text-[#193b35] md:flex">
+        <div className="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-none">
+          <BehaviorAnalyticsToggle />
+        </div>
+
+        <Link href="/katalog" className="hidden shrink-0 items-center gap-2 text-sm font-semibold text-[#42524b] transition hover:text-[#193b35] md:flex">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f0f3ef] text-[#47665c]" aria-hidden="true">⌕</span>
           Wszystkie kategorie
         </Link>
