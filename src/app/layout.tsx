@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   return (
     <html lang="pl" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         <div className="border-b border-border bg-banner-demo px-4 py-2 text-center text-xs font-medium tracking-wide text-white/90">
           DEMO KATALOGU AGD <span className="px-2 text-white/45">·</span> wybierz sprzęt w swoim tempie
         </div>

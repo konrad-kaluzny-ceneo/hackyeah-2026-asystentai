@@ -211,13 +211,13 @@ export default function CatalogListing({
       </div>
 
       <div className="grid items-start gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
-        <aside id="filters" className="rounded-2xl border border-border bg-white p-5 md:sticky md:top-6">
+        <aside id="filters" className="rounded-2xl border border-border bg-white p-5 md:sticky md:top-20">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Filtry</h2>
             {visibleProducts.length > 0 && <button data-element-id="filter-clear" type="button" onClick={clearSearchAndFilters} className="text-xs font-semibold text-catalog-link hover:underline">Wyczyść</button>}
           </div>
           <div id="filter-price" className="mt-5 scroll-mt-24 border-t border-filter-divider pt-4" data-highlighted={highlightedFilters.includes("price") || undefined}>
-            <p className={`mb-3 text-sm font-semibold ${highlightedFilters.includes("price") ? "text-sky-700" : ""}`}>Cena</p>
+            <p className={`mb-3 text-sm font-semibold ${highlightedFilters.includes("price") ? "text-catalog-primary" : ""}`}>Cena</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-[11px] text-subtle">Od
                 <input data-element-id="filter-price-min" data-filter-id="price" aria-label="Cena od" inputMode="numeric" type="number" min="0" value={filters.priceMin ?? ""} onChange={(event) => updateFilter("priceMin", event.target.value)} placeholder="0 zł" className="mt-1 w-full rounded-lg border border-border px-2.5 py-2 text-sm text-catalog-primary outline-none focus:border-catalog-focus" />
@@ -228,15 +228,15 @@ export default function CatalogListing({
             </div>
           </div>
           <div id="filter-brand" className="mt-5 scroll-mt-24 border-t border-filter-divider pt-4" data-highlighted={highlightedFilters.includes("brand") || undefined}>
-            <label className={`block text-sm font-semibold ${highlightedFilters.includes("brand") ? "text-sky-700" : ""}`} htmlFor="brand-filter">Producent</label>
+            <label className={`block text-sm font-semibold ${highlightedFilters.includes("brand") ? "text-catalog-primary" : ""}`} htmlFor="brand-filter">Producent</label>
             <select data-element-id="filter-brand" data-filter-id="brand" id="brand-filter" value={filters.brand ?? ""} onChange={(event) => updateFilter("brand", event.target.value)} className="mt-3 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-catalog-focus">
               <option value="">Wszyscy producenci</option>
               {brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
             </select>
           </div>
           {category?.specFilters.map((spec) => (
-            <div id={`filter-${spec.key}`} key={spec.key} className={`mt-5 scroll-mt-24 border-t border-filter-divider pt-4 ${highlightedFilters.includes(spec.key) ? "rounded-xl ring-2 ring-sky-200" : ""}`}>
-              <p className={`mb-3 text-sm font-semibold ${highlightedFilters.includes(spec.key) ? "text-sky-700" : ""}`}>{spec.label}</p>
+            <div id={`filter-${spec.key}`} key={spec.key} className={`mt-5 scroll-mt-24 border-t border-filter-divider pt-4 ${highlightedFilters.includes(spec.key) ? "rounded-xl bg-catalog-chip/40 ring-2 ring-catalog-focus/40" : ""}`}>
+              <p className={`mb-3 text-sm font-semibold ${highlightedFilters.includes(spec.key) ? "text-catalog-primary" : ""}`}>{spec.label}</p>
               {spec.kind === "select" ? (
                 <select data-element-id={`filter-${spec.key}`} data-filter-id={spec.key} aria-label={spec.label} value={filters[spec.key] ?? ""} onChange={(event) => updateFilter(spec.key, event.target.value)} className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none focus:border-catalog-focus">
                   <option value="">Dowolna</option>

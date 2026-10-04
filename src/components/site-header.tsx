@@ -62,7 +62,7 @@ export default function SiteHeader({ categories }: { categories: Category[] }) {
         <div className="mx-auto flex w-full max-w-[1440px] items-center gap-7 overflow-x-auto px-5 py-2.5 text-[13px] font-medium text-label lg:px-10">
           <span className="hidden shrink-0 text-[10px] font-bold uppercase tracking-[0.13em] text-faint sm:inline">Popularne</span>
           {categories.map((category) => (
-            <Link key={category.slug} href={`/katalog/${category.slug}`} className={`shrink-0 transition hover:text-catalog-primary ${categorySlug === category.slug ? "font-semibold text-catalog-primary" : ""}`}>
+            <Link key={category.slug} href={`/katalog/${category.slug}`} className={`shrink-0 transition hover:text-catalog-primary ${categorySlug === category.slug ? "relative font-semibold text-catalog-primary after:absolute after:-bottom-[11px] after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-catalog-primary" : ""}`}>
               {category.name}
             </Link>
           ))}
